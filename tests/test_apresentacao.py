@@ -52,6 +52,12 @@ def test_numero_de_regra_escrito_como_fonte_vira_link_de_regra():
     assert linkar("Ver [F310].") == f"Ver<sup>{a('CRD 310', CRD + '310')}</sup>."
 
 
+def test_sufixo_inventado_depois_da_fonte_e_descartado():
+    # O LLM reserva escreveu [F1.4.3] em vez de [F1]: fica só o link da fonte.
+    assert linkar("Vence com 8 pontos [F1.4.3].") == f"Vence com 8 pontos<sup>{a('F1', 'https://faq/1')}</sup>."
+    assert linkar("Sim [F1.94.1, F3.2.a].") == f"Sim<sup>{a('F1', 'https://faq/1')}, {a('F3', 'https://carta/3')}</sup>."
+
+
 def test_html_do_llm_nao_entra_na_pagina():
     assert linkar("<script>alert(1)</script> [F1]") == f"&lt;script&gt;alert(1)&lt;/script&gt;<sup>{a('F1', 'https://faq/1')}</sup>"
 

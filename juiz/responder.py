@@ -51,6 +51,7 @@ A mensagem informa o TIPO DE PERGUNTA:
 
 CITAÇÕES
 - Cite a fonte no fim da frase, com a letra F e o número: [F1] ou [F1, F3]. Para regras do Core Rules, use (CRD 355.9.a), fora dos colchetes das fontes: "[F1] (CRD 372)".
+- Nos colchetes vai só o F e o número da fonte, sem pontos nem outros números: escreva [F1], nunca [F1.4.3].
 - Toda afirmação sobre regra precisa de uma citação, mas no máximo uma por frase: nada de [F1][F2][F3] empilhado. Cite a fonte que mais sustenta a frase.
 - Atenção: números entre colchetes dentro do texto das cartas, como [1] ou [Universal], são CUSTOS da carta, não fontes.
 
@@ -119,9 +120,12 @@ class Resposta:
 
 def fontes_citadas(texto: str) -> set[int]:
     """Números das fontes citadas como [F1], [F2] ou [F1, F3]. Custos como [1] não contam, nem
-    números de regra que o LLM às vezes escreve com F ("F331.2"), que têm 3 dígitos."""
+    números de regra que o LLM às vezes escreve com F ("F331.2"), que têm 3 dígitos.
+
+    Sufixo inventado depois de uma fonte ("[F1.4.3]", "[F1.94.1]") é ignorado: conta como F1.
+    """
     return {int(n) for grupo in re.findall(r"\[([^\]]*)\]", texto)
-            for n in re.findall(r"F(\d{1,2})(?![\d.])", grupo)}
+            for n in re.findall(r"F(\d{1,2})(?!\d)", grupo)}
 
 
 RE_PEDIDO_DE_EXPLICACAO = re.compile(
