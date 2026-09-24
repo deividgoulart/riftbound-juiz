@@ -394,3 +394,26 @@ def test_passar_a_prioridade_vira_pass_no_glossario():
     # Etapa 7: "meu oponente passa" precisa trazer a definição oficial de passar a prioridade (CRD 339.1).
     assert "Pass" in [en for _, en in encontrar_termos("meu oponente passa, o que acontece?")]
     assert all(en != "Pass" for _, en in encontrar_termos("posso jogar na minha base?"))
+
+
+# --- plano B (etapa 8): nenhum LLM respondeu ---
+
+class LLMForaDoAr:
+    def gerar(self, instrucoes, mensagem):
+        from google.genai.errors import ServerError
+
+        raise ServerError(503, {"error": {"code": 503, "message": "high demand", "status": "UNAVAILABLE"}})
+
+
+def test_plano_b_devolve_os_trechos_com_o_motivo():
+    resposta = juiz([(TRECHO_FAQ, 0.85), (TRECHO_CRD, 0.75)], LLMForaDoAr()).responder("o Flash mira na base?", plano_b=True)
+    assert "instável" in resposta.sem_llm and "503" in resposta.sem_llm
+    assert resposta.encontrou and resposta.fontes[0].url == TRECHO_FAQ["url"]
+    assert not any(f.citada for f in resposta.fontes)
+
+
+def test_sem_plano_b_o_erro_continua_subindo():
+    from google.genai.errors import ServerError
+
+    with pytest.raises(ServerError):  # a avaliação precisa saber que o LLM falhou
+        juiz([(TRECHO_FAQ, 0.85)], LLMForaDoAr()).responder("o Flash mira na base?")

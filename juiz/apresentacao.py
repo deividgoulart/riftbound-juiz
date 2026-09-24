@@ -25,6 +25,15 @@ RE_GLOSSARIO_SOLTO = re.compile(r"\s*\[Gloss[áa]rio(?: do FAQ)?\]", re.IGNORECA
 ROTULOS = {"faq": "FAQ não oficial", "crd": "Core Rules (oficial)", "carta": "Carta"}
 
 
+def trecho_para_ler(texto: str, limite: int = 700) -> str:
+    """Texto de uma fonte pra mostrar no plano B: sem os títulos (# ...) e cortado no fim de uma palavra."""
+    linhas = [l.strip() for l in texto.splitlines() if l.strip() and not l.lstrip().startswith("#")]
+    corrido = " ".join(linhas)
+    if len(corrido) <= limite:
+        return corrido
+    return corrido[:limite].rsplit(" ", 1)[0] + " …"
+
+
 def plural(n: int, singular: str, plural_: str) -> str:
     """plural(1, "citada", "citadas") -> "1 citada"; plural(2, ...) -> "2 citadas"."""
     return f"{n} {singular if n == 1 else plural_}"

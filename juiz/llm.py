@@ -94,8 +94,124 @@ class LLMGemini:
         raise ultimo_erro
 
 
+class ErroGroq(RuntimeError):
+    """Erro devolvido pela API do Groq (a mensagem dele nunca traz a chave)."""
+
+    def __init__(self, codigo: int, mensagem: str):
+        super().__init__(f"o Groq respondeu com erro {codigo}: {mensagem[:300]}")
+        self.codigo = codigo
+        # Ex.: "Rate limit reached ... on tokens per day (TPD)". Por dia, esperar não adianta.
+        self.por_dia = codigo == 429 and ("per day" in mensagem.lower() or "(tpd)" in mensagem.lower()
+                                          or "(rpd)" in mensagem.lower())
+
+
+class LLMGroq:
+    """Reserva de outra empresa (etapa 8): modelos abertos no Groq, pelo plano grátis.
+
+    Entra quando todos os Gemini falham, que é o que acontece no plano grátis do Google em horário
+    de pico (erro 503, "high demand"). O Groq tem capacidade própria. O plano grátis é apertado
+    (8 mil tokens por minuto e 200 mil por dia: ~1 pergunta por minuto e ~40 por dia), mas como
+    reserva basta. A API segue o formato da OpenAI, então basta um POST com httpx.
+    """
+
+    URL = "https://api.groq.com/openai/v1/chat/completions"
+    ERROS_TEMPORARIOS = (429, 498, 500, 502, 503)  # limite por minuto, capacidade, instabilidade
+
+    def __init__(self, modelo: str | None = None):
+        self.modelo = modelo or config.MODELO_GROQ
+        self.nome = f"groq/{self.modelo}"
+        self.ultimo_uso: dict = {}
+
+    @staticmethod
+    def configurado() -> bool:
+        return bool(os.environ.get("GROQ_API_KEY"))
+
+    def _maximo_de_saida(self) -> int:
+        # O Qwen tem um limite de 1.000 tokens de SAÍDA por minuto no plano grátis, e o Groq recusa o
+        # pedido se a saída prevista (calculada a partir deste máximo) passar disso.
+        return 1024 if self.modelo.startswith("qwen/") else 2048
+
+    def _raciocinio(self) -> dict:
+        """Raciocínio curto e escondido: só a resposta final volta (e gasta menos da cota de tokens)."""
+        if self.modelo.startswith("openai/gpt-oss"):
+            return {"reasoning_effort": "low", "include_reasoning": False}
+        if self.modelo.startswith("qwen/"):
+            return {"reasoning_effort": "low", "reasoning_format": "hidden"}
+        return {}
+
+    def gerar(self, instrucoes: str, mensagem: str, esquema=None) -> str:
+        if esquema is not None:
+            raise ValueError("O Groq não é usado pra respostas em JSON (o avaliador usa só o Gemini).")
+        import httpx
+
+        chave = os.environ.get("GROQ_API_KEY")
+        if not chave:
+            raise RuntimeError("Coloque GROQ_API_KEY no .env ou, no app publicado, nos secrets do Streamlit Cloud")
+        corpo = {
+            "model": self.modelo,
+            "messages": [{"role": "system", "content": instrucoes}, {"role": "user", "content": mensagem}],
+            "max_completion_tokens": self._maximo_de_saida(),
+            **self._raciocinio(),
+        }
+        for tentativa in range(2):
+            resposta = httpx.post(self.URL, json=corpo, headers={"Authorization": f"Bearer {chave}"}, timeout=60)
+            if resposta.status_code == 200:
+                break
+            try:
+                detalhe = resposta.json().get("error", {}).get("message", "")
+            except ValueError:
+                detalhe = resposta.text
+            erro = ErroGroq(resposta.status_code, detalhe)
+            if erro.por_dia:
+                raise CotaEsgotada(self.nome) from erro
+            if resposta.status_code not in self.ERROS_TEMPORARIOS or tentativa == 1:
+                raise erro
+            time.sleep(min(float(resposta.headers.get("retry-after") or 2), 10))
+        dados = resposta.json()
+        uso = dados.get("usage") or {}
+        self.ultimo_uso = {"modelo": self.nome, "tokens_entrada": uso.get("prompt_tokens"),
+                           "tokens_saida": uso.get("completion_tokens")}
+        return (dados["choices"][0]["message"].get("content") or "").strip()
+
+
+class LLMComReservas:
+    """Tenta cada LLM em ordem (os Gemini e depois o Groq). O juiz não precisa saber quem respondeu.
+
+    Um LLM sem chave configurada é pulado. Se todos falharem, levanta o erro mais útil: um erro
+    passageiro (sobrecarga) antes de "cota do dia esgotada", porque tentar de novo pode resolver.
+    """
+
+    def __init__(self, llms: list):
+        self.llms = llms
+        self.nome = llms[0].nome
+        self.ultimo_uso: dict = {}
+
+    def gerar(self, instrucoes: str, mensagem: str, esquema=None) -> str:
+        erros = []
+        for llm in self.llms:
+            if not getattr(llm, "configurado", lambda: True)():
+                continue
+            try:
+                texto = llm.gerar(instrucoes, mensagem, esquema)
+            except Exception as erro:
+                erros.append(erro)
+                continue
+            if not texto.strip():
+                # Acontece com modelos que "pensam" escondido: o raciocínio gasta todo o limite de
+                # saída e a resposta vem vazia (visto no Qwen do Groq). Vazio é falha: tenta o próximo.
+                erros.append(RuntimeError(f"{llm.nome} devolveu uma resposta vazia"))
+                continue
+            self.ultimo_uso = dict(llm.ultimo_uso)
+            return texto
+        passageiros = [e for e in erros if not isinstance(e, CotaEsgotada)]
+        raise (passageiros or erros)[0]
+
+
 LLMS = {"gemini": LLMGemini}
 
 
 def carregar_llm(nome: str = "gemini"):
-    return LLMS[nome]()
+    """O LLM do juiz: os Gemini e, se houver GROQ_API_KEY, o Groq como última reserva."""
+    if nome != "gemini":
+        return LLMS[nome]()
+    return LLMComReservas([LLMGemini(), LLMGroq()])

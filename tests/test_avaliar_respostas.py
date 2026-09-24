@@ -202,3 +202,13 @@ def test_concordancia_junta_revisao_humana_e_avaliador(resultados):
     assert c["concordancia_exata"] == pytest.approx(1 / 3)
     assert c["avaliador_mais_severo"] == ["q02"] and c["avaliador_mais_brando"] == ["q03"]
     assert c["matriz"].loc["correta", "correta"] == 1
+
+
+def test_resposta_vazia_e_incorreta_sem_chamar_o_avaliador():
+    from juiz.avaliar_respostas import avaliar_com_llm
+
+    class AvaliadorQueNaoPodeSerChamado:
+        def gerar(self, *a, **k):
+            raise AssertionError("não devia chamar o avaliador")
+
+    assert avaliar_com_llm(AvaliadorQueNaoPodeSerChamado(), QUESTAO, "  ")["nota"] == "incorreta"

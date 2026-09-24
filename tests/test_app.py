@@ -18,7 +18,7 @@ class JuizFalso:
         self.resposta, self.erro = resposta, erro
         self.historicos = []
 
-    def responder(self, pergunta, historico=None):
+    def responder(self, pergunta, historico=None, plano_b=False):
         self.historicos.append(list(historico or []))
         if self.erro:
             raise self.erro
@@ -226,3 +226,15 @@ def test_secrets_sem_a_chave_mostram_aviso_de_configuracao(app, monkeypatch):
     at.run()
     assert "Falta GEMINI_API_KEY" in at.error[0].value
     assert "segredo" not in at.error[0].value  # nunca mostra valores
+
+
+def test_plano_b_mostra_os_trechos_e_nao_conta_no_limite(app_publico):
+    fontes = [Fonte(1, "faq", "FAQ: Ambush", "https://faq/ambush", "# Ambush\n## Can I?\n\nNo. Ambush only works on battlefields.", 0.84)]
+    plano_b = Resposta("?", "Não consegui escrever a resposta em português agora.", True, fontes,
+                       nota_busca=0.84, sem_llm="o Gemini está instável agora (erro 503)")
+    at = perguntar(app_publico(JuizFalso(plano_b)))
+    assert not at.exception
+    assert "Não consegui escrever" in at.warning[0].value
+    assert any("erro 503" in c.value for c in at.caption)
+    assert any("Ambush only works on battlefields" in m.value for m in at.markdown)
+    assert any("2 perguntas restantes" in c.value for c in at.caption)  # não gastou pergunta do convidado

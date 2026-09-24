@@ -17,7 +17,7 @@ import streamlit as st
 
 from juiz import config
 from juiz.ajustes_streamlit import nao_vasculhar_bibliotecas_pesadas
-from juiz.apresentacao import CREDITOS, ROTULOS, linkar_citacoes, plural, procedencia
+from juiz.apresentacao import CREDITOS, ROTULOS, linkar_citacoes, plural, procedencia, trecho_para_ler
 from juiz.erros import CotaEsgotada, explicar_erro
 from juiz.limites import ContadorDiario, modo_publico, senha_confere
 from juiz.registro import registrar_avaliacao, registrar_erro, registrar_resposta
@@ -127,6 +127,7 @@ def montar_mensagem(resposta, id_: str) -> dict:
         "uso": resposta.uso,
         "termos": resposta.termos,
         "busca": resposta.modelo_busca,
+        "sem_llm": resposta.sem_llm,
     }
 
 
@@ -137,7 +138,8 @@ def historico_da_conversa() -> list[tuple[str, str]]:
         if msg["papel"] == "user":
             pergunta = msg["texto"]
         elif pergunta is not None:
-            pares.append((pergunta, msg["original"]))
+            if not msg.get("sem_llm"):  # no plano B não houve resposta pra lembrar
+                pares.append((pergunta, msg["original"]))
             pergunta = None
     return pares
 
@@ -154,7 +156,28 @@ def mostrar_fonte(f: dict, detalhes: bool) -> None:
     st.markdown(f"**[F{f['numero']}]** {ROTULOS[f['tipo']]} · [{titulo}]({f['url']}){nota}")
 
 
+def sem_markdown(texto: str) -> str:
+    """Escapa o que o Markdown do Streamlit interpretaria no texto das fontes ($ vira fórmula, [ ] vira link...)."""
+    texto = texto.replace("\\", "\\\\")
+    for caractere in "[]*_$`#<>":
+        texto = texto.replace(caractere, "\\" + caractere)
+    return texto
+
+
+def mostrar_plano_b(msg: dict, detalhes: bool) -> None:
+    """Nenhum LLM respondeu: mostra os trechos que a busca achou, com link."""
+    st.warning(msg["texto"], icon=":material/cloud_off:")
+    st.caption(f"Motivo: {msg['sem_llm']}. Tente de novo em alguns minutos pra receber a resposta em português.")
+    for f in msg["fontes"][:3]:
+        with st.container(border=True):
+            mostrar_fonte(f, detalhes)
+            st.markdown(sem_markdown(trecho_para_ler(f["texto"])))
+
+
 def mostrar_resposta(msg: dict, detalhes: bool) -> None:
+    if msg.get("sem_llm"):
+        mostrar_plano_b(msg, detalhes)
+        return
     # unsafe_allow_html: as citações são <sup> com link; o texto do LLM já passou por html.escape.
     st.markdown(msg["texto"], unsafe_allow_html=True)
     if msg.get("busca") and msg["busca"] != config.MODELO_EMBEDDINGS:
@@ -289,7 +312,7 @@ if pergunta:
     with st.chat_message("assistant", avatar="⚖️"):
         try:
             with st.spinner("Consultando as regras..."):
-                resposta = obter_juiz().responder(pergunta, historico=historico)
+                resposta = obter_juiz().responder(pergunta, historico=historico, plano_b=True)
         except Exception as erro:
             traceback.print_exc()  # o detalhe completo vai pro log do servidor (no Streamlit Cloud: Manage app)
             if reservou:
@@ -304,7 +327,11 @@ if pergunta:
         else:
             msg = montar_mensagem(resposta, uuid.uuid4().hex[:8])
             st.session_state.mensagens.append(msg)
-            st.session_state.perguntas_feitas = st.session_state.get("perguntas_feitas", 0) + 1
+            if resposta.sem_llm:  # plano B: não gastou o LLM, então não conta no limite do convidado
+                if reservou:
+                    contador_diario().devolver()
+            else:
+                st.session_state.perguntas_feitas = st.session_state.get("perguntas_feitas", 0) + 1
             if not PUBLICO:
                 registrar_resposta(msg["id"], resposta)
             mostrar_resposta(msg, detalhes)
