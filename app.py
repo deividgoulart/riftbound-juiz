@@ -8,7 +8,6 @@ sozinho, com juiz.atualizar. Publicado (com SENHA_DO_APP nos secrets), entra o m
 veja juiz/limites.py.
 """
 
-import os
 import uuid
 from dataclasses import asdict
 from datetime import timedelta
@@ -20,21 +19,13 @@ from juiz.apresentacao import CREDITOS, ROTULOS, linkar_citacoes, plural, proced
 from juiz.erros import CotaEsgotada
 from juiz.limites import ContadorDiario, modo_publico, senha_confere
 from juiz.registro import registrar_avaliacao, registrar_erro, registrar_resposta
+from juiz.segredos import aplicar_segredos
 
 st.set_page_config(page_title="Juiz Riftbound", page_icon="⚖️", layout="centered")
 
 
-def copiar_segredos_pro_ambiente() -> None:
-    """No Streamlit Cloud, a chave e a senha ficam em st.secrets; o juiz procura no ambiente (como no .env)."""
-    try:
-        for nome in ("GEMINI_API_KEY", "SENHA_DO_APP"):
-            if nome in st.secrets and not os.environ.get(nome):
-                os.environ[nome] = str(st.secrets[nome])
-    except Exception:
-        pass  # no seu computador não há secrets.toml: as chaves vêm do .env
-
-
-copiar_segredos_pro_ambiente()
+# No Streamlit Cloud, a chave e a senha ficam em st.secrets; o juiz procura no ambiente (como no .env).
+PROBLEMA_NOS_SEGREDOS = aplicar_segredos(st.secrets.to_dict)
 PUBLICO = modo_publico()
 
 PRIVACIDADE = ("As perguntas são processadas pelo Google Gemini no plano gratuito: o Google pode usá-las pra "
@@ -239,6 +230,10 @@ with st.sidebar:
 st.title("⚖️ Juiz Riftbound")
 st.caption("Pergunte em português. As respostas vêm do Riftbound FAQ e do Core Rules oficial, com a fonte de cada "
            "afirmação. O juiz lembra da conversa: dá pra perguntar \"e se for durante um showdown?\" depois de uma resposta.")
+if PROBLEMA_NOS_SEGREDOS:
+    # Só aparece quando o app publicado está mal configurado. Nunca mostra valores, só nomes.
+    st.error(f"**Configuração do app:** {PROBLEMA_NOS_SEGREDOS} (No Streamlit Cloud: Settings > Secrets.)",
+             icon=":material/key:")
 
 if "mensagens" not in st.session_state:
     st.session_state.mensagens = []
