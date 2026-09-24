@@ -137,3 +137,11 @@ DECKS_DB = DATA_DIR / "decks.sqlite"
 # O catálogo do FAQ não traz as runas básicas, que entram no Rune Deck (12 por deck, CRD 103.2).
 RUNAS_BASICAS = {"Fury Rune": "Fury", "Calm Rune": "Calm", "Mind Rune": "Mind",
                  "Body Rune": "Body", "Chaos Rune": "Chaos", "Order Rune": "Order"}
+# Decks do meta (fase 2, etapa 2): torneios de Riftbound pela API oficial do TopDeck.gg (grátis, com
+# chave em TOPDECK_API_KEY). Os decks guardados são substituídos a cada coleta.
+TOPDECK_API_URL = "https://topdeck.gg/api/v2/tournaments"
+TOPDECK_BRACKET_URL = "https://topdeck.gg/bracket/{tid}"
+META_DIAS = 30  # torneios dos últimos N dias
+META_TOP_POR_TORNEIO = 8  # só as melhores colocações de cada torneio
+META_MIN_JOGADORES = 8  # torneios menores que isso ficam de fora (resultado pouco representativo)
+META_ATUALIZAR_A_CADA_DIAS = 7  # o app coleta de novo sozinho quando a última coleta tem mais que isso

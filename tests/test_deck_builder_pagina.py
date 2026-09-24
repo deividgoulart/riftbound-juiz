@@ -16,10 +16,13 @@ def pagina(monkeypatch, banco, catalogo):
     monkeypatch.delenv("SENHA_DO_APP", raising=False)
     monkeypatch.delenv("TURSO_DATABASE_URL", raising=False)
     monkeypatch.delenv("TURSO_AUTH_TOKEN", raising=False)
+    monkeypatch.delenv("TOPDECK_API_KEY", raising=False)
 
-    def abrir(senha=None):
+    def abrir(senha=None, topdeck=None):
         if senha:
             monkeypatch.setenv("SENHA_DO_APP", senha)
+        if topdeck:
+            monkeypatch.setenv("TOPDECK_API_KEY", topdeck)
         at = AppTest.from_file(str(config.RAIZ / "paginas" / "deck_builder.py"), default_timeout=30)
         at.session_state["deck_builder_de_teste"] = (banco, catalogo)
         return at.run()
@@ -94,3 +97,46 @@ def test_publicado_com_senha_libera_a_edicao(pagina):
     at = at.sidebar.button[0].click().run()
     assert at.session_state["dono"] is True
     assert botao(at, "Salvar alterações")
+
+
+# --- Decks do meta ---
+
+def coletar_meta(banco, catalogo):
+    from tests.test_decks_meta import AGORA, cliente_falso, deck_obj, torneio
+    from decks.meta import atualizar_meta
+
+    decks = {2: deck_obj(lenda="Kennen, Heart of the Tempest")}
+    atualizar_meta(banco, catalogo, "k", cliente=cliente_falso([torneio(decks=decks)], []), agora=AGORA)
+
+
+def test_sem_chave_do_topdeck_explica_como_ligar(pagina):
+    at = pagina()
+    assert any("TOPDECK_API_KEY" in i.value for i in at.info)
+    assert "Atualizar agora" not in {b.label for b in at.button}
+
+
+def test_decks_do_meta_ficam_separados_dos_meus(pagina, banco, catalogo):
+    salvar_deck(banco, "Meu deck", ler_lista("2 Abandon", catalogo))
+    coletar_meta(banco, catalogo)
+    at = pagina(topdeck="k")
+    assert not at.exception
+    assert any("Última coleta: 24/09/2026" in c.value for c in at.caption)
+    assert botao(at, "Atualizar agora")
+    textos = [m.value for m in at.markdown]
+    assert sum("º em Liga de Sábado" in t for t in textos) == 8
+    assert any(t.startswith("**Meu deck**") for t in textos)
+    assert sum(b.label == "Apagar deck" for b in at.button) == 1  # só o manual pode ser apagado
+
+    filtro = next(m for m in at.multiselect if m.label == "Lenda")
+    assert "Kennen, Heart of the Tempest" in filtro.options  # com o campeão na frente
+    at = filtro.select("Heart of the Tempest").run()
+    textos = [m.value for m in at.markdown]
+    assert [t for t in textos if "º em" in t] == ["**Kennen, Heart of the Tempest · 2º em Liga de Sábado** · "
+                                                   "[lista original](https://topdeck.gg/bracket/t1) · 20/09/2026"]
+
+
+def test_modo_leitura_nao_tem_atualizar_agora(pagina, banco, catalogo):
+    coletar_meta(banco, catalogo)
+    at = pagina(senha="segredo", topdeck="k")
+    assert "Atualizar agora" not in {b.label for b in at.button}
+    assert sum("º em Liga de Sábado" in m.value for m in at.markdown) == 8

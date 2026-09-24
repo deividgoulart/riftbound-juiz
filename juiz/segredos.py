@@ -14,7 +14,8 @@ só nomes.
 import os
 from collections.abc import Callable
 
-NOMES = ("GEMINI_API_KEY", "GROQ_API_KEY", "SENHA_DO_APP", "TURSO_DATABASE_URL", "TURSO_AUTH_TOKEN")
+NOMES = ("GEMINI_API_KEY", "GROQ_API_KEY", "SENHA_DO_APP", "TURSO_DATABASE_URL", "TURSO_AUTH_TOKEN",
+         "TOPDECK_API_KEY")
 
 
 def _achar(segredos: dict, nome: str):

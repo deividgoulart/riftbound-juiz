@@ -5,12 +5,12 @@ chama as funções de lá. Publicado (com SENHA_DO_APP), o visitante só vê; ed
 """
 
 import traceback
-from datetime import timedelta
+from datetime import date, timedelta
 
 import pandas as pd
 import streamlit as st
 
-from decks import colecao, conclusao
+from decks import colecao, conclusao, meta
 from decks.banco import abrir_banco, turso_configurado
 from decks.catalogo import preparar
 from decks.importar import NOMES_DAS_SECOES, ler_lista
@@ -24,6 +24,8 @@ from juiz.segredos import aplicar_segredos
 st.set_page_config(page_title="Deck builder · Juiz Riftbound", page_icon="🃏", layout="wide")
 aplicar_segredos(st.secrets.to_dict)  # a página pode ser aberta direto: lê o Turso e a senha dos secrets
 PUBLICO = modo_publico()
+
+MAX_DECKS_DO_META = 20  # a coleta traz centenas; a página mostra os mais fáceis de montar
 
 EXEMPLO_DE_LISTA = """Legend:
 1 Jinx, Loose Cannon
@@ -44,7 +46,15 @@ def carregar():
     """Abre o banco (Turso ou local) e sincroniza o catálogo, uma vez só pra todos os visitantes.
     Como no juiz, o cache expira uma vez por dia: cartas novas no FAQ entram no catálogo."""
     banco = abrir_banco()
-    return banco, preparar(banco)
+    catalogo = preparar(banco)
+    # Decks do meta: coleta de novo quando a última tem mais de uma semana. Se o TopDeck.gg falhar,
+    # a página abre com os decks que já existem.
+    if meta.chave_topdeck() and meta.precisa_atualizar_meta(banco):
+        try:
+            print("Decks do meta: " + meta.resumo(meta.atualizar_meta(banco, catalogo, meta.chave_topdeck())))
+        except Exception:
+            traceback.print_exc()
+    return banco, catalogo
 
 
 def obter():
@@ -97,7 +107,7 @@ if not pode_editar:
     st.caption("Modo leitura: você vê a coleção e os decks do dono do app.")
 
 # Com key, a aba escolhida continua aberta depois de salvar (senão o st.rerun() voltaria pra 1ª)
-aba_colecao, aba_decks = st.tabs(["Minha coleção", "Decks"], key="aba_deck_builder")
+aba_colecao, aba_decks, aba_meta = st.tabs(["Minha coleção", "Meus decks", "Decks do meta"], key="aba_deck_builder")
 
 # --- Coleção ---
 
@@ -181,18 +191,45 @@ with aba_colecao:
                         avisar_depois("warning", f"{len(relatorio.invalidas)} linhas ignoradas (quantidade inválida).")
                     st.rerun()
 
-# --- Decks ---
+# --- Decks (meus e do meta) ---
 
-with aba_decks:
-    o1, o2 = st.columns(2)
-    runas_garantidas = o1.toggle("Conto com as runas básicas", value=True,
+with st.sidebar:
+    st.markdown("**Conta da conclusão**")
+    runas_garantidas = st.toggle("Conto com as runas básicas", value=True,
                                  help="Quase todo jogador tem as runas de um deck inicial. Desligue pra contar as "
                                       "runas pela sua coleção.")
-    incluir_sideboard = o2.toggle("Incluir o sideboard", help="O sideboard não é necessário pra jogar.")
-    ranking = conclusao.ranking(banco, incluir_sideboard=incluir_sideboard, runas_garantidas=runas_garantidas)
+    incluir_sideboard = st.toggle("Incluir o sideboard", help="O sideboard não é necessário pra jogar.")
 
+ranking = conclusao.ranking(banco, incluir_sideboard=incluir_sideboard, runas_garantidas=runas_garantidas)
+meus = [c for c in ranking if c.deck["origem"] != meta.ORIGEM]
+do_meta = [c for c in ranking if c.deck["origem"] == meta.ORIGEM]
+listas = cartas_dos_decks(banco) if ranking else {}
+
+
+def mostrar_deck(c, pode_apagar: bool) -> None:
+    with st.container(border=True):
+        st.markdown(f"**{c.deck['nome']}**" + (f" · [lista original]({c.deck['url']})" if c.deck.get("url") else "")
+                    + (f" · {date.fromisoformat(c.deck['data']):%d/%m/%Y}" if c.deck.get("data") else ""))
+        st.progress(min(c.porcentagem / 100, 1.0), text=f"{c.porcentagem:.0f}% · tenho {c.tenho} de {c.total} cópias")
+        if c.faltando:
+            with st.expander(f"Faltam {c.copias_faltando} cópias de {len(c.faltando)} cartas"):
+                st.dataframe(pd.DataFrame([{"Carta": x.carta, "Precisa": x.precisa, "Tenho": x.tem, "Falta": x.falta}
+                                           for x in c.faltando]), hide_index=True, width="stretch")
+        else:
+            st.success("Tenho todas as cartas deste deck!", icon=":material/check_circle:")
+        with st.expander("Lista completa"):
+            st.dataframe(pd.DataFrame([{"Seção": NOMES_DAS_SECOES.get(l["secao"], l["secao"]), "Carta": l["carta"],
+                                        "Cópias": l["quantidade"]} for l in listas.get(c.deck["id"], [])]),
+                         hide_index=True, width="stretch")
+        if pode_apagar and st.button("Apagar deck", key=f"apagar_{c.deck['id']}", icon=":material/delete:"):
+            apagar_deck(banco, c.deck["id"])
+            avisar_depois("success", f"Deck \"{c.deck['nome']}\" apagado.")
+            st.rerun()
+
+
+with aba_decks:
     if pode_editar:
-        with st.expander("Importar um deck", expanded=not ranking, icon=":material/add:"):
+        with st.expander("Importar um deck", expanded=not meus, icon=":material/add:"):
             with st.form("form_deck"):
                 nome = st.text_input("Nome do deck", placeholder="Ex.: Jinx do torneio de sábado")
                 texto = st.text_area("Lista do deck", height=260, placeholder=EXEMPLO_DE_LISTA,
@@ -220,26 +257,44 @@ with aba_decks:
                                 avisar_depois("info", f"Regras de construção: {aviso}")
                             st.rerun()
 
-    listas = cartas_dos_decks(banco) if ranking else {}
-    if not ranking:
+    if not meus:
         st.info("Nenhum deck ainda." + (" Importe uma lista acima." if pode_editar else ""))
+    for c in meus:
+        mostrar_deck(c, pode_apagar=pode_editar)
 
-    for c in ranking:
-        with st.container(border=True):
-            st.markdown(f"**{c.deck['nome']}**" + (f" · [lista original]({c.deck['url']})" if c.deck.get("url") else ""))
-            st.progress(min(c.porcentagem / 100, 1.0),
-                        text=f"{c.porcentagem:.0f}% · tenho {c.tenho} de {c.total} cópias")
-            if c.faltando:
-                with st.expander(f"Faltam {c.copias_faltando} cópias de {len(c.faltando)} cartas"):
-                    st.dataframe(pd.DataFrame([{"Carta": x.carta, "Precisa": x.precisa, "Tenho": x.tem, "Falta": x.falta}
-                                               for x in c.faltando]), hide_index=True, width="stretch")
-            else:
-                st.success("Tenho todas as cartas deste deck!", icon=":material/check_circle:")
-            with st.expander("Lista completa"):
-                st.dataframe(pd.DataFrame([{"Seção": NOMES_DAS_SECOES.get(l["secao"], l["secao"]), "Carta": l["carta"],
-                                            "Cópias": l["quantidade"]} for l in listas.get(c.deck["id"], [])]),
-                             hide_index=True, width="stretch")
-            if pode_editar and st.button("Apagar deck", key=f"apagar_{c.deck['id']}", icon=":material/delete:"):
-                apagar_deck(banco, c.deck["id"])
-                avisar_depois("success", f"Deck \"{c.deck['nome']}\" apagado.")
-                st.rerun()
+with aba_meta:
+    st.markdown("Decks que ficaram entre os primeiros em torneios recentes, coletados pela API do "
+                "[TopDeck.gg](https://topdeck.gg/riftbound), do mais fácil pro mais difícil de montar com a sua coleção.")
+    ultima = meta.ultima_coleta(banco)
+    if not meta.chave_topdeck():
+        st.info("A coleta dos decks do meta está desligada: falta a TOPDECK_API_KEY (uma chave grátis da sua conta "
+                "no TopDeck.gg) no .env ou nos secrets do app.", icon=":material/key:")
+    else:
+        st.caption(f"Última coleta: {ultima:%d/%m/%Y}. O app coleta de novo sozinho a cada "
+                   f"{config.META_ATUALIZAR_A_CADA_DIAS} dias." if ultima else "Ainda não houve coleta.")
+        if pode_editar and st.button("Atualizar agora", icon=":material/sync:"):
+            with st.spinner("Buscando os torneios no TopDeck.gg..."):
+                try:
+                    relatorio = meta.atualizar_meta(banco, catalogo, meta.chave_topdeck())
+                except Exception as erro:
+                    traceback.print_exc()
+                    st.error(f"Não consegui atualizar os decks do meta ({explicar_erro(erro)}).")
+                else:
+                    avisar_depois("success", meta.resumo(relatorio))
+                    if relatorio.desconhecidas:
+                        avisar_depois("warning", "Cartas não reconhecidas: " + ", ".join(
+                            f"\"{n}\"" for n, _ in relatorio.desconhecidas.most_common(10)))
+                    st.rerun()
+
+    if do_meta:
+        lendas = sorted({l["carta"] for c in do_meta for l in listas.get(c.deck["id"], []) if l["secao"] == "lenda"})
+        escolhidas = st.multiselect("Lenda", lendas, placeholder="Todas",
+                                    format_func=lambda lenda: meta.nome_da_lenda(lenda, catalogo))
+        filtrados = [c for c in do_meta if not escolhidas or any(
+            l["secao"] == "lenda" and l["carta"] in escolhidas for l in listas.get(c.deck["id"], []))]
+        st.caption(f"{len(filtrados)} decks" + (f"; mostrando os {MAX_DECKS_DO_META} mais fáceis de montar."
+                                                if len(filtrados) > MAX_DECKS_DO_META else "."))
+        for c in filtrados[:MAX_DECKS_DO_META]:
+            mostrar_deck(c, pode_apagar=False)
+    elif meta.chave_topdeck():
+        st.info("Nenhum deck do meta ainda.")
