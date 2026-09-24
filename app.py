@@ -8,6 +8,7 @@ sozinho, com juiz.atualizar. Publicado (com SENHA_DO_APP nos secrets), entra o m
 veja juiz/limites.py.
 """
 
+import traceback
 import uuid
 from dataclasses import asdict
 from datetime import timedelta
@@ -15,13 +16,15 @@ from datetime import timedelta
 import streamlit as st
 
 from juiz import config
+from juiz.ajustes_streamlit import nao_vasculhar_bibliotecas_pesadas
 from juiz.apresentacao import CREDITOS, ROTULOS, linkar_citacoes, plural, procedencia
-from juiz.erros import CotaEsgotada
+from juiz.erros import CotaEsgotada, explicar_erro
 from juiz.limites import ContadorDiario, modo_publico, senha_confere
 from juiz.registro import registrar_avaliacao, registrar_erro, registrar_resposta
 from juiz.segredos import aplicar_segredos
 
 st.set_page_config(page_title="Juiz Riftbound", page_icon="⚖️", layout="centered")
+nao_vasculhar_bibliotecas_pesadas()  # evita o observador de arquivos travar com a transformers
 
 
 # No Streamlit Cloud, a chave e a senha ficam em st.secrets; o juiz procura no ambiente (como no .env).
@@ -51,8 +54,9 @@ def carregar_juiz():
         try:
             atualizar()
         except Exception as erro:  # ex.: sem internet. Se já existem dados, segue com eles.
+            traceback.print_exc()
             if not dados_prontos():
-                raise
+                raise RuntimeError(f"não consegui baixar e preparar as regras: {explicar_erro(erro)}") from erro
             print(f"Não consegui atualizar as fontes; usando os dados que já existem ({erro})")
     return Juiz.padrao()
 
@@ -287,6 +291,7 @@ if pergunta:
             with st.spinner("Consultando as regras..."):
                 resposta = obter_juiz().responder(pergunta, historico=historico)
         except Exception as erro:
+            traceback.print_exc()  # o detalhe completo vai pro log do servidor (no Streamlit Cloud: Manage app)
             if reservou:
                 contador_diario().devolver()
             if not PUBLICO:
@@ -294,8 +299,7 @@ if pergunta:
             if isinstance(erro, CotaEsgotada):
                 st.warning(f"{CotaEsgotada.MENSAGEM} Até lá, o juiz não consegue responder.", icon="⏳")
             else:
-                dica = f" ({erro})" if isinstance(erro, RuntimeError) else ""
-                st.error(f"Não consegui responder agora{dica}. Tente de novo em alguns instantes.")
+                st.error(f"Não consegui responder agora ({explicar_erro(erro)}). Tente de novo em alguns instantes.")
             st.session_state.mensagens.pop()
         else:
             msg = montar_mensagem(resposta, uuid.uuid4().hex[:8])
@@ -314,4 +318,8 @@ if pergunta:
 # Prepara o juiz assim que a página abre (depois de desenhar a tela), e não só na 1ª pergunta.
 # Na nuvem, a 1ª vez baixa e processa as fontes: o visitante lê a página enquanto isso.
 if "juiz_de_teste" not in st.session_state:
-    carregar_juiz()
+    try:
+        carregar_juiz()
+    except Exception as erro:
+        traceback.print_exc()
+        st.error(f"O juiz não conseguiu se preparar ({explicar_erro(erro)}). Recarregue a página em alguns instantes.")
