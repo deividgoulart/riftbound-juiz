@@ -388,3 +388,9 @@ def test_toda_regra_do_arquivo_de_definicoes_existe_no_crd():
     regras = {json.loads(l)["numero"] for l in (config.PROCESSED_DIR / "crd_regras.jsonl").open(encoding="utf-8")}
     for d in yaml.safe_load(config.DEFINICOES.read_text(encoding="utf-8")):
         assert set(d.get("regras", [])) <= regras, d["termos"]
+
+
+def test_passar_a_prioridade_vira_pass_no_glossario():
+    # Etapa 7: "meu oponente passa" precisa trazer a definição oficial de passar a prioridade (CRD 339.1).
+    assert "Pass" in [en for _, en in encontrar_termos("meu oponente passa, o que acontece?")]
+    assert all(en != "Pass" for _, en in encontrar_termos("posso jogar na minha base?"))

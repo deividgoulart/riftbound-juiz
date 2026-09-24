@@ -1,0 +1,13 @@
+id,humano,antes,depois,justificativa
+q11,correta,correta,correta,A resposta do juiz chega à mesma conclusão da esperada e explica corretamente que o token deixa de existir e não pode ser jogado.
+q24,correta,correta,correta,"A resposta do juiz explicou corretamente o processo de mulligan, incluindo a quantidade de cartas e a ordem correta das ações."
+q15,parcial,incorreta,incorreta,"O juiz afirmou que é possível responder antes da unidade entrar no tabuleiro, contradizendo a resposta esperada."
+q34,parcial,correta,correta,O juiz chega à mesma conclusão de que a magia resolve após a passagem do oponente sem exigir uma nova passagem do jogador.
+q05,correta,correta,correta,A resposta do juiz chega à mesma conclusão da esperada e explica corretamente a interação entre os efeitos de substituição.
+q13,correta,parcial,correta,"A resposta do juiz chega $mesma conclus$o da esperada, confirmando que a habilidade resolve independentemente da remo$$o da fonte."
+q19,correta,correta,correta,"A resposta do juiz chega à mesma conclusão da esperada, explicando corretamente que o feitiço vai para o banimento devido ao efeito do Flow."
+q27,correta,correta,correta,O juiz afirmou corretamente que não encontrou a resposta e não inventou o texto da carta.
+q20,correta,parcial,parcial,"A resposta do juiz se contradiz ao afirmar 'Sim' no início, embora explique corretamente que a mecânica de Emboscada não funciona na base."
+q44,correta,incorreta,parcial,"O juiz deu dicas de estratégia ao sugerir cartas que funcionam com descarte, o que a resposta esperada diz para não fazer."
+q17,correta,correta,correta,"A resposta do juiz chega à mesma conclusão da esperada, explicando corretamente que o controle é verificado no cleanup e mantido se houver chain ou combate."
+q22,correta,parcial,correta,A resposta do juiz aborda corretamente o tamanho mínimo do deck principal e o limite de cópias por carta.

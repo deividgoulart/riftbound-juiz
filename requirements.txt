@@ -1,22 +1,16 @@
-# Etapa 1: download e exploração do FAQ (versões testadas em 23/09/2026)
-python-dotenv>=1.2   # lê as chaves de API do arquivo .env
-pyyaml>=6.0          # lê o frontmatter (cabeçalho YAML) dos arquivos MDX
-pandas>=3.0          # tabelas e contagens na exploração
-matplotlib>=3.11     # gráficos do notebook
-jupyter>=1.1         # roda o notebook de exploração
+# Dependências do app e da atualização dos dados (é este arquivo que o Streamlit Cloud instala).
+# Pra desenvolver (notebooks, testes, avaliações): pip install -r requirements-dev.txt
+# Versões testadas em 24/09/2026.
 
-# Etapa 2: testes automatizados
-pytest>=9.0          # roda os testes em tests/ (python -m pytest)
+# PyTorch só pra CPU: o pacote padrão do PyPI no Linux vem com CUDA (placa de vídeo) e ocupa
+# vários GB a mais. No Windows, o pacote do PyPI já é o de CPU.
+--extra-index-url https://download.pytorch.org/whl/cpu
 
-# Etapa 3: leitura do CRD
-beautifulsoup4>=4.13 # lê o HTML do CRD e navega pela árvore de regras
-
-# Etapa 4: embeddings e busca
-numpy>=2.0                  # guarda os vetores e calcula a similaridade
-torch>=2.6                  # roda os modelos locais (no Windows, o pacote do PyPI já é a versão CPU)
-sentence-transformers>=5.0  # carrega os modelos de embeddings do HuggingFace
-google-genai>=1.30          # SDK oficial do Gemini (modelo gemini-2 da comparação)
-rank-bm25>=0.2              # busca por palavra-chave, usada como linha de base
-
-# Etapa 6: interface
-streamlit>=1.64             # o app de chat (streamlit run app.py)
+python-dotenv>=1.2          # lê as chaves de API do arquivo .env
+pyyaml>=6.0                 # glossário, definições e frontmatter dos MDX
+beautifulsoup4>=4.13        # lê o HTML do Core Rules
+numpy>=2.0                  # vetores da busca e similaridade
+google-genai>=1.30          # SDK oficial do Gemini (embeddings e LLM)
+torch>=2.6                  # roda a busca reserva (e5-small)
+sentence-transformers>=5.0  # carrega o modelo da busca reserva
+streamlit>=1.64             # o app de chat

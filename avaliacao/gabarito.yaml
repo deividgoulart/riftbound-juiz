@@ -1,4 +1,4 @@
-# Perguntas-gabarito do Riftbound Juiz (etapa 2b)
+# Perguntas-gabarito do Riftbound Juiz (etapa 2b; ampliado na etapa 7)
 #
 # Para que serve: medir se a busca (etapa 4) e as respostas (etapa 7) estão certas.
 # Cada pergunta tem a resposta esperada e onde ela está (trechos do FAQ e/ou regras do CRD).
@@ -6,7 +6,7 @@
 # Campos:
 #   id                 identificador curto (q01, q02...)
 #   pergunta           como um jogador perguntaria, em português
-#   categoria          carta | regra_geral | mecanica | so_crd | fora_do_escopo
+#   categoria          carta | regra_geral | mecanica | so_crd | definicao | continuacao | fora_do_escopo
 #   estilo             formal | informal | termo_em_portugues
 #                        termo_em_portugues = usa tradução de termo do jogo (atordoar = Stun),
 #                        pra testar se a busca multilíngue entende o termo
@@ -14,6 +14,10 @@
 #   fontes_esperadas   IDs de trechos do FAQ (data/processed/faq_trechos.jsonl). Na busca,
 #                        achar QUALQUER um deles conta como acerto. O primeiro é o principal.
 #   regras_esperadas   números das regras do CRD que sustentam a resposta
+#   conclusao          (opcional) "sim", "não" ou "depende": como a resposta deve começar.
+#                        Serve pra checar automaticamente se o juiz chegou à conclusão certa.
+#   historico          (opcional, só em "continuacao") as perguntas e respostas anteriores
+#   origem             (opcional) "real" = pergunta feita de verdade no app (etapa 7)
 #
 # Perguntas "so_crd" só têm resposta no CRD (entra na etapa 3).
 # Perguntas "fora_do_escopo" NÃO têm resposta: o bot deve dizer que não encontrou.
@@ -28,6 +32,7 @@
   pergunta: "O Flash pode ter como alvo uma unidade que já está na base?"
   categoria: carta
   estilo: formal
+  conclusao: "sim"
   resposta_esperada: >-
     Sim. O Flash define a base como destino (o jogador não escolhe o destino), então a
     restrição de mover para um local diferente não torna ilegal uma unidade que já está na base.
@@ -39,6 +44,7 @@
   pergunta: "Posso usar o Lacerate numa unidade com mais de 3 de força?"
   categoria: carta
   estilo: termo_em_portugues
+  conclusao: "sim"
   resposta_esperada: >-
     Sim, pode escolher qualquer unidade legal. "Choose a unit" não restringe o alvo pela might;
     a condição "if it has 3 might or less" só é verificada quando o Lacerate resolve. Se a
@@ -52,6 +58,7 @@
   pergunta: "O Switcheroo pode deixar uma unidade com might negativa?"
   categoria: carta
   estilo: formal
+  conclusao: "sim"
   resposta_esperada: >-
     Sim, se um bônus que entrou no cálculo do Switcheroo deixar de valer enquanto a redução
     continua. Spells, habilidades e a atribuição de dano de combate tratam might negativa como 0,
@@ -64,6 +71,7 @@
   pergunta: "Se o oponente counterar meu Sacrifice, a unidade que eu matei pra pagar volta?"
   categoria: carta
   estilo: informal
+  conclusao: "não"
   resposta_esperada: >-
     Não. Matar a unidade Mighty é um custo adicional pago ao jogar o Sacrifice, e anular
     (counter) um spell não devolve nenhum custo pago. A unidade continua morta.
@@ -76,6 +84,7 @@
   pergunta: "O Guardian Angel salva minha unidade do Smite?"
   categoria: carta
   estilo: informal
+  conclusao: "depende"
   resposta_esperada: >-
     Depende da ordem, que é escolhida pelo controlador da unidade (os dois são efeitos de
     substituição da mesma morte). Se aplicar o Guardian Angel primeiro, a unidade não morre
@@ -88,6 +97,7 @@
   pergunta: "A Irelia, Fervent ganha +1 de might quando é preparada na Awaken Phase?"
   categoria: carta
   estilo: formal
+  conclusao: "sim"
   resposta_esperada: >-
     Sim, uma vez, se ela estava exaurida e o controlador a prepara (ready) na própria Awaken
     Phase. Se ela já estava preparada, não acontece evento de preparar e a habilidade não dispara.
@@ -109,6 +119,7 @@
   pergunta: "Quando a Vex, Apathetic atordoa a unidade que acabou de ser jogada, isso conta como escolher alvo?"
   categoria: carta
   estilo: termo_em_portugues
+  conclusao: "não"
   resposta_esperada: >-
     Não. A habilidade identifica a unidade recém-jogada pela condição do gatilho, sem que o
     jogador escolha entre unidades, então ela não é alvo. Por isso, efeitos que impedem spells
@@ -120,6 +131,7 @@
   pergunta: "Preciso ter pontuado o Baron Pit pra ganhar a partida conquistando um battlefield?"
   categoria: carta
   estilo: formal
+  conclusao: "sim"
   resposta_esperada: >-
     Sim, quando o ponto da vitória viria de uma conquista. No match point, conquistar só dá o
     último ponto se você pontuou todos os battlefields do tabuleiro naquele turno, incluindo o
@@ -131,6 +143,7 @@
   pergunta: "Quando jogo a Consuming Curse do descarte, ela conta ela mesma pro dano extra?"
   categoria: carta
   estilo: termo_em_portugues
+  conclusao: "não"
   resposta_esperada: >-
     Não. Ao ser jogada, ela sai do trash e vai para o chain antes de o dano ser calculado. Só
     contam as outras cópias de Consuming Curse que continuam no seu trash.
@@ -154,6 +167,7 @@
   pergunta: "Se counterarem minha carta, eu recebo a mana de volta?"
   categoria: regra_geral
   estilo: informal
+  conclusao: "não"
   resposta_esperada: >-
     Não. Anular (counter) uma carta ou habilidade não devolve nenhum custo pago, incluindo
     energia, power e custos adicionais.
@@ -164,6 +178,7 @@
   pergunta: "Se eu matar a unidade depois que a habilidade desencadeada dela foi pro chain, a habilidade ainda resolve?"
   categoria: regra_geral
   estilo: formal
+  conclusao: "sim"
   resposta_esperada: >-
     Sim. Remover a fonte não é anular, então a habilidade continua no chain e resolve. Mas
     instruções que precisam da localização atual da fonte (como "here") podem não fazer nada,
@@ -185,6 +200,7 @@
   pergunta: "Dá pra responder quando o oponente baixa uma unidade?"
   categoria: regra_geral
   estilo: informal
+  conclusao: "não"
   resposta_esperada: >-
     Não antes de ela entrar no tabuleiro: ao ser finalizada, a unidade resolve imediatamente,
     sem passar prioridade. Você pode reagir depois, às habilidades dela que forem para o chain
@@ -198,6 +214,7 @@
   pergunta: "Jogar uma unidade direto num battlefield conta como mover a unidade pra lá?"
   categoria: regra_geral
   estilo: formal
+  conclusao: "não"
   resposta_esperada: >-
     Não. Mover é mudar de um espaço do tabuleiro para outro; entrar no tabuleiro vindo de outra
     zona é mudança de zona, não movimento. Por isso habilidades do tipo "quando mover para cá"
@@ -211,6 +228,8 @@
   pergunta: "Fora de um showdown, eu perco o controle do battlefield assim que minha última unidade sai dele?"
   categoria: regra_geral
   estilo: formal
+  # "Não necessariamente" equivale a "Depende": as duas conclusões valem (ajuste da etapa 7).
+  conclusao: ["não", "depende"]
   resposta_esperada: >-
     Não necessariamente. O controle é verificado no cleanup: se ainda houver item no chain ou
     combate acontecendo naquele battlefield, você continua controlando. Quando o chain esvazia e
@@ -225,6 +244,7 @@
   pergunta: "O Deathknell resolve antes ou depois da carta que matou a unidade?"
   categoria: mecanica
   estilo: informal
+  conclusao: "depende"
   resposta_esperada: >-
     Depende de quando a unidade morreu. Morta para pagar custo enquanto um spell ou habilidade
     é finalizado: o Deathknell resolve primeiro. Morta durante a resolução: a carta ou
@@ -253,6 +273,7 @@
   pergunta: "Posso usar Emboscada pra jogar uma unidade na minha base?"
   categoria: mecanica
   estilo: termo_em_portugues
+  conclusao: "não"
   resposta_esperada: >-
     Não. O Ambush só vale para jogar a unidade num battlefield onde você controla unidades (e
     dá Reaction a ela nesse caso). Na base, a unidade só pode ser jogada no timing normal.
@@ -343,5 +364,247 @@
   estilo: formal
   resposta_esperada: >-
     Deve dizer que só responde sobre regras de Riftbound e que não encontrou isso nas fontes.
+  fontes_esperadas: []
+  regras_esperadas: []
+
+# ===========================================================================
+# Gabarito v2 (etapa 7): perguntas reais do app, definições, continuações e mais fora do escopo
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# Perguntas reais (feitas no app durante os testes; origem: real)
+# ---------------------------------------------------------------------------
+- id: q29
+  pergunta: "cartas que possuem habilidades podem ser respondidas por reactions?"
+  categoria: regra_geral
+  estilo: informal
+  origem: real
+  # "Sim, em geral, com exceção" também pode começar com "Depende" (ajuste da etapa 7).
+  conclusao: ["sim", "depende"]
+  resposta_esperada: >-
+    Sim, em geral. Habilidades desencadeadas e ativadas usam a Chain e viram itens finalizados;
+    quando não há mais itens pendentes, os jogadores recebem prioridade e podem jogar Reactions
+    antes de a habilidade resolver. A exceção são as habilidades que usam [Add] (que geram
+    recursos): elas resolvem imediatamente, sem passar a prioridade.
+  fontes_esperadas: [faq/general-rules/abilities#ability-reactions]
+  regras_esperadas: ["337.4", "406.4", "429.2"]
+
+- id: q30
+  pergunta: "spells que não são action nem reaction só podem ser usadas no meu turno?"
+  categoria: so_crd
+  estilo: informal
+  origem: real
+  conclusao: "sim"
+  resposta_esperada: >-
+    Sim. Por padrão, uma carta só pode ser jogada no seu próprio turno, quando você tem a
+    prioridade e o turno está em Neutral Open (sem showdown, sem combate e sem Chain). Action
+    libera jogar durante showdowns em qualquer turno; Reaction libera jogar com uma Chain aberta
+    (Closed State) em qualquer turno e ainda tem todas as permissões de Action.
+  fontes_esperadas: []
+  regras_esperadas: ["310.1.a", "806.1.c.1", "813.1.c.1", "813.1.b"]
+
+- id: q31
+  pergunta: "não posso jogar reactions livremente?"
+  categoria: so_crd
+  estilo: informal
+  origem: real
+  resposta_esperada: >-
+    Quase. Uma carta com Reaction pode ser jogada durante Closed States (quando existe uma Chain)
+    em qualquer turno, e também tem as permissões de Action (showdowns em qualquer turno). Mas é
+    preciso ter a prioridade (ou o Focus, num showdown) naquele momento: não dá pra jogar a
+    qualquer instante sem ter a vez.
+  fontes_esperadas: []
+  regras_esperadas: ["813.1.b", "813.1.c.1", "338.1.a.2"]
+
+- id: q32
+  pergunta: "sempre quem ataca no showdown é quem tem a prioridade?"
+  categoria: so_crd
+  estilo: informal
+  origem: real
+  conclusao: "não"
+  resposta_esperada: >-
+    Não sempre. Quando o showdown começa, quem contestou o battlefield (normalmente quem moveu
+    unidades pra lá) ganha o Focus, e quem tem o Focus recebe a prioridade. Depois, cada vez que
+    uma Chain termina de resolver, o Focus passa para o próximo jogador.
+  fontes_esperadas: []
+  regras_esperadas: ["345", "335.1", "346"]
+
+- id: q33
+  pergunta: "se eu inicio um showdown com uma unidade que tem uma habilidade que ativa quando ataca o meu foco passa pro meu adversário diretamente?"
+  categoria: so_crd
+  estilo: informal
+  origem: real
+  conclusao: "não"
+  resposta_esperada: >-
+    Não. Quem contestou o battlefield começa com o Focus. As habilidades de ataque são
+    desencadeadas e abrem a Chain do combate; quando uma Chain aberta por habilidade
+    desencadeada termina de resolver, o Focus não passa. Você continua com o Focus.
+  fontes_esperadas: []
+  regras_esperadas: ["345", "346.1"]
+
+- id: q34
+  pergunta: "se eu jogo uma spell, meu oponente passa, eu tenho que passar tambem pra resolver a chain?"
+  categoria: so_crd
+  estilo: informal
+  origem: real
+  conclusao: "não"
+  resposta_esperada: >-
+    Não precisa passar de novo. Depois que a sua spell é finalizada, é você quem recebe a
+    prioridade primeiro; quando você passa, a prioridade vai para o oponente. Se ele também passa,
+    todos passaram em sequência sem acrescentar nada, e o item mais novo da Chain (a sua spell)
+    resolve.
+  fontes_esperadas: []
+  regras_esperadas: ["337.4", "338.1.b.1", "339.1", "340.1"]
+
+# ---------------------------------------------------------------------------
+# Continuações de conversa (a pergunta só faz sentido com o histórico)
+# ---------------------------------------------------------------------------
+- id: q35
+  pergunta: "e se ele responder com uma reaction, o que acontece?"
+  categoria: continuacao
+  estilo: informal
+  historico:
+    - pergunta: "se eu jogo uma spell, meu oponente passa, eu tenho que passar tambem pra resolver a chain?"
+      resposta: >-
+        Não. Depois que a sua spell é finalizada, você recebe a prioridade primeiro e passa;
+        quando o oponente também passa, todos passaram em sequência e a spell resolve.
+  resposta_esperada: >-
+    A Reaction dele entra na Chain por cima da sua spell. Depois que ela é finalizada, se todos
+    passarem a prioridade em sequência, a Reaction dele (o item mais novo) resolve primeiro. Como
+    a sua spell ainda está na Chain, o controlador do item mais novo que restou (você) recebe a
+    prioridade de novo e pode reagir; quando todos passarem outra vez, a sua spell resolve.
+  fontes_esperadas:
+    - faq/general-rules/chain-and-priority#partial-chain-reactions
+    - faq/general-rules/chain-and-priority#pending-item-order
+  regras_esperadas: ["340.1", "340.4", "338.1.a.2"]
+
+- id: q36
+  pergunta: "e quem começa com o foco?"
+  categoria: continuacao
+  estilo: informal
+  historico:
+    - pergunta: "como funciona o showdown?"
+      resposta: >-
+        Um showdown é uma janela em que os jogadores se alternam jogando cartas e ativando
+        habilidades com Action ou Reaction, cada um na sua vez (o Focus). Ele acaba quando todos
+        passam em sequência sem fazer nada.
+  resposta_esperada: >-
+    Quem contestou o battlefield (em geral, quem moveu unidades para lá) começa com o Focus.
+    Depois, a cada Chain que termina de resolver, o Focus passa para o próximo jogador, exceto
+    quando a Chain foi aberta por uma habilidade desencadeada.
+  fontes_esperadas: []
+  regras_esperadas: ["345", "346", "346.1"]
+
+# ---------------------------------------------------------------------------
+# Definições (perguntas de iniciante: "o que é", "explique")
+# ---------------------------------------------------------------------------
+- id: q37
+  pergunta: "o que é open state?"
+  categoria: definicao
+  estilo: informal
+  origem: real
+  resposta_esperada: >-
+    É o estado do turno em que não existe nenhuma Chain. Quando uma carta é jogada ou uma
+    habilidade é ativada, abre-se uma Chain e o turno passa para Closed State; quando a Chain
+    esvazia, volta a Open State. Por padrão, com a Chain aberta só dá pra jogar cartas com Reaction.
+  fontes_esperadas: []
+  regras_esperadas: ["309.1", "309.2", "331.1.a"]
+
+- id: q38
+  pergunta: "o que é priority?"
+  categoria: definicao
+  estilo: formal
+  resposta_esperada: >-
+    Priority é o direito exclusivo de agir naquele momento (jogar uma carta ou ativar uma
+    habilidade que o timing permita). Quando os jogadores podem responder antes de um spell ou
+    habilidade fazer efeito, quem tem a prioridade pode jogar uma Reaction ou passar a vez para o
+    próximo jogador.
+  fontes_esperadas: [faq/glossario#priority]
+  regras_esperadas: ["312.1"]
+
+- id: q39
+  pergunta: "o que significa focus?"
+  categoria: definicao
+  estilo: informal
+  resposta_esperada: >-
+    Durante um showdown, o Focus marca o jogador que tem a vez de começar uma sequência (jogar
+    uma carta ou ativar uma habilidade permitida). Normalmente o Focus passa para o próximo
+    jogador depois que essa sequência termina; se todos passarem o Focus em sequência sem fazer
+    nada, o showdown acaba.
+  fontes_esperadas: [faq/glossario#focus]
+  regras_esperadas: ["313.1", "347.2.a"]
+
+- id: q40
+  pergunta: "me explique as chains"
+  categoria: definicao
+  estilo: informal
+  origem: real
+  resposta_esperada: >-
+    A Chain é a área temporária onde cartas e habilidades esperam enquanto são jogadas; é nela
+    que os jogadores podem responder com Reactions antes que o efeito aconteça. Os itens
+    pendentes são finalizados do mais antigo para o mais novo; depois, quando todos passam a
+    prioridade em sequência, o item finalizado mais novo resolve primeiro. Unidades, gear e
+    habilidades de [Add] resolvem assim que são finalizados.
+  fontes_esperadas:
+    - faq/glossario#chain
+    - faq/general-rules/chain-and-priority#pending-item-order
+  regras_esperadas: ["328", "337.1.b", "340.1"]
+
+- id: q41
+  pergunta: "como eu sei quando entra em Closed State"
+  categoria: definicao
+  estilo: informal
+  origem: real
+  resposta_esperada: >-
+    O turno entra em Closed State sempre que existe uma Chain, ou seja, assim que uma carta
+    começa a ser jogada ou uma habilidade é ativada e vai para a Chain. Enquanto a Chain existir,
+    por padrão só dá pra jogar cartas e ativar habilidades com Reaction. Quando a Chain esvazia,
+    o turno volta a Open State.
+  fontes_esperadas: []
+  regras_esperadas: ["309.1", "328", "331.1.a", "340.2"]
+
+- id: q42
+  pergunta: "o que é Deathknell?"
+  categoria: definicao
+  estilo: formal
+  resposta_esperada: >-
+    Deathknell é uma palavra-chave de habilidade desencadeada, presente em permanentes. Funciona
+    como "Quando eu morrer, [efeito]": a habilidade vai para a Chain quando a unidade morre.
+  fontes_esperadas: [faq/mechanics/deathknell#trigger-timing]
+  regras_esperadas: ["808.1.c"]
+
+# ---------------------------------------------------------------------------
+# Mais fora do escopo (parecem perguntas de regra, mas não são)
+# ---------------------------------------------------------------------------
+- id: q43
+  pergunta: "Quando sai a próxima coleção de Riftbound?"
+  categoria: fora_do_escopo
+  estilo: informal
+  resposta_esperada: >-
+    Deve dizer que não encontrou: datas de lançamento não estão nas regras.
+  fontes_esperadas: []
+  regras_esperadas: []
+
+- id: q44
+  pergunta: "Como eu monto um deck bom de Jinx?"
+  categoria: fora_do_escopo
+  estilo: informal
+  # Etapa 7: na revisão humana, responder as regras de construção foi considerado útil. A esperada
+  # passou a aceitar isso, desde que o juiz deixe claro que estratégia não está nas regras.
+  resposta_esperada: >-
+    Deve dizer que não encontrou orientação de estratégia: montar um deck "bom" ou competitivo não
+    está nas regras. Depois, pode resumir as regras de construção que valem pra um deck de Jinx
+    (Main Deck de pelo menos 40 cartas, com um Chosen Champion com a tag Jinx; até 3 cópias de cada
+    carta; Rune Deck de 12 runas), sem dar dicas de estratégia.
+  fontes_esperadas: []
+  regras_esperadas: []
+
+- id: q45
+  pergunta: "No Legends of Runeterra, como funciona o Último Suspiro?"
+  categoria: fora_do_escopo
+  estilo: formal
+  # Quase-acerto: é outro jogo, com mecânica parecida (Deathknell). Testa se o juiz não mistura jogos.
+  resposta_esperada: >-
+    Deve dizer que só responde sobre as regras de Riftbound e que não encontrou isso nas fontes.
   fontes_esperadas: []
   regras_esperadas: []

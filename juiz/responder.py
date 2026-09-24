@@ -41,7 +41,11 @@ LINGUAGEM
 
 COMO ORGANIZAR A RESPOSTA
 A mensagem informa o TIPO DE PERGUNTA:
-- "direta" (sim/não ou um caso específico): comece com "Sim.", "Não." ou "Depende." e o essencial em 1 frase. Depois explique o PORQUÊ em 2 a 4 frases simples e, se ajudar, dê um exemplo curto de jogada. Até uns 180 palavras.
+- "direta" (sim/não ou um caso específico):
+  - Pergunta de sim ou não ("posso...?", "dá pra...?", "a unidade morre?"): comece com "Sim.", "Não." ou "Depende." e o essencial em 1 frase. Essa primeira palavra responde EXATAMENTE o que foi perguntado, e não uma pergunta parecida: em "posso usar X pra fazer Y?", se X não permite Y, a resposta é "Não.", mesmo que Y seja possível de outro jeito (isso vem depois, como ressalva).
+  - Antes de escolher a primeira palavra, confira as fontes: se uma fonte diz que algo "cannot" ou "does not" acontecer no caso perguntado, a resposta não pode começar com "Sim.". Use "Depende." só quando a resposta muda conforme a situação.
+  - Pergunta que NÃO é de sim ou não ("quantas...?", "quando...?", "qual...?"): não use Sim/Não/Depende; comece direto pela resposta ("O Main Deck precisa de pelo menos 40 cartas.").
+  - Depois, explique o PORQUÊ em 2 a 4 frases simples e, se ajudar, dê um exemplo curto de jogada. Até uns 180 palavras.
 - "explicação" (o que é, como funciona, explique, não entendi): NÃO comece com Sim/Não/Depende. Use esta estrutura, com os títulos em negrito:
   **Em resumo:** 1 ou 2 frases sem jargão (use a fonte do glossário, se houver).
   **Passo a passo:** uma lista numerada curta de como a coisa acontece na partida.
@@ -63,6 +67,8 @@ DE ONDE VEM A RESPOSTA
 - Use SOMENTE as fontes fornecidas. Não use o que você sabe sobre Riftbound, Legends of Runeterra, Magic ou outros jogos, mesmo que pareça igual.
 - Se as fontes não respondem à pergunta, comece com "Não encontrei a resposta nas regras que eu consultei." e diga em uma frase o que o jogador pode fazer (chamar um juiz do evento ou conferir o Core Rules oficial). Não tente adivinhar.
 - Nunca invente texto de carta, número de regra ou decisão. Se a pergunta citar uma carta que não aparece nas fontes, diga que não encontrou essa carta.
+- Se a pergunta for sobre OUTRO jogo (Legends of Runeterra, Magic, Hearthstone...), mesmo que a mecânica pareça com uma de Riftbound, não explique a mecânica: comece com "Não encontrei a resposta nas regras que eu consultei." e diga que você só responde sobre as regras de Riftbound.
+- Se a pergunta pedir estratégia, opinião, meta, preço ou novidades (deck bom, carta mais forte, melhor jogada), comece com "Não encontrei a resposta nas regras que eu consultei." e diga que as regras não tratam disso. Se as fontes tiverem regras ligadas ao assunto (ex.: o que um deck precisa ter pra ser válido), pode resumi-las em seguida, sem dar dicas de estratégia.
 
 TERMOS QUE MUDAM DE SENTIDO ENTRE JOGOS (definições oficiais do Core Rules)
 - Recall: levar uma permanente para a Base do dono, sem ser um Move. NÃO é voltar para a mão (CRD 455).
@@ -97,6 +103,8 @@ class Fonte:
     citacao_pendente: bool = False
     citada: bool = False  # a resposta cita esta fonte ([Fn])?
     resumo: str = ""  # título curto pra mostrar na tela
+    trecho_id: str = ""  # id do trecho de origem (ex.: "faq/cards/flash#target-in-base"); usado na avaliação
+    regras: list[str] = field(default_factory=list)  # regras do CRD que o trecho contém ou cita
 
 
 @dataclass
@@ -265,7 +273,8 @@ class Juiz:
             local_sem_numero = re.sub(r"^\d{3}\. ", "", local)  # "445. Movement" -> "Movement"
             resumo = f"Regra {trecho['numero']} — {local_sem_numero}"
         return Fonte(numero, trecho["fonte"], titulo, trecho["url"], trecho["texto_com_regras"], round(nota, 3),
-                     citacao_pendente=bool(trecho.get("citacao_pendente")), resumo=resumo)
+                     citacao_pendente=bool(trecho.get("citacao_pendente")), resumo=resumo,
+                     trecho_id=trecho.get("id", ""), regras=list(trecho.get("regras", [])))
 
     def montar_contexto(self, pergunta: str, resultados: list[tuple[dict, float]]) -> tuple[list[Fonte], list[str]]:
         """As fontes numeradas e a lista de regras do CRD citadas pelo FAQ (pra incluir o texto oficial)."""
@@ -278,7 +287,7 @@ class Juiz:
         cartas = [c for c in dict.fromkeys(self.catalogo.encontrar(pergunta) + das_paginas) if c in self.catalogo.cartas]
         for nome in cartas[:config.MAX_CARTAS]:
             fontes.append(Fonte(len(fontes) + 1, "carta", f"Carta {nome} (texto oficial atual)",
-                                url_da_carta(nome), self.catalogo.texto(nome), resumo=nome))
+                                url_da_carta(nome), self.catalogo.texto(nome), resumo=nome, trecho_id=f"carta/{nome}"))
 
         # Regras do CRD citadas pelos trechos do FAQ que ainda não estão num trecho do CRD encontrado.
         ja_no_contexto = {r for t, _ in resultados if t["fonte"] == "crd" for r in t["regras"] + t["contexto"]}

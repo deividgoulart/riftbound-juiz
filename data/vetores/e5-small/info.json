@@ -1,0 +1,9 @@
+{
+  "modelo": "e5-small",
+  "id_modelo": "intfloat/multilingual-e5-small",
+  "dimensoes": 384,
+  "trechos": 503,
+  "hash_trechos": "a71fb25c1d129ec2836d4b7dcdd2564fc3a91935135d11a90f6bb46102993c02",
+  "faq_commit": "ac76c13fba1d06640ece5fde6b3062213a62c8c6",
+  "crd_versao": "1.4"
+}
