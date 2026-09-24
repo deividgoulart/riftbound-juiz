@@ -14,9 +14,12 @@ import yaml
 from juiz import config
 from juiz.limpar_faq import processar_tudo
 
-CATEGORIAS = {"carta", "regra_geral", "mecanica", "so_crd", "fora_do_escopo"}
+CATEGORIAS = {"carta", "regra_geral", "mecanica", "so_crd", "definicao", "continuacao", "fora_do_escopo"}
+COM_PAGINA_NO_FAQ = {"carta", "regra_geral", "mecanica"}  # essas sempre têm um trecho do FAQ como fonte
 ESTILOS = {"formal", "informal", "termo_em_portugues"}
 CAMPOS = {"id", "pergunta", "categoria", "estilo", "resposta_esperada", "fontes_esperadas", "regras_esperadas"}
+CAMPOS_OPCIONAIS = {"conclusao", "historico", "origem"}
+CONCLUSOES = {"sim", "não", "depende"}
 RE_REGRA = re.compile(r"^\d{3}(\.[0-9a-z]+)*$")  # ex.: 355.9.a
 
 
@@ -26,18 +29,29 @@ def gabarito() -> list[dict]:
 
 
 def test_tamanho_e_ids_unicos(gabarito):
-    assert 20 <= len(gabarito) <= 30
+    assert 30 <= len(gabarito) <= 50
     ids = [q["id"] for q in gabarito]
     assert len(set(ids)) == len(ids)
 
 
 def test_campos_e_valores_validos(gabarito):
     for q in gabarito:
-        assert set(q) == CAMPOS, q["id"]
+        assert CAMPOS <= set(q) <= CAMPOS | CAMPOS_OPCIONAIS, q["id"]
         assert q["categoria"] in CATEGORIAS, q["id"]
         assert q["estilo"] in ESTILOS, q["id"]
         assert q["pergunta"].strip() and q["resposta_esperada"].strip(), q["id"]
         assert all(RE_REGRA.match(r) for r in q["regras_esperadas"]), q["id"]
+        conclusoes = q.get("conclusao", "sim")
+        assert set(conclusoes if isinstance(conclusoes, list) else [conclusoes]) <= CONCLUSOES, q["id"]
+        assert q.get("origem", "real") == "real", q["id"]
+
+
+def test_continuacao_tem_historico(gabarito):
+    for q in gabarito:
+        if q["categoria"] == "continuacao":
+            assert q["historico"] and all(set(h) == {"pergunta", "resposta"} for h in q["historico"]), q["id"]
+        else:
+            assert "historico" not in q, q["id"]
 
 
 def test_fontes_combinam_com_a_categoria(gabarito):
@@ -46,8 +60,10 @@ def test_fontes_combinam_com_a_categoria(gabarito):
             assert not q["fontes_esperadas"] and not q["regras_esperadas"], q["id"]
         elif q["categoria"] == "so_crd":
             assert not q["fontes_esperadas"] and q["regras_esperadas"], q["id"]
-        else:
+        elif q["categoria"] in COM_PAGINA_NO_FAQ:
             assert q["fontes_esperadas"] and q["regras_esperadas"], q["id"]
+        else:  # definição e continuação: pode ser só CRD ou também glossário/FAQ
+            assert q["regras_esperadas"], q["id"]
 
 
 def test_cobre_todos_os_tipos_de_pergunta(gabarito):
@@ -83,7 +99,7 @@ def test_todo_trecho_citado_existe(gabarito, trechos):
 def test_regras_esperadas_sao_citadas_pelos_trechos(gabarito, trechos):
     # Pras perguntas do FAQ, as regras esperadas precisam aparecer nos trechos esperados.
     for q in gabarito:
-        if not q["fontes_esperadas"]:
+        if q["categoria"] not in COM_PAGINA_NO_FAQ:  # glossário e continuações citam regras de outro jeito
             continue
         citadas = {r for fonte in q["fontes_esperadas"] for r in trechos[fonte]["regras"]}
         faltando = set(q["regras_esperadas"]) - citadas

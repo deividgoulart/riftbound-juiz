@@ -1,0 +1,9 @@
+{
+  "modelo": "gemini-2",
+  "id_modelo": "gemini-embedding-2",
+  "dimensoes": 768,
+  "trechos": 503,
+  "hash_trechos": "a71fb25c1d129ec2836d4b7dcdd2564fc3a91935135d11a90f6bb46102993c02",
+  "faq_commit": "ac76c13fba1d06640ece5fde6b3062213a62c8c6",
+  "crd_versao": "1.4"
+}

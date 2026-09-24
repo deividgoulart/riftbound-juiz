@@ -1,0 +1,3 @@
+modelo,perguntas,acertou_se_respondia,conclusao_certa,citou_fonte_certa,com_citacao_inventada,nota_correta,nota_parcial,nota_incorreta,segundos_medio,tokens_entrada_medio
+flash-lite_e5,45.0,0.978,0.81,0.974,0.0,0.889,0.067,0.044,3.887,4308.956
+flash-lite_e5_v2,45.0,0.978,0.952,0.947,0.0,0.933,0.044,0.022,6.458,4688.756

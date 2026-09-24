@@ -44,19 +44,22 @@ class LLMGemini:
 
             chave = os.environ.get("GEMINI_API_KEY")
             if not chave:
-                raise RuntimeError("Coloque GEMINI_API_KEY no arquivo .env (veja o .env.example)")
+                raise RuntimeError("Coloque GEMINI_API_KEY no arquivo .env (veja o .env.example) ou, no app publicado, nos secrets do Streamlit Cloud")
             self._cliente = genai.Client(api_key=chave)
         return self._cliente
 
-    def gerar(self, instrucoes: str, mensagem: str) -> str:
+    def gerar(self, instrucoes: str, mensagem: str, esquema=None) -> str:
+        """Gera a resposta. Com `esquema` (um modelo pydantic), a resposta vem em JSON nesse formato."""
         from google.genai import errors, types
 
+        formato_json = {"response_mime_type": "application/json", "response_schema": esquema} if esquema else {}
         configuracao = types.GenerateContentConfig(
             system_instruction=instrucoes,
             thinking_config=types.ThinkingConfig(thinking_level=self.nivel_de_raciocinio),
             max_output_tokens=2048,
             # Não usamos ferramentas (function calling); desligar evita um aviso do SDK.
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+            **formato_json,
         )
         ultimo_erro = None
         agora = time.monotonic()

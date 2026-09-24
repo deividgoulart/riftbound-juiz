@@ -18,16 +18,30 @@ Por baixo, é um **RAG** (*Retrieval-Augmented Generation*): primeiro o app **bu
 | 4 | Embeddings multilíngues + índice vetorial | ✅ concluída |
 | 5 | LLM + geração da resposta (com glossário PT→EN) | ✅ concluída |
 | 6 | Interface de chat em Streamlit | ✅ concluída |
-| 7 | Avaliação completa (métricas de busca e de resposta) | ⏳ |
-| 8 | Atualização automática + publicação | ⏳ |
+| 7 | Avaliação completa (métricas de busca e de resposta) | ✅ concluída (falta só comparar com o 3.8 Flash, que depende da cota diária) |
+| 8 | Atualização automática + publicação | 🟡 pronto pra publicar |
 
-## Como vai funcionar
+## Como funciona
 
+```mermaid
+flowchart LR
+    subgraph fontes["Fontes (baixadas por juiz.atualizar)"]
+        FAQ["Riftbound FAQ<br/>(git, MDX)"]
+        CRD["Core Rules<br/>(HTML)"]
+    end
+    FAQ --> L["Limpeza e divisão<br/>em trechos"]
+    CRD --> L
+    L --> T[("~500 trechos")]
+    T --> E["Embeddings<br/>Gemini (principal)<br/>e5-small (reserva)"]
+    E --> I[("Índice NumPy")]
+    P["Pergunta em português"] --> B["Busca por<br/>similaridade"]
+    I --> B
+    B --> C["Contexto: trechos F1..F5<br/>+ regras citadas + cartas<br/>+ definições oficiais"]
+    C --> LLM["LLM Gemini<br/>(com reservas)"]
+    LLM --> R["Resposta em português<br/>com fontes clicáveis"]
 ```
-Pergunta (PT) ──► busca por similaridade (embeddings) ──► trechos do FAQ + regras do CRD
-                                                                  │
-Resposta (PT, termos do jogo em inglês, com links) ◄── LLM ◄──────┘
-```
+
+Se nada parecido o bastante for encontrado, o juiz diz que não encontrou, sem chamar o LLM.
 
 ## Fontes de dados
 
@@ -60,21 +74,32 @@ riftbound-juiz/
 │   ├── cartas.py           # texto oficial das cartas, com errata (etapa 5)
 │   ├── llm.py              # LLM (Gemini) com modelos de reserva (etapa 5)
 │   ├── responder.py        # o juiz: busca + contexto + instruções + LLM (etapa 5)
+│   ├── definicoes.yaml     # termo técnico -> definição oficial (CRD e glossário do FAQ)
+│   ├── erros.py            # aviso de cota diária esgotada
 │   ├── perguntar.py        # pergunte pelo terminal (etapa 5)
 │   ├── apresentacao.py     # citações viram links, créditos (etapa 6)
-│   └── registro.py         # guarda perguntas e 👍/👎 em data/logs/ (etapa 6)
+│   ├── registro.py         # guarda perguntas e 👍/👎 em data/logs/ (etapa 6)
+│   ├── avaliar_respostas.py # avalia as respostas: métricas, avaliador LLM e revisão humana (etapa 7)
+│   ├── atualizar.py        # baixa e processa FAQ e CRD e atualiza os índices, só o que mudou (etapa 8)
+│   └── limites.py          # modo convidado do app publicado: limites e senha (etapa 8)
 ├── avaliacao/
-│   ├── gabarito.yaml       # perguntas-gabarito com resposta e fonte esperadas (etapa 2b)
-│   └── resultados/         # tabelas das comparações (etapa 4)
+│   ├── gabarito.yaml       # perguntas-gabarito com resposta e fonte esperadas (etapa 2b; 45 na etapa 7)
+│   ├── revisao_humana.csv  # 12 respostas com a nota de uma pessoa, às cegas (etapa 7)
+│   └── resultados/         # resultados das avaliações de busca (etapa 4) e de resposta (etapa 7)
 ├── notebooks/
 │   ├── 01_explorar_faq.ipynb   # exploração dos dados (etapa 1)
-│   └── 02_comparar_busca.ipynb # comparação dos modelos de busca (etapa 4)
+│   ├── 02_comparar_busca.ipynb # comparação dos modelos de busca (etapa 4)
+│   └── 03_avaliar_respostas.ipynb # qualidade das respostas (etapa 7)
 ├── data/
 │   ├── raw/                # dados como vieram da fonte (não versionado)
-│   └── processed/          # dados limpos e divididos em trechos (não versionado)
+│   ├── processed/          # dados limpos e divididos em trechos (não versionado)
+│   └── vetores/            # vetores da busca, sem o texto (versionado: o app publicado reaproveita)
 ├── tests/                  # testes automatizados (python -m pytest)
-├── requirements.txt
+├── requirements.txt        # dependências do app (o que o Streamlit Cloud instala)
+├── requirements-dev.txt    # + notebooks, testes e comparações
+├── packages.txt            # pacote do sistema pro Streamlit Cloud (git)
 ├── pytest.ini              # configuração dos testes
+├── .streamlit/secrets.toml.example  # modelo dos secrets do app publicado
 └── .env.example            # modelo do arquivo de chaves de API
 ```
 
@@ -87,27 +112,23 @@ Requisitos: Python 3.12+ e git.
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 
-# 2. Instalar as dependências
-pip install -r requirements.txt
+# 2. Instalar as dependências (requirements-dev.txt inclui as do app e as de desenvolvimento)
+pip install -r requirements-dev.txt
 
-# 3. Baixar (ou atualizar) o FAQ. Baixa só uns 0,7 MB, em vez dos mais de 200 MB do repositório inteiro
-python -m juiz.baixar_faq
+# 3. Baixar o FAQ e o CRD, dividir em trechos e montar os índices, tudo de uma vez.
+#    Da 2ª vez em diante, só refaz o que mudou nas fontes.
+python -m juiz.atualizar
 
-# 4. Abrir a exploração dos dados
-jupyter notebook notebooks/01_explorar_faq.ipynb
-
-# 5. Limpar o FAQ e dividir em trechos -> data/processed/faq_trechos.jsonl
-python -m juiz.limpar_faq
-
-# 6. Baixar o CRD e dividir em regras e trechos -> data/processed/crd_regras.jsonl e crd_trechos.jsonl
-python -m juiz.baixar_crd
-python -m juiz.limpar_crd
-
-# 7. Criar o índice de busca e testar uma pergunta (precisa de GEMINI_API_KEY no .env)
-python -m juiz.indice --buscar "posso usar emboscada na base?"
-
-# 8. Abrir o app de chat no navegador (http://localhost:8501)
+# 4. Abrir o app de chat no navegador (http://localhost:8501).
+#    Ele também roda o passo 3 sozinho, se os dados não existirem ou tiverem mais de um dia.
 streamlit run app.py
+
+# (Os passos do juiz.atualizar, um por um, se quiser ver cada parte)
+python -m juiz.baixar_faq    # baixa só uns 0,7 MB, em vez dos mais de 200 MB do repositório inteiro
+python -m juiz.limpar_faq    # -> data/processed/faq_trechos.jsonl
+python -m juiz.baixar_crd
+python -m juiz.limpar_crd    # -> data/processed/crd_regras.jsonl e crd_trechos.jsonl
+python -m juiz.indice --buscar "posso usar emboscada na base?"
 
 # (Ou perguntar pelo terminal)
 python -m juiz.perguntar "o Guardian Angel salva minha unidade do Smite?"
@@ -116,7 +137,15 @@ python -m juiz.perguntar "posso usar emboscada na base?" --detalhes   # mostra a
 # (Opcional) Refazer a comparação de modelos de busca (baixa uns 1,6 GB de modelos locais na 1ª vez)
 python -m juiz.avaliar_busca
 
-# 9. Rodar os testes
+# (Opcional) Avaliar as respostas com o gabarito (gasta cota: 1 resposta + 1 nota do avaliador por pergunta)
+python -m juiz.avaliar_respostas --modelo gemini-3.5-flash-lite
+python -m juiz.avaliar_respostas --modelo gemini-3.8-flash --comparacao   # só 18 perguntas (cota de 20/dia)
+python -m juiz.avaliar_respostas --concordancia flash-lite_e5             # revisão humana x avaliador
+
+# Explorar os dados e ver as comparações
+jupyter notebook notebooks/
+
+# 5. Rodar os testes
 python -m pytest
 ```
 
@@ -186,6 +215,7 @@ Pra saber se o juiz acerta, precisamos de perguntas com **resposta conhecida**.
 As perguntas variam o **jeito de perguntar**: 11 formais, 10 informais ("se counterarem minha carta, recebo a mana de volta?") e 7 com **termos do jogo em português** ("atordoar", "Emboscada", "fase de compra"). Assim dá pra ver se a busca multilíngue entende o que o jogador quis dizer.
 
 Na etapa 4, o gabarito vai medir **quantas vezes o trecho certo aparece entre os primeiros resultados da busca** (hit@k) pra cada modelo de embeddings.
+Na etapa 7 ele cresceu pra **45 perguntas** (veja a seção da etapa 7).
 Os testes em `tests/test_gabarito.py` conferem se todo trecho e regra citados existem de verdade, então se o FAQ mudar, o teste avisa.
 
 ## Como o CRD vira regras e trechos (etapa 3)
@@ -298,6 +328,138 @@ O uso real mostrou dois problemas: as respostas eram superficiais e difíceis de
 - **Citações discretas.** `[F1][F2][F3]` no meio do texto virou um número pequeno sobrescrito com link, como nota de rodapé. Antes, o texto do LLM passa por *escape* de HTML, pra ele não conseguir injetar código na página.
 
 **Limite do tier grátis que afeta a qualidade:** o Gemini 3.8 Flash e o 3.5 Flash aceitam só **20 respostas por dia cada** no tier grátis. Depois disso, quem responde é o 3.5 Flash-Lite, que é mais fraco.
+
+## Avaliando as respostas (etapa 7)
+
+A etapa 4 mediu só a busca. Aqui medimos a **resposta final**, que é o que o usuário lê.
+
+**O gabarito cresceu de 28 pra 45 perguntas:**
+- **9 perguntas reais**, tiradas do uso do app, a maioria sobre *timing* ("se eu jogo uma spell e meu oponente passa, eu tenho que passar também?");
+- **6 de definição** ("o que é open state?");
+- **2 continuações de conversa**, que só fazem sentido com a pergunta anterior;
+- **3 novas fora do escopo**, incluindo perguntas sobre outros jogos.
+
+Nas perguntas de sim ou não, o gabarito também guarda a **conclusão esperada**.
+
+**Três jeitos de medir** ([`juiz/avaliar_respostas.py`](juiz/avaliar_respostas.py)):
+1. **Métricas automáticas**, objetivas:
+   - o juiz respondeu quando devia e disse "não encontrei" quando devia?
+   - a 1ª palavra (Sim/Não/Depende) bate com a esperada?
+   - citou a fonte certa?
+   - citou alguma regra que não existe?
+2. **Avaliador LLM:** o Gemini 3.5 Flash-Lite compara cada resposta com a esperada e dá **correta / parcial / incorreta**, numa resposta em JSON com formato fixo (pydantic).
+3. **Revisão humana às cegas:** 12 respostas lidas por uma pessoa, sem ver a nota do avaliador, pra medir **o quanto dá pra confiar nele**.
+
+**Rodada 1, com as duas reservas** (busca e5-small + Gemini 3.5 Flash-Lite, o pior caso do juiz):
+
+| Métrica | Resultado |
+|---|---|
+| respostas corretas (avaliador) | **89%** (40 de 45) |
+| conclusão certa nas perguntas de sim/não | **81%** (17 de 21) |
+| citou a fonte certa | **97%** |
+| citações inventadas | **0** |
+| "não encontrei" por engano | **0** em 38 |
+| recusou as perguntas fora do escopo | 6 de 7 |
+| tempo por resposta (mediana) | 1,6 s |
+
+**O que a avaliação mostrou:**
+- **O erro mais comum é a 1ª palavra.** Às vezes o juiz abre com "Sim" onde o certo é "Não" ou "Depende", mesmo quando a explicação depois está certa.
+  - Exemplo: "Posso usar Emboscada pra jogar uma unidade na base?" → "Sim, com o timing normal". O certo é **Não**: o Ambush não vale na base.
+  - Pra um iniciante, que muitas vezes lê só o começo, isso é grave.
+- **Timing da Chain e da prioridade é o ponto fraco**, tanto na busca quanto na resposta.
+- **O avaliador LLM serve como filtro, não como juiz final.** Ele concordou com a revisão humana em 6 de 12 respostas. Nas 6 divergências, o texto das regras deu razão ao avaliador em 3 e ao humano em 2; a última depende do gabarito.
+  - Quando o avaliador diz "correta", é confiável: o humano concordou em 6 de 7.
+  - Quando aponta problema, vale uma pessoa conferir. Ele cobra detalhes que a pergunta não pediu e deixa passar erros sutis de regra.
+- **O corte do "não encontrei" não separa bem no e5-small:** as notas das perguntas fora do escopo se misturam com as das legítimas. O corte de 0,78 ficou como rede de segurança, e quem recusou as perguntas fora do escopo foi o LLM, seguindo as instruções.
+
+### Ajustes a partir do diagnóstico (rodada 2)
+
+1. **Prompt:** Sim/Não/Depende só em pergunta de sim ou não, e a 1ª palavra responde exatamente o que foi perguntado.
+   - O exemplo no prompt é genérico, e não uma pergunta do gabarito. Colocar o gabarito no prompt melhoraria o número sem melhorar o juiz.
+2. **Definições oficiais do *timing*:**
+   - Pass: quem recebe a prioridade e por que a Chain resolve (CRD 337.4 e 339.1);
+   - Priority: quando cada jogador recebe a prioridade (CRD 312.2);
+   - Finalize: Unit e Gear resolvem na hora (CRD 337.2).
+3. **Avaliador:** julga só o que a pergunta pede.
+4. **Gabarito da q44** ("deck bom de Jinx"): aceita as regras de construção, desde que o juiz diga antes que estratégia não está nas regras.
+
+| Métrica | Rodada 1 | Rodada 2 |
+|---|---|---|
+| conclusão certa (sim/não) | 81% | 95%\* |
+| citou a fonte certa | 97% | 95% |
+| citações inventadas | 0 | 0 |
+| "não encontrei" por engano | 0 de 38 | 1 de 38 |
+| recusou as fora do escopo | 6 de 7 | 7 de 7 |
+| concordância do avaliador com a revisão humana | 50% | 67% |
+
+\* **Uma rodada só engana.** Repetindo 4 vezes as perguntas-problema com o prompt novo:
+- a da Emboscada acertou **4 de 4** (corrigida de verdade);
+- outras três oscilaram (1 ou 2 de 4), porque o LLM não responde sempre igual.
+
+A melhora real fica entre 81% e 95%. Pra decisões importantes, cada pergunta precisa ser feita várias vezes.
+
+A rodada 2 também revelou um bug na própria métrica: "Não encontrei" contava como a conclusão "não". Ele foi corrigido.
+
+Análise completa, com gráficos, a tabela de divergências e o antes × depois: [`notebooks/03_avaliar_respostas.ipynb`](notebooks/03_avaliar_respostas.ipynb).
+**Falta:** comparar com o modelo principal (Gemini 3.8 Flash) nas 18 perguntas de `config.IDS_COMPARACAO`, porque o tier grátis dele dá só 20 respostas por dia.
+
+## Atualização e publicação (etapa 8)
+
+### Atualização automática
+
+`python -m juiz.atualizar` faz o caminho inteiro e só trabalha onde algo mudou:
+1. atualiza o FAQ com git e compara o commit;
+2. refaz os trechos se o FAQ mudou;
+3. baixa o CRD na versão que o FAQ marca como atual, e só reprocessa se o conteúdo mudou;
+4. atualiza os dois índices de busca, mandando pro modelo só os trechos novos ou alterados.
+
+O app chama a mesma função quando sobe e depois uma vez por dia. Se a internet falhar, ele segue com os dados que já tem.
+
+### Vetores publicados sem o texto
+
+A pasta `data/` não vai pro GitHub: o texto do Core Rules e das cartas é material da Riot. Por isso, o app publicado **monta os dados sozinho a partir das fontes** ao subir, e isso leva ~25 s.
+
+O problema era a busca: refazer os vetores do Gemini a cada vez que o app sobe gastaria metade da cota diária de embeddings (503 dos 1.000 textos).
+- A solução é `data/vetores/`. Ela guarda os vetores com o id e uma "assinatura" (hash) de cada trecho, **sem o texto**, e vai pro GitHub.
+- Ao subir, o app reaproveita todo vetor cuja assinatura bate e só manda pro modelo os trechos novos.
+- Numa simulação do zero (sem `data/`, sem `.env`), o app baixou tudo e reaproveitou os 503 vetores, com **0 textos enviados à API**.
+
+Depois de rodar `juiz.atualizar` com fontes novas, faça commit de `data/vetores/` pro app publicado aproveitar.
+
+### Proteção: modo convidado + senha
+
+A chave de API fica nos *secrets* do Streamlit Cloud e roda só no servidor; o visitante nunca a vê. O risco real é outro: alguém gastar a cota **grátis** do dia e o app parar até o dia seguinte. Com o projeto do Google **sem faturamento ativado**, o custo máximo continua zero.
+
+| Quem | O que pode |
+|---|---|
+| **Convidado** | 10 perguntas por visita e 100 por dia, somando todos os visitantes (`config.LIMITE_POR_VISITA` e `LIMITE_DIARIO`) |
+| **Com a senha** | uso sem limite (5 tentativas por visita, comparação em tempo constante) |
+
+O modo convidado só liga quando `SENHA_DO_APP` existe. No seu computador, sem ela, não há limite.
+
+Limitações conhecidas:
+- recarregar a página zera o limite da visita; quem protege a cota de verdade é o limite diário;
+- o contador diário fica na memória do servidor e zera se o app reiniciar.
+
+**Privacidade:** no plano gratuito, o Google pode usar as perguntas pra melhorar os produtos dele, e pessoas podem revisá-las. O app avisa isso na tela. No app publicado, o registro das conversas em arquivo fica desligado.
+
+### Como publicar no Streamlit Community Cloud (grátis)
+
+1. **Confira que o projeto do Google está sem faturamento:** em [aistudio.google.com](https://aistudio.google.com), a chave deve estar no plano gratuito. Assim, o pior caso é o app parar por cota, sem cobrança.
+2. **Suba o código pro GitHub**, incluindo `data/vetores/`, `requirements.txt` e `packages.txt`.
+3. Entre em [share.streamlit.io](https://share.streamlit.io) com a conta do GitHub e clique em **Create app**, depois em **Deploy a public app from GitHub**:
+   - Repository: `deividgoulart/riftbound-juiz`
+   - Branch: `main`
+   - Main file path: `app.py`
+4. Em **Advanced settings**:
+   - Python **3.12**.
+   - Em **Secrets**, cole o conteúdo de [`.streamlit/secrets.toml.example`](.streamlit/secrets.toml.example), preenchendo a chave e uma senha só sua.
+5. **Deploy.**
+   - A 1ª instalação demora uns minutos, por causa do PyTorch.
+   - A 1ª pergunta demora ~1 minuto: o app baixa o FAQ, o CRD e o modelo da busca reserva.
+   - Se a instalação falhar, veja o log: o `requirements.txt` usa o índice do PyTorch só pra CPU, que é bem menor.
+
+Recursos do plano grátis: até 2,7 GB de memória. O app usa ~1 GB, a maior parte com o PyTorch da busca reserva. Sem visitas por 12 horas, o app "dorme" e acorda no próximo acesso.
 
 ## Próximos passos (fase 2): deck builder
 

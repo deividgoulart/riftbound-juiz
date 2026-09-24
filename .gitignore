@@ -1,6 +1,7 @@
 # --- Segredos ---
-# O .env guarda chaves de API e NUNCA deve ir para o GitHub.
+# O .env guarda chaves de API e NUNCA deve ir para o GitHub. O mesmo vale pros secrets do Streamlit.
 .env
+.streamlit/secrets.toml
 
 # --- Ambiente Python ---
 .venv/
@@ -20,9 +21,11 @@ data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 
-# Índice vetorial (etapa 4) e registro das conversas do app (etapa 6)
+# Índice vetorial (etapa 4), registro das conversas do app (etapa 6) e da última atualização (etapa 8).
+# Os vetores SEM texto ficam em data/vetores/ e vão pro GitHub (o app publicado reaproveita).
 data/index/
 data/logs/
+data/atualizacao.json
 
 # Configuração local do Claude Code (servidor de pré-visualização)
 .claude/
