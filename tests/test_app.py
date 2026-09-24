@@ -216,3 +216,13 @@ def test_senha_errada_nao_libera(app_publico):
     assert "Senha incorreta" in at.sidebar.error[0].value
     assert not at.sidebar.success
 
+
+
+def test_secrets_sem_a_chave_mostram_aviso_de_configuracao(app, monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)  # o .env local não conta aqui
+    at = AppTest.from_file(str(config.RAIZ / "app.py"), default_timeout=30)
+    at.secrets["SENHA_DO_APP"] = "segredo"  # o dono configurou a senha, mas esqueceu a chave
+    at.session_state["juiz_de_teste"] = JuizFalso(resposta_com_fontes())
+    at.run()
+    assert "Falta GEMINI_API_KEY" in at.error[0].value
+    assert "segredo" not in at.error[0].value  # nunca mostra valores
