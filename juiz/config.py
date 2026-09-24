@@ -128,3 +128,12 @@ ATUALIZAR_A_CADA_HORAS = 24
 LIMITE_POR_VISITA = 10  # perguntas por visita (sessão do navegador)
 LIMITE_DIARIO = 100  # perguntas de convidados por dia, somando todos os visitantes
 TENTATIVAS_DE_SENHA = 5  # por visita, pra ninguém ficar chutando senhas
+
+# --- Fase 2: deck builder ---
+# Banco da coleção e dos decks. Com TURSO_DATABASE_URL e TURSO_AUTH_TOKEN (no .env ou nos secrets),
+# usa o Turso, um SQLite na nuvem que sobrevive aos reinícios do app publicado. Sem elas, usa este
+# arquivo local (fora do git). Veja decks/banco.py.
+DECKS_DB = DATA_DIR / "decks.sqlite"
+# O catálogo do FAQ não traz as runas básicas, que entram no Rune Deck (12 por deck, CRD 103.2).
+RUNAS_BASICAS = {"Fury Rune": "Fury", "Calm Rune": "Calm", "Mind Rune": "Mind",
+                 "Body Rune": "Body", "Chaos Rune": "Chaos", "Order Rune": "Order"}
