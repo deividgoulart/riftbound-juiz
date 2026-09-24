@@ -11,9 +11,11 @@ from decks.banco import Banco
 from decks.importar import ListaDeDeck
 
 
-def salvar_deck(banco: Banco, nome: str, lista: ListaDeDeck, origem: str = "manual", url: str | None = None,
-                data: str | None = None, torneio: str | None = None, colocacao: str | None = None) -> str:
-    """Grava o deck e as cartas numa transação só. Devolve o id do deck."""
+def comandos_do_deck(nome: str, lista: ListaDeDeck, origem: str = "manual", url: str | None = None,
+                     data: str | None = None, torneio: str | None = None,
+                     colocacao: str | None = None) -> tuple[str, list[tuple[str, tuple]]]:
+    """(id, comandos SQL) que gravam o deck e as cartas. Separado de salvar_deck pra quem precisa
+    juntar vários decks numa transação só (os decks do meta, em decks/meta.py)."""
     if not lista.cartas:
         raise ValueError("a lista não tem nenhuma carta reconhecida")
     id_ = uuid.uuid4().hex[:12]  # gerado aqui, pra gravar o deck e as cartas no mesmo lote
@@ -24,6 +26,12 @@ def salvar_deck(banco: Banco, nome: str, lista: ListaDeDeck, origem: str = "manu
     )]
     comandos += [("INSERT INTO deck_cartas (deck_id, carta, secao, quantidade) VALUES (?, ?, ?, ?)", (id_, carta, secao, qtd))
                  for (secao, carta), qtd in lista.cartas.items()]
+    return id_, comandos
+
+
+def salvar_deck(banco: Banco, nome: str, lista: ListaDeDeck, **origem) -> str:
+    """Grava o deck e as cartas numa transação só. Devolve o id do deck."""
+    id_, comandos = comandos_do_deck(nome, lista, **origem)
     banco.lote(comandos)
     return id_
 

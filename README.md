@@ -28,7 +28,7 @@ Por baixo, é um **RAG** (*Retrieval-Augmented Generation*): primeiro o app **bu
 | Etapa | Descrição | Status |
 |---|---|---|
 | 1 | Catálogo de cartas no banco, coleção, importação manual de deck e % de conclusão | ✅ concluída |
-| 2 | Decks do meta coletados automaticamente (riftools.app) | a fazer |
+| 2 | Decks do meta coletados automaticamente (API do TopDeck.gg) | ✅ concluída |
 | 3 | Sugestão de decks, links e preço das cartas que faltam, juiz falando dos meus decks | a fazer |
 
 ## Como funciona
@@ -102,6 +102,7 @@ riftbound-juiz/
 │   ├── colecao.py          # minha coleção: quantidades, CSV e comandos no terminal
 │   ├── importar.py         # lê a lista de deck em texto e confere as regras de construção
 │   ├── meus_decks.py       # salva, lista e apaga decks
+│   ├── meta.py             # decks de torneio pela API do TopDeck.gg (etapa 2)
 │   └── conclusao.py        # % de conclusão, cartas que faltam e ranking dos decks
 ├── avaliacao/
 │   ├── gabarito.yaml       # perguntas-gabarito com resposta e fonte esperadas (etapa 2b; 45 na etapa 7)
@@ -149,6 +150,9 @@ python -m decks.colecao exportar colecao.csv
 python -m decks.colecao importar colecao.csv
 python -m decks.colecao importar export_liga.csv --substituir   # coleção = exatamente o arquivo
 python -m decks.colecao definir "Jinx, Rebel" 2
+
+# (Deck builder) Decks de torneio do TopDeck.gg (precisa de TOPDECK_API_KEY no .env)
+python -m decks.meta --forcar
 
 # (Os passos do juiz.atualizar, um por um, se quiser ver cada parte)
 python -m juiz.baixar_faq    # baixa só uns 0,7 MB, em vez dos mais de 200 MB do repositório inteiro
@@ -548,15 +552,25 @@ As tabelas (`cartas`, `colecao`, `decks`, `deck_cartas`) são SQLite. Com `TURSO
 
 **Testes:** o banco local roda em memória, e o Turso é testado com um servidor falso que confere o JSON enviado e a leitura da resposta. A conexão com um banco Turso de verdade ainda precisa ser conferida depois de criar o banco (passos acima).
 
+### Etapa 2: decks do meta
+
+A aba **Decks do meta** mostra os decks que ficaram entre os 8 primeiros em torneios de Riftbound dos últimos 30 dias, do mais fácil pro mais difícil de montar com a sua coleção, com filtro por lenda e link pro torneio.
+
+- **Fonte: a API oficial do TopDeck.gg**, que é grátis (com uma chave gratuita) e traz os torneios com as listas dos jogadores. O riftools.app, a primeira ideia, não tem API, e não deu pra conferir os termos de uso dele; ler o HTML de um site pode quebrar a qualquer mudança.
+- **Atualização:** o app coleta sozinho quando a última coleta tem mais de 7 dias; quem tem a senha também pode clicar em **Atualizar agora**. Pelo terminal: `python -m decks.meta --forcar`. Cada coleta **substitui** os decks do meta anteriores, numa transação só; os decks que você importou não mudam. Uma coleta vazia não apaga nada.
+- **Filtros:** só torneios com pelo menos 8 jogadores e só o top 8 de cada um (`config.META_MIN_JOGADORES` e `META_TOP_POR_TORNEIO`). A página mostra os 20 decks mais fáceis de montar.
+- **Cartas pelo nome:** a API identifica as cartas por código (ex.: OGN-042), que o catálogo do FAQ não tem, então elas são reconhecidas pelo nome, como na importação manual. Um deck com carta não reconhecida fica de fora, em vez de entrar com a conta errada, e o nome aparece no relatório da coleta.
+- **Privacidade:** o nome dos jogadores não é guardado; só o torneio, a data, a colocação e o link.
+- **Como ligar:** crie uma chave grátis na sua conta do [TopDeck.gg](https://topdeck.gg) e ponha em `TOPDECK_API_KEY`, no `.env` e nos secrets do app publicado.
+
+**Limite conhecido:** a documentação e a API do TopDeck.gg não abriam no ambiente onde o código foi escrito. O formato das respostas foi conferido no código de um projeto aberto que usa a API em produção, e os testes usam um servidor falso nesse formato. A primeira coleta real mostra no relatório quantos decks entraram e quais cartas não foram reconhecidas.
+
 ### Próximos passos
 
 O plano da fase 2, com o que já foi feito:
 
 1. ✅ **Cadastro da minha coleção** de cartas, usando o `card-catalog.json` do repositório do FAQ como tabela mestre.
-2. **Decks do meta já prontos no app**, coletados automaticamente e atualizados com frequência (por exemplo, uma vez por semana), sem precisar cadastrar nada.
-   - A fonte principal é o [riftools.app](https://riftools.app): decks de torneio, resultados e relatório de meta. O `robots.txt` do site libera acesso pra todos os robôs.
-   - Antes de implementar, verificar os **termos de uso** e se existe **API ou JSON interno** do site (é melhor que ler HTML).
-   - Cada deck guarda origem (link), data, torneio e colocação, quando tiver (as colunas já existem).
+2. ✅ **Decks do meta já prontos no app**, coletados automaticamente uma vez por semana pela API do TopDeck.gg, com origem (link), data, torneio e colocação.
 3. ✅ **Importação manual** de um deck específico, colando a lista no formato de texto que os sites exportam.
 4. ✅ Para cada deck, **porcentagem de conclusão e cartas que faltam** (deck menos coleção), com banco **SQLite** (Turso na nuvem).
 5. **Sugestão de decks**: comparar a coleção com os decks do meta e ordenar do mais fácil pro mais difícil de montar. A ordenação por porcentagem e cartas faltando já existe; falta incluir o custo pra completar, quando tiver preço.
