@@ -18,8 +18,8 @@ abria no ambiente de desenvolvimento):
 - deckObj tem as seções Legend, Champion, Mainboard, Battlefields, Runes e Sideboard, cada uma um
   objeto "nome da carta" -> {id, count}, e uma seção "metadata", que não é carta.
 
-As cartas são reconhecidas pelo nome (o catálogo do FAQ não tem os códigos de coleção, como OGN-042).
-Um deck com carta não reconhecida fica de fora, em vez de entrar com a conta de conclusão errada, e
+As cartas são reconhecidas pelo código (ex.: OGN-042, pela galeria oficial; veja decks/codigos.py) e,
+se o código não for conhecido, pelo nome. Um deck com carta não reconhecida fica de fora, em vez de entrar com a conta de conclusão errada, e
 o nome aparece no relatório. O nome do jogador não é guardado: é dado pessoal e não serve pra nada aqui.
 """
 
@@ -112,7 +112,7 @@ def ler_deck(deck_obj: dict, catalogo: Catalogo, relatorio: RelatorioMeta) -> Li
             quantidade = int((dados or {}).get("count") or 0) if isinstance(dados, dict) else 0
             if quantidade <= 0:
                 continue
-            oficial = catalogo.resolver(nome)
+            oficial = catalogo.por_codigo(dados.get("id")) or catalogo.resolver(nome)  # o código é mais seguro
             if oficial is None:
                 relatorio.desconhecidas[nome] += 1
                 completo = completo and secao == "sideboard"

@@ -9,8 +9,9 @@ Uso pelo terminal (a partir da raiz do projeto):
 O CSV tem duas colunas, carta e quantidade. Aceita vírgula ou ponto e vírgula (o Excel em português
 salva com ponto e vírgula) e os cabeçalhos em inglês (name, quantity).
 
-Também aceita direto a exportação de coleção da Liga Riftbound (ligariftbound.com.br): o nome vem da
-coluna "Card (EN)" (ou "Card (PT)", se a em inglês estiver vazia), e a mesma carta aparece em várias
+Também aceita direto a exportação de coleção da Liga Riftbound (ligariftbound.com.br): a carta é achada
+pelo código ("Edicao (Sigla)" + "Card #", ex.: OGN + 42) e, se ele não for conhecido, pelo nome da coluna
+"Card (EN)" (ou "Card (PT)", se a em inglês estiver vazia). A mesma carta aparece em várias
 linhas, uma por qualidade, idioma ou foil. Por isso, linhas da mesma carta somam.
 
 Importar define a quantidade de cada carta do arquivo; as que não estão nele ficam como estavam. Com
@@ -78,8 +79,9 @@ def ler_csv(texto: str, catalogo: Catalogo) -> RelatorioImportacao:
     if not linhas:
         return relatorio
     i_cartas, i_qtds = _colunas(linhas[0], COLUNAS_CARTA), _colunas(linhas[0], COLUNAS_QUANTIDADE)
+    i_sigla, i_numero = _colunas(linhas[0], ("edicao (sigla)",)), _colunas(linhas[0], ("card #",))  # Liga
     if not i_cartas or not i_qtds:  # sem cabeçalho: carta, quantidade
-        i_cartas, i_qtd = [0], 1
+        i_cartas, i_qtd, i_sigla, i_numero = [0], 1, [], []
     else:
         i_qtd = i_qtds[0]
         linhas = linhas[1:]
@@ -89,7 +91,10 @@ def ler_csv(texto: str, catalogo: Catalogo) -> RelatorioImportacao:
         if not nome or not qtd.isdigit():
             relatorio.invalidas.append(";".join(linha))
             continue
-        oficial = catalogo.resolver(nome)
+        # Pelo código (Liga: "OGN" + "42") quando o arquivo tem, que não depende de como o nome foi escrito
+        codigo = (f"{linha[i_sigla[0]]}-{linha[i_numero[0]]}"
+                  if i_sigla and i_numero and max(i_sigla[0], i_numero[0]) < len(linha) else None)
+        oficial = catalogo.por_codigo(codigo) or catalogo.resolver(nome)
         if oficial is None:
             relatorio.desconhecidas.append((nome, catalogo.sugestoes(nome)))
         else:  # a mesma carta em várias linhas (qualidade, idioma, foil) soma
