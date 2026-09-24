@@ -147,6 +147,7 @@ streamlit run app.py
 # (Deck builder) Coleção pelo terminal, além da tela do app
 python -m decks.colecao exportar colecao.csv
 python -m decks.colecao importar colecao.csv
+python -m decks.colecao importar export_liga.csv --substituir   # coleção = exatamente o arquivo
 python -m decks.colecao definir "Jinx, Rebel" 2
 
 # (Os passos do juiz.atualizar, um por um, se quiser ver cada parte)
@@ -520,6 +521,7 @@ A página **Deck builder** (no menu do app) responde à pergunta "quais decks eu
 ### Etapa 1: coleção, importação de decks e conclusão
 
 - **Minha coleção:** uma tabela com as 935 cartas (as 929 do catálogo do FAQ + 6 runas básicas), com busca pelo nome ou pelo campeão, filtros por tipo e domínio e uma coluna de quantidade editável. A tabela só é gravada no botão **Salvar**, e não a cada número digitado. Dá pra importar e exportar em CSV (colunas `carta` e `quantidade`, com vírgula ou ponto e vírgula, como o Excel em português salva).
+- **Exportação da Liga Riftbound:** o CSV de coleção que a [Liga Riftbound](https://ligariftbound.com.br) exporta entra direto. O nome vem da coluna `Card (EN)`, e as várias linhas da mesma carta (uma por qualidade, idioma ou foil) somam. Com a opção **substituir a coleção inteira**, a coleção passa a ser exatamente a do arquivo, então uma carta vendida some daqui também. Numa coleção real de 81 linhas, as 70 cartas foram reconhecidas, inclusive "Shen - Kinkou", "Jayce - Defender of Tomorrow" e "Kayle, Justified (Overnumbered)".
 - **Importar um deck:** cole a lista exportada por um site de decks. Aceita `3 Carta`, `3x Carta` e `Carta x3`, com ou sem cabeçalhos de seção (`Legend:`, `Main Deck:`, `Runes:`, `Sideboard:`… ou em português). Sem cabeçalho, a seção vem do tipo da carta.
 - **Porcentagem de conclusão:** conta cópias. Com 1 de 3 Jinx, Rebel, faltam 2. Cópias a mais não passam de 100%, o sideboard fica de fora por padrão e as runas básicas podem contar como "tenho" (quase todo jogador tem as de um deck inicial). Os decks aparecem do mais fácil pro mais difícil de montar, e cada um mostra a tabela do que falta.
 
