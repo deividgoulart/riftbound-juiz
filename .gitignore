@@ -35,3 +35,6 @@ data/atualizacao.json
 .idea/
 Thumbs.db
 .DS_Store
+
+# Banco local do deck builder (fase 2): sua coleção e seus decks.
+data/decks.sqlite*

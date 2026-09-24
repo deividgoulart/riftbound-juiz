@@ -7,7 +7,7 @@ Por baixo, é um **RAG** (*Retrieval-Augmented Generation*): primeiro o app **bu
 
 **Experimente:** [riftbound-juiz.streamlit.app](https://riftbound-juiz.streamlit.app). Sem cadastro, com um limite de perguntas por visita.
 
-> Projeto pessoal e de portfólio de dados. A fase 1 (o juiz) está concluída; a fase 2, um deck builder, está descrita no fim deste README.
+> Projeto pessoal e de portfólio de dados. A fase 1 (o juiz) está concluída. A fase 2, um **deck builder**, está em andamento: a 1ª etapa (coleção, importação de decks e o que falta pra montar cada um) já está no app.
 
 ## Status
 
@@ -22,6 +22,14 @@ Por baixo, é um **RAG** (*Retrieval-Augmented Generation*): primeiro o app **bu
 | 6 | Interface de chat em Streamlit | ✅ concluída |
 | 7 | Avaliação completa (métricas de busca e de resposta) | ✅ concluída |
 | 8 | Atualização automática + publicação | ✅ concluída: [app publicado](https://riftbound-juiz.streamlit.app) |
+
+**Fase 2: deck builder**
+
+| Etapa | Descrição | Status |
+|---|---|---|
+| 1 | Catálogo de cartas no banco, coleção, importação manual de deck e % de conclusão | ✅ concluída |
+| 2 | Decks do meta coletados automaticamente (riftools.app) | a fazer |
+| 3 | Sugestão de decks, links e preço das cartas que faltam, juiz falando dos meus decks | a fazer |
 
 ## Como funciona
 
@@ -60,7 +68,10 @@ Os dados **não ficam no repositório**: são baixados pelos scripts pra `data/r
 
 ```
 riftbound-juiz/
-├── app.py                  # interface de chat em Streamlit (etapa 6)
+├── app.py                  # entrada do app: menu com as duas páginas
+├── paginas/
+│   ├── juiz.py             # chat do juiz de regras (etapa 6)
+│   └── deck_builder.py     # coleção e decks (fase 2)
 ├── .streamlit/config.toml  # tema e configurações do Streamlit
 ├── juiz/                   # código Python do projeto
 │   ├── config.py           # caminhos, URLs das fontes, leitura do .env
@@ -83,7 +94,15 @@ riftbound-juiz/
 │   ├── registro.py         # guarda perguntas e 👍/👎 em data/logs/ (etapa 6)
 │   ├── avaliar_respostas.py # avalia as respostas: métricas, avaliador LLM e revisão humana (etapa 7)
 │   ├── atualizar.py        # baixa e processa FAQ e CRD e atualiza os índices, só o que mudou (etapa 8)
-│   └── limites.py          # modo convidado do app publicado: limites e senha (etapa 8)
+│   ├── limites.py          # modo convidado do app publicado: limites e senha (etapa 8)
+│   └── acesso.py           # formulário de senha, usado pelas duas páginas (fase 2)
+├── decks/                  # deck builder (fase 2), sem Streamlit: só lógica e banco
+│   ├── banco.py            # SQLite local ou Turso (SQLite na nuvem) pela API HTTP
+│   ├── catalogo.py         # tabela mestre de cartas (card-catalog.json + runas) e nomes
+│   ├── colecao.py          # minha coleção: quantidades, CSV e comandos no terminal
+│   ├── importar.py         # lê a lista de deck em texto e confere as regras de construção
+│   ├── meus_decks.py       # salva, lista e apaga decks
+│   └── conclusao.py        # % de conclusão, cartas que faltam e ranking dos decks
 ├── avaliacao/
 │   ├── gabarito.yaml       # perguntas-gabarito com resposta e fonte esperadas (etapa 2b; 45 na etapa 7)
 │   ├── revisao_humana.csv  # 12 respostas com a nota de uma pessoa, às cegas (etapa 7)
@@ -121,9 +140,14 @@ pip install -r requirements-dev.txt
 #    Da 2ª vez em diante, só refaz o que mudou nas fontes.
 python -m juiz.atualizar
 
-# 4. Abrir o app de chat no navegador (http://localhost:8501).
+# 4. Abrir o app no navegador (http://localhost:8501): o chat do juiz e, no menu, o deck builder.
 #    Ele também roda o passo 3 sozinho, se os dados não existirem ou tiverem mais de um dia.
 streamlit run app.py
+
+# (Deck builder) Coleção pelo terminal, além da tela do app
+python -m decks.colecao exportar colecao.csv
+python -m decks.colecao importar colecao.csv
+python -m decks.colecao definir "Jinx, Rebel" 2
 
 # (Os passos do juiz.atualizar, um por um, se quiser ver cada parte)
 python -m juiz.baixar_faq    # baixa só uns 0,7 MB, em vez dos mais de 200 MB do repositório inteiro
@@ -481,7 +505,7 @@ Limitações conhecidas:
    - Main file path: `app.py`
 4. Em **Advanced settings**:
    - Python **3.12**.
-   - Em **Secrets**, cole o conteúdo de [`.streamlit/secrets.toml.example`](.streamlit/secrets.toml.example), preenchendo as chaves do Gemini e do Groq e uma senha só sua.
+   - Em **Secrets**, cole o conteúdo de [`.streamlit/secrets.toml.example`](.streamlit/secrets.toml.example), preenchendo as chaves do Gemini e do Groq, uma senha só sua e, pro deck builder, as duas variáveis do Turso (veja a seção da fase 2).
 5. **Deploy.**
    - A 1ª instalação demora uns minutos, por causa do PyTorch.
    - A 1ª pergunta demora ~1 minuto: o app baixa o FAQ, o CRD e o modelo da busca reserva.
@@ -489,22 +513,55 @@ Limitações conhecidas:
 
 Recursos do plano grátis: até 2,7 GB de memória. O app usa ~1 GB, a maior parte com o PyTorch da busca reserva. Sem visitas por 12 horas, o app "dorme" e acorda no próximo acesso.
 
-## Próximos passos (fase 2): deck builder
+## Deck builder (fase 2)
 
-Ideia pra próxima fase, agora que o juiz está pronto:
+A página **Deck builder** (no menu do app) responde à pergunta "quais decks eu consigo montar com as cartas que tenho?".
 
-1. **Cadastro da minha coleção** de cartas, usando o `card-catalog.json` do repositório do FAQ como tabela mestre.
+### Etapa 1: coleção, importação de decks e conclusão
+
+- **Minha coleção:** uma tabela com as 935 cartas (as 929 do catálogo do FAQ + 6 runas básicas), com busca pelo nome ou pelo campeão, filtros por tipo e domínio e uma coluna de quantidade editável. A tabela só é gravada no botão **Salvar**, e não a cada número digitado. Dá pra importar e exportar em CSV (colunas `carta` e `quantidade`, com vírgula ou ponto e vírgula, como o Excel em português salva).
+- **Importar um deck:** cole a lista exportada por um site de decks. Aceita `3 Carta`, `3x Carta` e `Carta x3`, com ou sem cabeçalhos de seção (`Legend:`, `Main Deck:`, `Runes:`, `Sideboard:`… ou em português). Sem cabeçalho, a seção vem do tipo da carta.
+- **Porcentagem de conclusão:** conta cópias. Com 1 de 3 Jinx, Rebel, faltam 2. Cópias a mais não passam de 100%, o sideboard fica de fora por padrão e as runas básicas podem contar como "tenho" (quase todo jogador tem as de um deck inicial). Os decks aparecem do mais fácil pro mais difícil de montar, e cada um mostra a tabela do que falta.
+
+**Decisões, com o motivo:**
+- **Por que Streamlit, e não um site "normal":** o disco apagado a cada reinício não é problema só do Streamlit: as hospedagens grátis de sites fazem o mesmo, e o banco na nuvem seria necessário de qualquer jeito. O Streamlit mantém o projeto numa linguagem só (Python, como o juiz) e já está publicado, com senha e secrets. O preço é o visual mais limitado. Pra não ficar preso a ele, **toda a lógica fica em `decks/`, sem Streamlit** (um teste confere isso): trocar a tela por um site no futuro não mexe no banco, na importação nem nas contas.
+- **Nomes das cartas:** o catálogo tem só o título das lendas ("Loose Cannon", com a tag Jinx), mas os sites escrevem "Jinx, Loose Cannon" ou "Jinx - Loose Cannon". Os dois viram apelidos da lenda. Caixa, acento, apóstrofo curvo e um código de coleção no fim (`(OGN-202)`) também não atrapalham.
+- **Nome não reconhecido não é adivinhado:** o app mostra as cartas parecidas ("quis dizer Jinx, Rebel?") e não salva até a lista ser corrigida (ou até você pedir pra salvar sem elas). Trocar uma carta por outra "parecida" daria uma conta de conclusão errada.
+- **Regras de construção só avisam:** o app confere a lista com o Core Rules (CRD 103.2: 1 lenda, deck principal com pelo menos 40 cartas contando o campeão escolhido, até 3 cópias por nome, 12 runas), mas salva mesmo assim, porque um deck em construção pode estar incompleto de propósito.
+- **Cada deck guarda a origem** (link, data, torneio e colocação). Na importação manual, só o nome e o link são usados; os outros campos já estão prontos pros decks do meta da próxima etapa.
+
+### Onde a coleção fica: Turso (SQLite na nuvem)
+
+As tabelas (`cartas`, `colecao`, `decks`, `deck_cartas`) são SQLite. Com `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN` no `.env` ou nos secrets, elas ficam no [Turso](https://turso.tech), um SQLite na nuvem com plano grátis. Sem as duas variáveis, ficam em `data/decks.sqlite`, no seu computador (fora do git).
+
+- **Por que um banco na nuvem:** o disco do Streamlit Cloud é apagado a cada reinício do app, e a coleção sumiria junto.
+- **Por que falar com o Turso pela API HTTP**, e não pelo pacote oficial: o pacote é nativo (Rust) e já teve problema de instalação no Windows. A API é um POST com JSON, e o `httpx` já era dependência do projeto. Cada gravação (ex.: salvar a coleção) vai numa **transação**: ou tudo vale, ou nada.
+- **Economia de cota:** o catálogo só é regravado no banco quando muda (o app guarda uma assinatura dele), e a tela de decks faz uma consulta só pra todos os decks.
+- **Quem pode editar:** no app publicado, o visitante só vê a coleção e os decks; salvar, importar e apagar pedem a mesma senha do juiz. Se o Turso não estiver configurado no app publicado, a página avisa que o que for salvo vai sumir.
+
+**Como configurar no app publicado:**
+1. Crie uma conta grátis em [turso.tech](https://turso.tech) e um banco (`turso db create riftbound-decks`).
+2. Pegue a URL (`turso db show riftbound-decks --url`) e crie um token (`turso db tokens create riftbound-decks`).
+3. Cole os dois nos secrets do Streamlit Cloud como `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN`. Pra usar o mesmo banco no seu computador, cole também no `.env`.
+
+**Testes:** o banco local roda em memória, e o Turso é testado com um servidor falso que confere o JSON enviado e a leitura da resposta. A conexão com um banco Turso de verdade ainda precisa ser conferida depois de criar o banco (passos acima).
+
+### Próximos passos
+
+O plano da fase 2, com o que já foi feito:
+
+1. ✅ **Cadastro da minha coleção** de cartas, usando o `card-catalog.json` do repositório do FAQ como tabela mestre.
 2. **Decks do meta já prontos no app**, coletados automaticamente e atualizados com frequência (por exemplo, uma vez por semana), sem precisar cadastrar nada.
    - A fonte principal é o [riftools.app](https://riftools.app): decks de torneio, resultados e relatório de meta. O `robots.txt` do site libera acesso pra todos os robôs.
    - Antes de implementar, verificar os **termos de uso** e se existe **API ou JSON interno** do site (é melhor que ler HTML).
-   - Cada deck guarda origem (link), data, torneio e colocação, quando tiver.
-3. **Importação manual** de um deck específico, colando a lista no formato de texto que os sites exportam.
-4. Para cada deck, **porcentagem de conclusão e cartas que faltam** (deck menos coleção), com banco **SQLite** (tabelas de cartas, coleção, decks e cartas do deck).
-5. **Sugestão de decks**: comparar a coleção com os decks do meta e ordenar do mais fácil pro mais difícil de montar (porcentagem de conclusão, quantidade de cartas faltando e, quando tiver preço, custo pra completar).
+   - Cada deck guarda origem (link), data, torneio e colocação, quando tiver (as colunas já existem).
+3. ✅ **Importação manual** de um deck específico, colando a lista no formato de texto que os sites exportam.
+4. ✅ Para cada deck, **porcentagem de conclusão e cartas que faltam** (deck menos coleção), com banco **SQLite** (Turso na nuvem).
+5. **Sugestão de decks**: comparar a coleção com os decks do meta e ordenar do mais fácil pro mais difícil de montar. A ordenação por porcentagem e cartas faltando já existe; falta incluir o custo pra completar, quando tiver preço.
 6. Para cada carta que falta, **link de busca direto** na [Liga Riftbound](https://ligariftbound.com.br) e na [MYP Cards](https://mypcards.com/riftbound). Descobrir um jeito de fazer uma busca geral, tipo um carrinho, ou de exportar só o que falta pra completar.
 7. **Preço das cartas que faltam**, tentando scraping nas duas lojas.
    Referências pra estudar (não usar direto): [felipeas/liga-price-scraper](https://github.com/felipeas/liga-price-scraper) (Node.js, feito pra LigaMagic) e [apify.com/gio21/mypcards-scraper](https://apify.com/gio21/mypcards-scraper) (não lista Riftbound).
-8. **Aba nova no Streamlit** pro deck builder, e o juiz passa a responder dúvidas sobre as cartas dos meus decks.
+8. ✅ (em parte) **Aba nova no Streamlit** pro deck builder. Falta o juiz passar a responder dúvidas sobre as cartas dos meus decks.
 
 ## Créditos e licenças
 
