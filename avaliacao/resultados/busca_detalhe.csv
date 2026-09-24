@@ -1,0 +1,169 @@
+modelo,id,categoria,estilo,tem_resposta,posicao,nota_top1,top1,pergunta
+bm25,q01,carta,formal,True,1.0,13.7077,faq/cards/flash#target-in-base,O Flash pode ter como alvo uma unidade que já está na base?
+bm25,q02,carta,termo_em_portugues,True,1.0,14.4923,faq/cards/lacerate#targeting-restriction,Posso usar o Lacerate numa unidade com mais de 3 de força?
+bm25,q03,carta,formal,True,4.0,14.4836,faq/cards/gangplank-naval#switcheroo-might-reduction,O Switcheroo pode deixar uma unidade com might negativa?
+bm25,q04,carta,informal,True,2.0,12.6945,faq/cards/sacrifice#deathknell-before-spell,"Se o oponente counterar meu Sacrifice, a unidade que eu matei pra pagar volta?"
+bm25,q05,carta,informal,True,1.0,24.1577,faq/cards/smite#death-replacement-effects,O Guardian Angel salva minha unidade do Smite?
+bm25,q06,carta,formal,True,1.0,35.5032,faq/cards/irelia-fervent#awaken-phase-readying,"A Irelia, Fervent ganha +1 de might quando é preparada na Awaken Phase?"
+bm25,q07,carta,termo_em_portugues,True,1.0,24.3839,faq/cards/endless-riches#draw-phase-duration,Por quanto tempo o Endless Riches me faz pular a fase de compra?
+bm25,q08,carta,termo_em_portugues,True,1.0,22.7943,faq/cards/vex-apathetic#stun-targeting,"Quando a Vex, Apathetic atordoa a unidade que acabou de ser jogada, isso conta como escolher alvo?"
+bm25,q09,carta,formal,True,3.0,20.0083,faq/cards/baron-nashor#baron-pit-showdown,Preciso ter pontuado o Baron Pit pra ganhar a partida conquistando um battlefield?
+bm25,q10,carta,termo_em_portugues,True,1.0,24.2645,faq/cards/consuming-curse#self-count,"Quando jogo a Consuming Curse do descarte, ela conta ela mesma pro dano extra?"
+bm25,q11,carta,formal,True,1.0,18.9359,faq/cards/temporal-breach#token-unit,O que acontece se o Temporal Breach banir um token?
+bm25,q12,regra_geral,informal,True,,2.6801,crd/1.4/355.10,"Se counterarem minha carta, eu recebo a mana de volta?"
+bm25,q13,regra_geral,formal,True,,11.3036,faq/general-rules/playing-cards#play-definition,"Se eu matar a unidade depois que a habilidade desencadeada dela foi pro chain, a habilidade ainda resolve?"
+bm25,q14,regra_geral,informal,True,,8.1761,crd/1.4/134,Quando o showdown acaba? Se a unidade morrer ele termina?
+bm25,q15,regra_geral,informal,True,,5.7173,crd/1.4/134,Dá pra responder quando o oponente baixa uma unidade?
+bm25,q16,regra_geral,formal,True,,4.4423,crd/1.4/190.4,Jogar uma unidade direto num battlefield conta como mover a unidade pra lá?
+bm25,q17,regra_geral,formal,True,6.0,7.6371,crd/1.4/347,"Fora de um showdown, eu perco o controle do battlefield assim que minha última unidade sai dele?"
+bm25,q18,mecanica,informal,True,1.0,12.3762,faq/cards/baited-hook#deathknell-order,O Deathknell resolve antes ou depois da carta que matou a unidade?
+bm25,q19,mecanica,termo_em_portugues,True,1.0,9.8757,crd/1.4/829,Pra onde vai um feitiço jogado com Flow se ele for anulado?
+bm25,q20,mecanica,termo_em_portugues,True,,3.7815,crd/1.4/204,Posso usar Emboscada pra jogar uma unidade na minha base?
+bm25,q21,mecanica,termo_em_portugues,True,,13.8934,crd/1.4/134,O que acontece com o equipamento quando a unidade equipada morre?
+bm25,q22,so_crd,formal,True,,9.2656,crd/1.4/427.5,Quantas cartas precisa ter o deck principal e quantas cópias da mesma carta posso colocar?
+bm25,q23,so_crd,informal,True,,0.0,faq/cards/abandoned-hall#countered-spell,Quantos pontos preciso pra ganhar?
+bm25,q24,so_crd,informal,True,2.0,5.7173,crd/1.4/134,Como funciona o mulligan no começo da partida?
+bm25,q25,fora_do_escopo,informal,False,,5.7173,crd/1.4/134,Qual é o melhor deck do meta agora?
+bm25,q26,fora_do_escopo,informal,False,,6.2814,crd/1.4/198,Quanto custa uma caixa de booster de Origins?
+bm25,q27,fora_do_escopo,formal,False,,8.1761,crd/1.4/134,"O que faz a carta Singed, Alquimista Louco?"
+bm25,q28,fora_do_escopo,formal,False,,11.0227,crd/1.4/440,"No Magic: The Gathering, como funciona o mana burn?"
+e5-small,q01,carta,formal,True,1.0,0.8647,faq/cards/flash#target-in-base,O Flash pode ter como alvo uma unidade que já está na base?
+e5-small,q02,carta,termo_em_portugues,True,1.0,0.8668,faq/cards/lacerate#targeting-restriction,Posso usar o Lacerate numa unidade com mais de 3 de força?
+e5-small,q03,carta,formal,True,1.0,0.8935,faq/cards/switcheroo#negative-might,O Switcheroo pode deixar uma unidade com might negativa?
+e5-small,q04,carta,informal,True,1.0,0.864,faq/cards/sacrifice#countered-additional-cost,"Se o oponente counterar meu Sacrifice, a unidade que eu matei pra pagar volta?"
+e5-small,q05,carta,informal,True,1.0,0.8693,faq/cards/smite#death-replacement-effects,O Guardian Angel salva minha unidade do Smite?
+e5-small,q06,carta,formal,True,1.0,0.8805,faq/cards/irelia-fervent#awaken-phase-readying,"A Irelia, Fervent ganha +1 de might quando é preparada na Awaken Phase?"
+e5-small,q07,carta,termo_em_portugues,True,1.0,0.8507,faq/cards/endless-riches#draw-phase-duration,Por quanto tempo o Endless Riches me faz pular a fase de compra?
+e5-small,q08,carta,termo_em_portugues,True,1.0,0.8597,faq/cards/vex-apathetic#stun-targeting,"Quando a Vex, Apathetic atordoa a unidade que acabou de ser jogada, isso conta como escolher alvo?"
+e5-small,q09,carta,formal,True,1.0,0.8779,faq/cards/baron-nashor#baron-pit-victory,Preciso ter pontuado o Baron Pit pra ganhar a partida conquistando um battlefield?
+e5-small,q10,carta,termo_em_portugues,True,1.0,0.8364,faq/cards/consuming-curse#self-count,"Quando jogo a Consuming Curse do descarte, ela conta ela mesma pro dano extra?"
+e5-small,q11,carta,formal,True,1.0,0.9028,faq/cards/temporal-breach#token-unit,O que acontece se o Temporal Breach banir um token?
+e5-small,q12,regra_geral,informal,True,3.0,0.8223,faq/mechanics/empower#removed-source-trigger,"Se counterarem minha carta, eu recebo a mana de volta?"
+e5-small,q13,regra_geral,formal,True,4.0,0.8305,faq/cards/baited-hook#illegal-target,"Se eu matar a unidade depois que a habilidade desencadeada dela foi pro chain, a habilidade ainda resolve?"
+e5-small,q14,regra_geral,informal,True,1.0,0.8448,faq/general-rules/showdowns#showdown-close,Quando o showdown acaba? Se a unidade morrer ele termina?
+e5-small,q15,regra_geral,informal,True,3.0,0.8267,faq/cards/emperors-dais#ability-finalization-cost,Dá pra responder quando o oponente baixa uma unidade?
+e5-small,q16,regra_geral,formal,True,1.0,0.8531,faq/general-rules/movement#entering-board,Jogar uma unidade direto num battlefield conta como mover a unidade pra lá?
+e5-small,q17,regra_geral,formal,True,1.0,0.8652,faq/general-rules/chain-and-priority#empty-battlefield-control,"Fora de um showdown, eu perco o controle do battlefield assim que minha última unidade sai dele?"
+e5-small,q18,mecanica,informal,True,1.0,0.8571,faq/mechanics/deathknell#killing-card-timing,O Deathknell resolve antes ou depois da carta que matou a unidade?
+e5-small,q19,mecanica,termo_em_portugues,True,1.0,0.8466,faq/mechanics/flow#countered-destination,Pra onde vai um feitiço jogado com Flow se ele for anulado?
+e5-small,q20,mecanica,termo_em_portugues,True,1.0,0.844,faq/mechanics/ambush#ambush-base,Posso usar Emboscada pra jogar uma unidade na minha base?
+e5-small,q21,mecanica,termo_em_portugues,True,1.0,0.8513,faq/mechanics/equipment#equipment-after-death,O que acontece com o equipamento quando a unidade equipada morre?
+e5-small,q22,so_crd,formal,True,1.0,0.8354,crd/1.4/103.2.b,Quantas cartas precisa ter o deck principal e quantas cópias da mesma carta posso colocar?
+e5-small,q23,so_crd,informal,True,1.0,0.8259,crd/1.4/194,Quantos pontos preciso pra ganhar?
+e5-small,q24,so_crd,informal,True,1.0,0.8367,crd/1.4/115,Como funciona o mulligan no começo da partida?
+e5-small,q25,fora_do_escopo,informal,False,,0.7985,crd/1.4/161,Qual é o melhor deck do meta agora?
+e5-small,q26,fora_do_escopo,informal,False,,0.7817,faq/cards/ezreal-prodigy#optional-additional-costs,Quanto custa uma caixa de booster de Origins?
+e5-small,q27,fora_do_escopo,formal,False,,0.8062,crd/1.4/427,"O que faz a carta Singed, Alquimista Louco?"
+e5-small,q28,fora_do_escopo,formal,False,,0.8461,crd/1.4/440,"No Magic: The Gathering, como funciona o mana burn?"
+e5-base,q01,carta,formal,True,1.0,0.8609,faq/cards/flash#target-in-base,O Flash pode ter como alvo uma unidade que já está na base?
+e5-base,q02,carta,termo_em_portugues,True,1.0,0.8706,faq/cards/lacerate#targeting-restriction,Posso usar o Lacerate numa unidade com mais de 3 de força?
+e5-base,q03,carta,formal,True,1.0,0.8779,faq/cards/switcheroo#negative-might,O Switcheroo pode deixar uma unidade com might negativa?
+e5-base,q04,carta,informal,True,1.0,0.861,faq/cards/sacrifice#countered-additional-cost,"Se o oponente counterar meu Sacrifice, a unidade que eu matei pra pagar volta?"
+e5-base,q05,carta,informal,True,1.0,0.8591,faq/cards/smite#death-replacement-effects,O Guardian Angel salva minha unidade do Smite?
+e5-base,q06,carta,formal,True,1.0,0.9082,faq/cards/irelia-fervent#awaken-phase-readying,"A Irelia, Fervent ganha +1 de might quando é preparada na Awaken Phase?"
+e5-base,q07,carta,termo_em_portugues,True,1.0,0.862,faq/cards/endless-riches#draw-phase-duration,Por quanto tempo o Endless Riches me faz pular a fase de compra?
+e5-base,q08,carta,termo_em_portugues,True,1.0,0.8739,faq/cards/vex-apathetic#stun-targeting,"Quando a Vex, Apathetic atordoa a unidade que acabou de ser jogada, isso conta como escolher alvo?"
+e5-base,q09,carta,formal,True,1.0,0.8569,faq/cards/baron-nashor#baron-pit-victory,Preciso ter pontuado o Baron Pit pra ganhar a partida conquistando um battlefield?
+e5-base,q10,carta,termo_em_portugues,True,1.0,0.8377,faq/cards/consuming-curse#self-count,"Quando jogo a Consuming Curse do descarte, ela conta ela mesma pro dano extra?"
+e5-base,q11,carta,formal,True,1.0,0.8979,faq/cards/temporal-breach#token-unit,O que acontece se o Temporal Breach banir um token?
+e5-base,q12,regra_geral,informal,True,4.0,0.8181,faq/mechanics/repeat#repeated-spell-countering,"Se counterarem minha carta, eu recebo a mana de volta?"
+e5-base,q13,regra_geral,formal,True,3.0,0.8367,faq/cards/sacrifice#deathknell-before-spell,"Se eu matar a unidade depois que a habilidade desencadeada dela foi pro chain, a habilidade ainda resolve?"
+e5-base,q14,regra_geral,informal,True,1.0,0.8581,faq/general-rules/showdowns#showdown-close,Quando o showdown acaba? Se a unidade morrer ele termina?
+e5-base,q15,regra_geral,informal,True,,0.8186,faq/general-rules/abilities#source-removal,Dá pra responder quando o oponente baixa uma unidade?
+e5-base,q16,regra_geral,formal,True,6.0,0.8393,crd/1.4/144,Jogar uma unidade direto num battlefield conta como mover a unidade pra lá?
+e5-base,q17,regra_geral,formal,True,1.0,0.8626,faq/general-rules/chain-and-priority#empty-battlefield-control,"Fora de um showdown, eu perco o controle do battlefield assim que minha última unidade sai dele?"
+e5-base,q18,mecanica,informal,True,1.0,0.8247,faq/mechanics/deathknell#killing-card-timing,O Deathknell resolve antes ou depois da carta que matou a unidade?
+e5-base,q19,mecanica,termo_em_portugues,True,1.0,0.8445,crd/1.4/829,Pra onde vai um feitiço jogado com Flow se ele for anulado?
+e5-base,q20,mecanica,termo_em_portugues,True,1.0,0.8209,faq/mechanics/ambush#ambush-base,Posso usar Emboscada pra jogar uma unidade na minha base?
+e5-base,q21,mecanica,termo_em_portugues,True,1.0,0.8521,faq/mechanics/equipment#equipment-after-death,O que acontece com o equipamento quando a unidade equipada morre?
+e5-base,q22,so_crd,formal,True,1.0,0.8294,crd/1.4/103.2.b,Quantas cartas precisa ter o deck principal e quantas cópias da mesma carta posso colocar?
+e5-base,q23,so_crd,informal,True,3.0,0.803,crd/1.4/471,Quantos pontos preciso pra ganhar?
+e5-base,q24,so_crd,informal,True,1.0,0.8358,crd/1.4/115,Como funciona o mulligan no começo da partida?
+e5-base,q25,fora_do_escopo,informal,False,,0.794,crd/1.4/186,Qual é o melhor deck do meta agora?
+e5-base,q26,fora_do_escopo,informal,False,,0.7772,crd/1.4/356,Quanto custa uma caixa de booster de Origins?
+e5-base,q27,fora_do_escopo,formal,False,,0.789,crd/1.4/438,"O que faz a carta Singed, Alquimista Louco?"
+e5-base,q28,fora_do_escopo,formal,False,,0.831,crd/1.4/359.3.e.10,"No Magic: The Gathering, como funciona o mana burn?"
+gemini-2,q01,carta,formal,True,1.0,0.8623,faq/cards/flash#target-in-base,O Flash pode ter como alvo uma unidade que já está na base?
+gemini-2,q02,carta,termo_em_portugues,True,1.0,0.8462,faq/cards/lacerate#targeting-restriction,Posso usar o Lacerate numa unidade com mais de 3 de força?
+gemini-2,q03,carta,formal,True,1.0,0.8693,faq/cards/switcheroo#negative-might,O Switcheroo pode deixar uma unidade com might negativa?
+gemini-2,q04,carta,informal,True,1.0,0.8799,faq/cards/sacrifice#countered-additional-cost,"Se o oponente counterar meu Sacrifice, a unidade que eu matei pra pagar volta?"
+gemini-2,q05,carta,informal,True,1.0,0.8226,faq/cards/smite#death-replacement-effects,O Guardian Angel salva minha unidade do Smite?
+gemini-2,q06,carta,formal,True,1.0,0.8792,faq/cards/irelia-fervent#awaken-phase-readying,"A Irelia, Fervent ganha +1 de might quando é preparada na Awaken Phase?"
+gemini-2,q07,carta,termo_em_portugues,True,1.0,0.7642,faq/cards/endless-riches#draw-phase-duration,Por quanto tempo o Endless Riches me faz pular a fase de compra?
+gemini-2,q08,carta,termo_em_portugues,True,1.0,0.8577,faq/cards/vex-apathetic#stun-targeting,"Quando a Vex, Apathetic atordoa a unidade que acabou de ser jogada, isso conta como escolher alvo?"
+gemini-2,q09,carta,formal,True,1.0,0.807,faq/cards/baron-nashor#baron-pit-victory,Preciso ter pontuado o Baron Pit pra ganhar a partida conquistando um battlefield?
+gemini-2,q10,carta,termo_em_portugues,True,1.0,0.8583,faq/cards/consuming-curse#self-count,"Quando jogo a Consuming Curse do descarte, ela conta ela mesma pro dano extra?"
+gemini-2,q11,carta,formal,True,1.0,0.8504,faq/cards/temporal-breach#token-unit,O que acontece se o Temporal Breach banir um token?
+gemini-2,q12,regra_geral,informal,True,1.0,0.7868,faq/general-rules/costs-and-payments#countered-costs,"Se counterarem minha carta, eu recebo a mana de volta?"
+gemini-2,q13,regra_geral,formal,True,1.0,0.7853,faq/general-rules/abilities#source-removal,"Se eu matar a unidade depois que a habilidade desencadeada dela foi pro chain, a habilidade ainda resolve?"
+gemini-2,q14,regra_geral,informal,True,1.0,0.7931,faq/general-rules/showdowns#showdown-close,Quando o showdown acaba? Se a unidade morrer ele termina?
+gemini-2,q15,regra_geral,informal,True,1.0,0.7787,faq/general-rules/chain-and-priority#unit-play-reactions,Dá pra responder quando o oponente baixa uma unidade?
+gemini-2,q16,regra_geral,formal,True,1.0,0.8009,faq/general-rules/movement#entering-board,Jogar uma unidade direto num battlefield conta como mover a unidade pra lá?
+gemini-2,q17,regra_geral,formal,True,1.0,0.8444,faq/general-rules/chain-and-priority#empty-battlefield-control,"Fora de um showdown, eu perco o controle do battlefield assim que minha última unidade sai dele?"
+gemini-2,q18,mecanica,informal,True,1.0,0.8559,faq/mechanics/deathknell#killing-card-timing,O Deathknell resolve antes ou depois da carta que matou a unidade?
+gemini-2,q19,mecanica,termo_em_portugues,True,1.0,0.8119,faq/mechanics/flow#countered-destination,Pra onde vai um feitiço jogado com Flow se ele for anulado?
+gemini-2,q20,mecanica,termo_em_portugues,True,1.0,0.8417,faq/mechanics/ambush#ambush-base,Posso usar Emboscada pra jogar uma unidade na minha base?
+gemini-2,q21,mecanica,termo_em_portugues,True,1.0,0.8389,faq/mechanics/equipment#equipment-after-death,O que acontece com o equipamento quando a unidade equipada morre?
+gemini-2,q22,so_crd,formal,True,1.0,0.7475,crd/1.4/103.2.b,Quantas cartas precisa ter o deck principal e quantas cópias da mesma carta posso colocar?
+gemini-2,q23,so_crd,informal,True,1.0,0.7178,crd/1.4/194,Quantos pontos preciso pra ganhar?
+gemini-2,q24,so_crd,informal,True,1.0,0.737,crd/1.4/115,Como funciona o mulligan no começo da partida?
+gemini-2,q25,fora_do_escopo,informal,False,,0.6301,crd/1.4/102,Qual é o melhor deck do meta agora?
+gemini-2,q26,fora_do_escopo,informal,False,,0.5787,crd/1.4/206,Quanto custa uma caixa de booster de Origins?
+gemini-2,q27,fora_do_escopo,formal,False,,0.6032,faq/general-rules/playing-cards#play-definition,"O que faz a carta Singed, Alquimista Louco?"
+gemini-2,q28,fora_do_escopo,formal,False,,0.6752,crd/1.4/440,"No Magic: The Gathering, como funciona o mana burn?"
+gemini-2+glossario,q01,carta,formal,True,1.0,0.8675,faq/cards/flash#target-in-base,O Flash pode ter como alvo uma unidade que já está na base?
+gemini-2+glossario,q02,carta,termo_em_portugues,True,1.0,0.8704,faq/cards/lacerate#targeting-restriction,Posso usar o Lacerate numa unidade com mais de 3 de força?
+gemini-2+glossario,q03,carta,formal,True,1.0,0.8725,faq/cards/switcheroo#negative-might,O Switcheroo pode deixar uma unidade com might negativa?
+gemini-2+glossario,q04,carta,informal,True,1.0,0.8729,faq/cards/sacrifice#countered-additional-cost,"Se o oponente counterar meu Sacrifice, a unidade que eu matei pra pagar volta?"
+gemini-2+glossario,q05,carta,informal,True,1.0,0.8282,faq/cards/smite#death-replacement-effects,O Guardian Angel salva minha unidade do Smite?
+gemini-2+glossario,q06,carta,formal,True,1.0,0.8911,faq/cards/irelia-fervent#awaken-phase-readying,"A Irelia, Fervent ganha +1 de might quando é preparada na Awaken Phase?"
+gemini-2+glossario,q07,carta,termo_em_portugues,True,1.0,0.8353,faq/cards/endless-riches#draw-phase-duration,Por quanto tempo o Endless Riches me faz pular a fase de compra?
+gemini-2+glossario,q08,carta,termo_em_portugues,True,1.0,0.8632,faq/cards/vex-apathetic#stun-targeting,"Quando a Vex, Apathetic atordoa a unidade que acabou de ser jogada, isso conta como escolher alvo?"
+gemini-2+glossario,q09,carta,formal,True,1.0,0.8302,faq/cards/baron-nashor#baron-pit-victory,Preciso ter pontuado o Baron Pit pra ganhar a partida conquistando um battlefield?
+gemini-2+glossario,q10,carta,termo_em_portugues,True,1.0,0.8529,faq/cards/consuming-curse#self-count,"Quando jogo a Consuming Curse do descarte, ela conta ela mesma pro dano extra?"
+gemini-2+glossario,q11,carta,formal,True,1.0,0.873,faq/cards/temporal-breach#token-unit,O que acontece se o Temporal Breach banir um token?
+gemini-2+glossario,q12,regra_geral,informal,True,1.0,0.7828,faq/general-rules/costs-and-payments#countered-costs,"Se counterarem minha carta, eu recebo a mana de volta?"
+gemini-2+glossario,q13,regra_geral,formal,True,7.0,0.7801,faq/cards/baited-hook#kill-reaction-window,"Se eu matar a unidade depois que a habilidade desencadeada dela foi pro chain, a habilidade ainda resolve?"
+gemini-2+glossario,q14,regra_geral,informal,True,1.0,0.7972,faq/general-rules/showdowns#showdown-close,Quando o showdown acaba? Se a unidade morrer ele termina?
+gemini-2+glossario,q15,regra_geral,informal,True,1.0,0.8186,faq/general-rules/chain-and-priority#unit-play-reactions,Dá pra responder quando o oponente baixa uma unidade?
+gemini-2+glossario,q16,regra_geral,formal,True,1.0,0.8144,faq/general-rules/movement#entering-board,Jogar uma unidade direto num battlefield conta como mover a unidade pra lá?
+gemini-2+glossario,q17,regra_geral,formal,True,1.0,0.8445,faq/general-rules/chain-and-priority#empty-battlefield-control,"Fora de um showdown, eu perco o controle do battlefield assim que minha última unidade sai dele?"
+gemini-2+glossario,q18,mecanica,informal,True,1.0,0.843,faq/mechanics/deathknell#killing-card-timing,O Deathknell resolve antes ou depois da carta que matou a unidade?
+gemini-2+glossario,q19,mecanica,termo_em_portugues,True,1.0,0.8337,faq/mechanics/flow#countered-destination,Pra onde vai um feitiço jogado com Flow se ele for anulado?
+gemini-2+glossario,q20,mecanica,termo_em_portugues,True,1.0,0.8647,faq/mechanics/ambush#ambush-base,Posso usar Emboscada pra jogar uma unidade na minha base?
+gemini-2+glossario,q21,mecanica,termo_em_portugues,True,1.0,0.8285,faq/mechanics/equipment#equipment-after-death,O que acontece com o equipamento quando a unidade equipada morre?
+gemini-2+glossario,q22,so_crd,formal,True,1.0,0.7367,crd/1.4/103.2.b,Quantas cartas precisa ter o deck principal e quantas cópias da mesma carta posso colocar?
+gemini-2+glossario,q23,so_crd,informal,True,2.0,0.7764,crd/1.4/471,Quantos pontos preciso pra ganhar?
+gemini-2+glossario,q24,so_crd,informal,True,1.0,0.737,crd/1.4/115,Como funciona o mulligan no começo da partida?
+gemini-2+glossario,q25,fora_do_escopo,informal,False,,0.6301,crd/1.4/102,Qual é o melhor deck do meta agora?
+gemini-2+glossario,q26,fora_do_escopo,informal,False,,0.5787,crd/1.4/206,Quanto custa uma caixa de booster de Origins?
+gemini-2+glossario,q27,fora_do_escopo,formal,False,,0.6032,faq/general-rules/playing-cards#play-definition,"O que faz a carta Singed, Alquimista Louco?"
+gemini-2+glossario,q28,fora_do_escopo,formal,False,,0.6812,crd/1.4/440,"No Magic: The Gathering, como funciona o mana burn?"
+e5-small+glossario,q01,carta,formal,True,1.0,0.8841,faq/cards/flash#target-in-base,O Flash pode ter como alvo uma unidade que já está na base?
+e5-small+glossario,q02,carta,termo_em_portugues,True,1.0,0.882,faq/cards/lacerate#targeting-restriction,Posso usar o Lacerate numa unidade com mais de 3 de força?
+e5-small+glossario,q03,carta,formal,True,1.0,0.8945,faq/cards/switcheroo#negative-might,O Switcheroo pode deixar uma unidade com might negativa?
+e5-small+glossario,q04,carta,informal,True,1.0,0.8708,faq/cards/sacrifice#countered-additional-cost,"Se o oponente counterar meu Sacrifice, a unidade que eu matei pra pagar volta?"
+e5-small+glossario,q05,carta,informal,True,1.0,0.8701,faq/cards/smite#death-replacement-effects,O Guardian Angel salva minha unidade do Smite?
+e5-small+glossario,q06,carta,formal,True,1.0,0.889,faq/cards/irelia-fervent#awaken-phase-readying,"A Irelia, Fervent ganha +1 de might quando é preparada na Awaken Phase?"
+e5-small+glossario,q07,carta,termo_em_portugues,True,1.0,0.8749,faq/cards/endless-riches#draw-phase-duration,Por quanto tempo o Endless Riches me faz pular a fase de compra?
+e5-small+glossario,q08,carta,termo_em_portugues,True,1.0,0.8738,faq/cards/vex-apathetic#stun-targeting,"Quando a Vex, Apathetic atordoa a unidade que acabou de ser jogada, isso conta como escolher alvo?"
+e5-small+glossario,q09,carta,formal,True,1.0,0.8842,faq/cards/baron-nashor#baron-pit-victory,Preciso ter pontuado o Baron Pit pra ganhar a partida conquistando um battlefield?
+e5-small+glossario,q10,carta,termo_em_portugues,True,1.0,0.8578,faq/cards/consuming-curse#self-count,"Quando jogo a Consuming Curse do descarte, ela conta ela mesma pro dano extra?"
+e5-small+glossario,q11,carta,formal,True,1.0,0.9067,faq/cards/temporal-breach#token-unit,O que acontece se o Temporal Breach banir um token?
+e5-small+glossario,q12,regra_geral,informal,True,4.0,0.8457,faq/mechanics/empower#removed-source-trigger,"Se counterarem minha carta, eu recebo a mana de volta?"
+e5-small+glossario,q13,regra_geral,formal,True,3.0,0.8462,faq/cards/baited-hook#illegal-target,"Se eu matar a unidade depois que a habilidade desencadeada dela foi pro chain, a habilidade ainda resolve?"
+e5-small+glossario,q14,regra_geral,informal,True,1.0,0.8458,faq/general-rules/showdowns#showdown-close,Quando o showdown acaba? Se a unidade morrer ele termina?
+e5-small+glossario,q15,regra_geral,informal,True,3.0,0.835,crd/1.4/323.6,Dá pra responder quando o oponente baixa uma unidade?
+e5-small+glossario,q16,regra_geral,formal,True,1.0,0.8647,faq/general-rules/movement#entering-board,Jogar uma unidade direto num battlefield conta como mover a unidade pra lá?
+e5-small+glossario,q17,regra_geral,formal,True,1.0,0.8642,faq/general-rules/chain-and-priority#empty-battlefield-control,"Fora de um showdown, eu perco o controle do battlefield assim que minha última unidade sai dele?"
+e5-small+glossario,q18,mecanica,informal,True,1.0,0.8684,faq/mechanics/deathknell#killing-card-timing,O Deathknell resolve antes ou depois da carta que matou a unidade?
+e5-small+glossario,q19,mecanica,termo_em_portugues,True,1.0,0.8713,faq/mechanics/flow#countered-destination,Pra onde vai um feitiço jogado com Flow se ele for anulado?
+e5-small+glossario,q20,mecanica,termo_em_portugues,True,1.0,0.8842,faq/mechanics/ambush#ambush-base,Posso usar Emboscada pra jogar uma unidade na minha base?
+e5-small+glossario,q21,mecanica,termo_em_portugues,True,1.0,0.8754,faq/mechanics/equipment#equipment-after-death,O que acontece com o equipamento quando a unidade equipada morre?
+e5-small+glossario,q22,so_crd,formal,True,1.0,0.8441,crd/1.4/103.2.b,Quantas cartas precisa ter o deck principal e quantas cópias da mesma carta posso colocar?
+e5-small+glossario,q23,so_crd,informal,True,1.0,0.8508,crd/1.4/194,Quantos pontos preciso pra ganhar?
+e5-small+glossario,q24,so_crd,informal,True,1.0,0.8367,crd/1.4/115,Como funciona o mulligan no começo da partida?
+e5-small+glossario,q25,fora_do_escopo,informal,False,,0.7985,crd/1.4/161,Qual é o melhor deck do meta agora?
+e5-small+glossario,q26,fora_do_escopo,informal,False,,0.7817,faq/cards/ezreal-prodigy#optional-additional-costs,Quanto custa uma caixa de booster de Origins?
+e5-small+glossario,q27,fora_do_escopo,formal,False,,0.8062,crd/1.4/427,"O que faz a carta Singed, Alquimista Louco?"
+e5-small+glossario,q28,fora_do_escopo,formal,False,,0.843,crd/1.4/440,"No Magic: The Gathering, como funciona o mana burn?"

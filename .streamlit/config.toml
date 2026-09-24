@@ -1,0 +1,12 @@
+# Configuração do Streamlit (etapa 6)
+
+[theme]
+primaryColor = "#2a78d6"
+
+[browser]
+# Não mandar estatísticas de uso pro Streamlit.
+gatherUsageStats = false
+
+[client]
+# Menu do canto superior mais enxuto.
+toolbarMode = "minimal"

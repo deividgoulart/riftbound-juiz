@@ -1,0 +1,71 @@
+# Definições oficiais dos termos técnicos.
+#
+# Pra que serve: quando um destes termos aparece na pergunta (ou nos trechos mais relevantes),
+# o juiz manda junto pro LLM a definição OFICIAL, pra ele explicar o termo sem inventar.
+# Motivo: ao pedir que o LLM explicasse os termos técnicos, ele passou a inventar definições
+# quando as fontes não traziam uma (ex.: definiu Open State como "quando os jogadores têm
+# prioridade", mas a regra 309.2 diz "quando não existe Chain").
+#
+# Campos:
+#   termos     como o termo aparece nas regras e nas cartas (em inglês)
+#   regras     números de regra do Core Rules; o TEXTO é lido do CRD na hora (não é copiado
+#              aqui), junto com as sub-regras diretas de cada uma
+#   glossario  chave do glossário pra iniciantes do FAQ, quando existir
+
+- termos: [Chain]
+  regras: ["328"]
+  glossario: chain
+- termos: [Pending]
+  glossario: pending
+- termos: [Finalize, Finalized, Finalization]
+  glossario: finalization
+- termos: [Resolve, Resolves, Resolution]
+  glossario: resolution
+- termos: [Priority]
+  regras: ["312.1"]
+  glossario: priority
+- termos: [Focus]
+  regras: ["313.1"]
+  glossario: focus
+- termos: [Cleanup]
+  glossario: cleanup
+- termos: [Open State, Closed State]
+  regras: ["309.1", "309.2"]
+- termos: [Neutral State, Showdown State]
+  regras: ["308.1", "308.2", "343.1.a", "343.1.b"]
+- termos: [Showdown]
+  regras: ["316.8.c", "342"]
+- termos: [Combat]
+  regras: ["461"]
+- termos: [Action]
+  regras: ["806.1.c"]
+- termos: [Reaction]
+  regras: ["813.1.b", "813.1.c"]
+- termos: [Energy]
+  regras: ["163.1"]
+- termos: [Power]
+  regras: ["163.2"]
+- termos: [Stun, Stunned]
+  regras: ["423.1", "423.1.a"]
+- termos: [Buff]
+  regras: ["426.1"]
+- termos: [Token]
+  regras: ["180", "185"]
+- termos: [Score, Scoring, Conquer, Hold]
+  regras: ["468", "469.1", "469.2"]
+- termos: [Deathknell]
+  regras: ["808.1.c"]
+- termos: [Hidden]
+  regras: ["811.1"]
+- termos: [Recall]
+  regras: ["455"]
+- termos: [Recycle]
+  regras: ["416.1"]
+- termos: [Exhaust, Exhausted]
+  regras: ["414.1"]
+- termos: [Ready]
+  regras: ["415.1"]
+- termos: [Channel]
+  regras: ["430.1"]
+- termos: [Banish, Banishment]
+  regras: ["427.1"]

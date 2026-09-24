@@ -1,0 +1,347 @@
+# Perguntas-gabarito do Riftbound Juiz (etapa 2b)
+#
+# Para que serve: medir se a busca (etapa 4) e as respostas (etapa 7) estão certas.
+# Cada pergunta tem a resposta esperada e onde ela está (trechos do FAQ e/ou regras do CRD).
+#
+# Campos:
+#   id                 identificador curto (q01, q02...)
+#   pergunta           como um jogador perguntaria, em português
+#   categoria          carta | regra_geral | mecanica | so_crd | fora_do_escopo
+#   estilo             formal | informal | termo_em_portugues
+#                        termo_em_portugues = usa tradução de termo do jogo (atordoar = Stun),
+#                        pra testar se a busca multilíngue entende o termo
+#   resposta_esperada  resumo da resposta certa (em português)
+#   fontes_esperadas   IDs de trechos do FAQ (data/processed/faq_trechos.jsonl). Na busca,
+#                        achar QUALQUER um deles conta como acerto. O primeiro é o principal.
+#   regras_esperadas   números das regras do CRD que sustentam a resposta
+#
+# Perguntas "so_crd" só têm resposta no CRD (entra na etapa 3).
+# Perguntas "fora_do_escopo" NÃO têm resposta: o bot deve dizer que não encontrou.
+#
+# As respostas resumem conteúdo do Riftbound FAQ (riftboundfaq.com, de Christian "Near" Ivicevic,
+# licença CC BY-SA 4.0) e do Core Rules Document v1.4 (© Riot Games).
+
+# ---------------------------------------------------------------------------
+# Cartas
+# ---------------------------------------------------------------------------
+- id: q01
+  pergunta: "O Flash pode ter como alvo uma unidade que já está na base?"
+  categoria: carta
+  estilo: formal
+  resposta_esperada: >-
+    Sim. O Flash define a base como destino (o jogador não escolhe o destino), então a
+    restrição de mover para um local diferente não torna ilegal uma unidade que já está na base.
+    Mas, quando o Flash resolve, a unidade não se move, porque não muda de espaço no tabuleiro.
+  fontes_esperadas: [faq/cards/flash#target-in-base]
+  regras_esperadas: ["355.9.a", "355.4", "446.1"]
+
+- id: q02
+  pergunta: "Posso usar o Lacerate numa unidade com mais de 3 de força?"
+  categoria: carta
+  estilo: termo_em_portugues
+  resposta_esperada: >-
+    Sim, pode escolher qualquer unidade legal. "Choose a unit" não restringe o alvo pela might;
+    a condição "if it has 3 might or less" só é verificada quando o Lacerate resolve. Se a
+    unidade tiver mais de 3 de might nesse momento, ela não é morta.
+  fontes_esperadas:
+    - faq/cards/lacerate#targeting-restriction
+    - faq/general-rules/targeting#target-restrictions
+  regras_esperadas: ["355.9.b", "359.3.d"]
+
+- id: q03
+  pergunta: "O Switcheroo pode deixar uma unidade com might negativa?"
+  categoria: carta
+  estilo: formal
+  resposta_esperada: >-
+    Sim, se um bônus que entrou no cálculo do Switcheroo deixar de valer enquanto a redução
+    continua. Spells, habilidades e a atribuição de dano de combate tratam might negativa como 0,
+    mas aumentos e reduções de might usam o valor negativo real. A unidade não morre só por ter
+    might 0 ou negativa.
+  fontes_esperadas: [faq/cards/switcheroo#negative-might]
+  regras_esperadas: ["433.1.a", "143.2.b", "143.2.b.1"]
+
+- id: q04
+  pergunta: "Se o oponente counterar meu Sacrifice, a unidade que eu matei pra pagar volta?"
+  categoria: carta
+  estilo: informal
+  resposta_esperada: >-
+    Não. Matar a unidade Mighty é um custo adicional pago ao jogar o Sacrifice, e anular
+    (counter) um spell não devolve nenhum custo pago. A unidade continua morta.
+  fontes_esperadas:
+    - faq/cards/sacrifice#countered-additional-cost
+    - faq/general-rules/costs-and-payments#countered-costs
+  regras_esperadas: ["356.7", "425.1.c"]
+
+- id: q05
+  pergunta: "O Guardian Angel salva minha unidade do Smite?"
+  categoria: carta
+  estilo: informal
+  resposta_esperada: >-
+    Depende da ordem, que é escolhida pelo controlador da unidade (os dois são efeitos de
+    substituição da mesma morte). Se aplicar o Guardian Angel primeiro, a unidade não morre
+    (é curada, exaurida e volta para a base) e o Smite fica sem o que substituir. Se aplicar o
+    Smite primeiro, a unidade é banida; banir não é matar, então o Guardian Angel não se aplica.
+  fontes_esperadas: [faq/cards/smite#death-replacement-effects]
+  regras_esperadas: ["372", "369.1", "427.2.a"]
+
+- id: q06
+  pergunta: "A Irelia, Fervent ganha +1 de might quando é preparada na Awaken Phase?"
+  categoria: carta
+  estilo: formal
+  resposta_esperada: >-
+    Sim, uma vez, se ela estava exaurida e o controlador a prepara (ready) na própria Awaken
+    Phase. Se ela já estava preparada, não acontece evento de preparar e a habilidade não dispara.
+  fontes_esperadas: [faq/cards/irelia-fervent#awaken-phase-readying]
+  regras_esperadas: ["411.1", "415.1", "415.1.b"]
+
+- id: q07
+  pergunta: "Por quanto tempo o Endless Riches me faz pular a fase de compra?"
+  categoria: carta
+  estilo: termo_em_portugues
+  resposta_esperada: >-
+    Enquanto o Endless Riches estiver no tabuleiro, você pula toda Draw Phase. É uma habilidade
+    passiva (efeito de substituição) que só fica ativa enquanto a permanente está em jogo; quando
+    ela sai, as Draw Phases voltam ao normal.
+  fontes_esperadas: [faq/cards/endless-riches#draw-phase-duration]
+  regras_esperadas: ["364.2", "443.1.a", "365.1"]
+
+- id: q08
+  pergunta: "Quando a Vex, Apathetic atordoa a unidade que acabou de ser jogada, isso conta como escolher alvo?"
+  categoria: carta
+  estilo: termo_em_portugues
+  resposta_esperada: >-
+    Não. A habilidade identifica a unidade recém-jogada pela condição do gatilho, sem que o
+    jogador escolha entre unidades, então ela não é alvo. Por isso, efeitos que impedem spells
+    e habilidades inimigas de escolher a unidade não impedem o Stun, e o Deflect não adiciona custo.
+  fontes_esperadas: [faq/cards/vex-apathetic#stun-targeting]
+  regras_esperadas: ["383.2.a", "355.10.d", "809.1.d"]
+
+- id: q09
+  pergunta: "Preciso ter pontuado o Baron Pit pra ganhar a partida conquistando um battlefield?"
+  categoria: carta
+  estilo: formal
+  resposta_esperada: >-
+    Sim, quando o ponto da vitória viria de uma conquista. No match point, conquistar só dá o
+    último ponto se você pontuou todos os battlefields do tabuleiro naquele turno, incluindo o
+    Baron Pit. Se não pontuou todos, você compra uma carta em vez de ganhar o ponto.
+  fontes_esperadas: [faq/cards/baron-nashor#baron-pit-victory]
+  regras_esperadas: ["471.1.b", "471.1.b.1"]
+
+- id: q10
+  pergunta: "Quando jogo a Consuming Curse do descarte, ela conta ela mesma pro dano extra?"
+  categoria: carta
+  estilo: termo_em_portugues
+  resposta_esperada: >-
+    Não. Ao ser jogada, ela sai do trash e vai para o chain antes de o dano ser calculado. Só
+    contam as outras cópias de Consuming Curse que continuam no seu trash.
+  fontes_esperadas: [faq/cards/consuming-curse#self-count]
+  regras_esperadas: ["354", "359.3.d"]
+
+- id: q11
+  pergunta: "O que acontece se o Temporal Breach banir um token?"
+  categoria: carta
+  estilo: formal
+  resposta_esperada: >-
+    O token deixa de existir ao ir para o banimento, então o dono não pode jogá-lo de novo.
+    Tokens só existem no tabuleiro ou no chain.
+  fontes_esperadas: [faq/cards/temporal-breach#token-unit]
+  regras_esperadas: ["186", "186.1"]
+
+# ---------------------------------------------------------------------------
+# Regras gerais
+# ---------------------------------------------------------------------------
+- id: q12
+  pergunta: "Se counterarem minha carta, eu recebo a mana de volta?"
+  categoria: regra_geral
+  estilo: informal
+  resposta_esperada: >-
+    Não. Anular (counter) uma carta ou habilidade não devolve nenhum custo pago, incluindo
+    energia, power e custos adicionais.
+  fontes_esperadas: [faq/general-rules/costs-and-payments#countered-costs]
+  regras_esperadas: ["425.1.c", "425.1.c.1"]
+
+- id: q13
+  pergunta: "Se eu matar a unidade depois que a habilidade desencadeada dela foi pro chain, a habilidade ainda resolve?"
+  categoria: regra_geral
+  estilo: formal
+  resposta_esperada: >-
+    Sim. Remover a fonte não é anular, então a habilidade continua no chain e resolve. Mas
+    instruções que precisam da localização atual da fonte (como "here") podem não fazer nada,
+    porque essa informação não existe mais.
+  fontes_esperadas: [faq/general-rules/abilities#source-removal]
+  regras_esperadas: ["425.1", "406.5", "359.3.e.12"]
+
+- id: q14
+  pergunta: "Quando o showdown acaba? Se a unidade morrer ele termina?"
+  categoria: regra_geral
+  estilo: informal
+  resposta_esperada: >-
+    O showdown só termina quando todos os jogadores passam o foco em sequência sem jogar spell
+    nem ativar habilidade. Ele não termina só porque uma unidade saiu ou morreu.
+  fontes_esperadas: [faq/general-rules/showdowns#showdown-close]
+  regras_esperadas: ["347.2.a", "348"]
+
+- id: q15
+  pergunta: "Dá pra responder quando o oponente baixa uma unidade?"
+  categoria: regra_geral
+  estilo: informal
+  resposta_esperada: >-
+    Não antes de ela entrar no tabuleiro: ao ser finalizada, a unidade resolve imediatamente,
+    sem passar prioridade. Você pode reagir depois, às habilidades dela que forem para o chain
+    (como o efeito de play), mas a unidade já estará em jogo.
+  fontes_esperadas:
+    - faq/general-rules/chain-and-priority#unit-play-reactions
+    - faq/mechanics/ambush#unit-play-reactions
+  regras_esperadas: ["337.1.a", "337.2", "337.4"]
+
+- id: q16
+  pergunta: "Jogar uma unidade direto num battlefield conta como mover a unidade pra lá?"
+  categoria: regra_geral
+  estilo: formal
+  resposta_esperada: >-
+    Não. Mover é mudar de um espaço do tabuleiro para outro; entrar no tabuleiro vindo de outra
+    zona é mudança de zona, não movimento. Por isso habilidades do tipo "quando mover para cá"
+    não disparam.
+  fontes_esperadas:
+    - faq/general-rules/movement#entering-board
+    - faq/cards/irresistible-faefolk#playing-vs-moving
+  regras_esperadas: ["446.1", "446.2"]
+
+- id: q17
+  pergunta: "Fora de um showdown, eu perco o controle do battlefield assim que minha última unidade sai dele?"
+  categoria: regra_geral
+  estilo: formal
+  resposta_esperada: >-
+    Não necessariamente. O controle é verificado no cleanup: se ainda houver item no chain ou
+    combate acontecendo naquele battlefield, você continua controlando. Quando o chain esvazia e
+    o battlefield continua vazio e sem combate, você perde o controle no cleanup seguinte.
+  fontes_esperadas: [faq/general-rules/chain-and-priority#empty-battlefield-control]
+  regras_esperadas: ["323.6", "190.4.b", "190.4.c"]
+
+# ---------------------------------------------------------------------------
+# Mecânicas
+# ---------------------------------------------------------------------------
+- id: q18
+  pergunta: "O Deathknell resolve antes ou depois da carta que matou a unidade?"
+  categoria: mecanica
+  estilo: informal
+  resposta_esperada: >-
+    Depende de quando a unidade morreu. Morta para pagar custo enquanto um spell ou habilidade
+    é finalizado: o Deathknell resolve primeiro. Morta durante a resolução: a carta ou
+    habilidade que matou termina primeiro. Morta por dano letal: quem causou o dano termina
+    primeiro, e o Deathknell entra no chain no cleanup seguinte.
+  fontes_esperadas:
+    - faq/mechanics/deathknell#killing-card-timing
+    - faq/cards/sacrifice#deathknell-before-spell
+    - faq/cards/baited-hook#deathknell-order
+  regras_esperadas: ["808.1.d.2", "357.2", "204.3.b", "323.5"]
+
+- id: q19
+  pergunta: "Pra onde vai um feitiço jogado com Flow se ele for anulado?"
+  categoria: mecanica
+  estilo: termo_em_portugues
+  resposta_esperada: >-
+    Ele é banido em vez de ir para o trash, a menos que outro efeito de substituição mude isso.
+    Jogar com Flow cria um efeito que bane o spell se ele sair do chain depois de finalizado
+    (sem ser por instrução dele mesmo), e ser anulado se encaixa nisso.
+  fontes_esperadas:
+    - faq/mechanics/flow#countered-destination
+    - faq/mechanics/flow#abandon-destination
+  regras_esperadas: ["829.1.b.1", "425.1.a"]
+
+- id: q20
+  pergunta: "Posso usar Emboscada pra jogar uma unidade na minha base?"
+  categoria: mecanica
+  estilo: termo_em_portugues
+  resposta_esperada: >-
+    Não. O Ambush só vale para jogar a unidade num battlefield onde você controla unidades (e
+    dá Reaction a ela nesse caso). Na base, a unidade só pode ser jogada no timing normal.
+  fontes_esperadas: [faq/mechanics/ambush#ambush-base]
+  regras_esperadas: ["822.1.b", "822.1.c", "355.2.a"]
+
+- id: q21
+  pergunta: "O que acontece com o equipamento quando a unidade equipada morre?"
+  categoria: mecanica
+  estilo: termo_em_portugues
+  resposta_esperada: >-
+    O equipamento se solta no último local da unidade. Se era um battlefield, ele volta para a
+    base do controlador no cleanup seguinte; se já estava na base do controlador, fica lá.
+  fontes_esperadas: [faq/mechanics/equipment#equipment-after-death]
+  regras_esperadas: ["719.5", "435.4.a", "323.7"]
+
+# ---------------------------------------------------------------------------
+# Só o CRD responde (o FAQ não trata disso)
+# ---------------------------------------------------------------------------
+- id: q22
+  pergunta: "Quantas cartas precisa ter o deck principal e quantas cópias da mesma carta posso colocar?"
+  categoria: so_crd
+  estilo: formal
+  resposta_esperada: >-
+    O Main Deck precisa ter pelo menos 40 cartas, incluindo o Chosen Champion, e pode ter até 3
+    cópias de cartas com o mesmo nome (o Chosen Champion conta nesse limite). Além dele, o deck
+    tem uma Champion Legend, um Rune Deck de 12 runas e battlefields conforme o modo de jogo.
+  fontes_esperadas: []
+  regras_esperadas: ["103.2", "103.2.b", "103.2.b.1"]
+
+- id: q23
+  pergunta: "Quantos pontos preciso pra ganhar?"
+  categoria: so_crd
+  estilo: informal
+  resposta_esperada: >-
+    Por padrão, 8 pontos (o Victory Score). Ganha quem, durante um cleanup, tiver pontos
+    maiores ou iguais ao Victory Score e mais pontos que qualquer outro jogador. Modos de jogo
+    ou efeitos de cartas podem mudar esse número.
+  fontes_esperadas: []
+  regras_esperadas: ["194.2", "194.3"]
+
+- id: q24
+  pergunta: "Como funciona o mulligan no começo da partida?"
+  categoria: so_crd
+  estilo: informal
+  resposta_esperada: >-
+    Cada jogador compra 4 cartas. Depois, em ordem de turno, cada um pode separar até 2 cartas
+    da mão, compra a mesma quantidade e então recicla (Recycle) as cartas separadas.
+  fontes_esperadas: []
+  regras_esperadas: ["116", "117.1", "117.2", "117.3"]
+
+# ---------------------------------------------------------------------------
+# Fora do escopo: o bot deve dizer que não encontrou, sem inventar
+# ---------------------------------------------------------------------------
+- id: q25
+  pergunta: "Qual é o melhor deck do meta agora?"
+  categoria: fora_do_escopo
+  estilo: informal
+  resposta_esperada: >-
+    Deve dizer que não encontrou isso nas regras: meta e estratégia não fazem parte do FAQ
+    nem do CRD.
+  fontes_esperadas: []
+  regras_esperadas: []
+
+- id: q26
+  pergunta: "Quanto custa uma caixa de booster de Origins?"
+  categoria: fora_do_escopo
+  estilo: informal
+  resposta_esperada: >-
+    Deve dizer que não encontrou: preço de produto não está nas regras.
+  fontes_esperadas: []
+  regras_esperadas: []
+
+- id: q27
+  pergunta: "O que faz a carta Singed, Alquimista Louco?"
+  categoria: fora_do_escopo
+  estilo: formal
+  # Carta inventada: não existe no card-catalog.json (conferido em 23/09/2026).
+  # Se um dia for lançada uma carta com esse nome, trocar esta pergunta.
+  resposta_esperada: >-
+    Deve dizer que não encontrou essa carta, sem inventar o texto dela.
+  fontes_esperadas: []
+  regras_esperadas: []
+
+- id: q28
+  pergunta: "No Magic: The Gathering, como funciona o mana burn?"
+  categoria: fora_do_escopo
+  estilo: formal
+  resposta_esperada: >-
+    Deve dizer que só responde sobre regras de Riftbound e que não encontrou isso nas fontes.
+  fontes_esperadas: []
+  regras_esperadas: []

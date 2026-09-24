@@ -1,0 +1,34 @@
+# --- Segredos ---
+# O .env guarda chaves de API e NUNCA deve ir para o GitHub.
+.env
+
+# --- Ambiente Python ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- Dados ---
+# Os dados são baixados/gerados pelos scripts, então não precisam ir para o repositório.
+# (Além disso, o conteúdo do FAQ tem licença própria: CC BY-SA 4.0.)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Índice vetorial (etapa 4) e registro das conversas do app (etapa 6)
+data/index/
+data/logs/
+
+# Configuração local do Claude Code (servidor de pré-visualização)
+.claude/
+
+# --- Editores / sistema ---
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

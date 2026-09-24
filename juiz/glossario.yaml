@@ -1,0 +1,165 @@
+# Glossário português -> inglês dos termos de Riftbound (etapa 5).
+#
+# Pra que serve:
+#   1. Busca: quando a pergunta usa um termo em português ("atordoar"), o termo oficial
+#      em inglês ("Stun") é acrescentado à pergunta antes de buscar.
+#   2. Resposta: o LLM recebe a lista dos termos encontrados e responde com o termo oficial
+#      em inglês, que é o que está escrito nas cartas e nas regras.
+#
+# Formato: cada item tem o termo oficial em inglês (en) e as formas em português (pt).
+#   - Maiúsculas e acentos não importam ("Confronto" = "confronto" = "confrontó").
+#   - Um "*" no fim aceita qualquer terminação: "atordo*" pega atordoar, atordoa, atordoado...
+#   - Os termos em inglês vêm do Core Rules 1.4 e das palavras-chave do FAQ.
+#   - As traduções não são oficiais: são como os jogadores costumam falar. Ajuste à vontade.
+#   - Ficaram de fora palavras comuns demais pra identificar um termo sem erro, como "poder"
+#     (verbo), "ordem" ("ordem de turno"), "mente" e "corpo".
+
+# --- Objetos e zonas ---
+- en: Unit
+  pt: [unidade*]
+- en: Spell
+  pt: [feitiço*, feitico*, magia*]
+- en: Gear / Equipment
+  pt: [equipamento*]
+- en: Rune
+  pt: [runa*]
+- en: Battlefield
+  pt: [campo de batalha, campos de batalha]
+- en: Champion Legend
+  pt: [lenda*]
+- en: Chosen Champion
+  pt: [campeão escolhido, campeao escolhido]
+- en: Main Deck
+  pt: [deck principal, baralho principal]
+- en: Rune Deck
+  pt: [deck de runas, baralho de runas]
+- en: Trash
+  pt: [descarte, cemitério, cemiterio, lixo, pilha de descarte]
+- en: Banish / Banishment
+  pt: [banir, bani*, banimento*]
+- en: Chain
+  pt: [corrente, pilha, stack]
+
+# --- Estrutura do jogo ---
+- en: Showdown
+  pt: [confronto*]
+- en: Combat
+  pt: [combate*]
+- en: Attack / Attacker
+  pt: [atacar, ataca*, atacante*]
+- en: Defend / Defender
+  pt: [defender, defende*, defensor*]
+- en: Priority
+  pt: [prioridade]
+- en: Focus
+  pt: [foco]
+- en: Cleanup
+  pt: [limpeza]
+- en: Awaken Phase
+  pt: [fase de despertar, despertar]
+- en: Beginning Phase
+  pt: [fase inicial, fase de início, fase de inicio]
+- en: Channel Phase
+  pt: [fase de canalização, fase de canalizacao]
+- en: Draw Phase
+  pt: [fase de compra]
+- en: Main Phase
+  pt: [fase principal]
+- en: Ending Phase
+  pt: [fase final, fim do turno]
+- en: Points / Victory Score
+  pt: [ponto*, pontuação para vencer, pontuacao para vencer]
+
+# --- Recursos e atributos ---
+- en: Might
+  pt: [força, forca]
+- en: Energy
+  pt: [energia, mana]
+- en: Domain
+  pt: [domínio*, dominio*]
+- en: Fury
+  pt: [fúria, furia]
+- en: Calm
+  pt: [calma]
+- en: Chaos
+  pt: [caos]
+- en: Cost / Additional Cost
+  pt: [custo*]
+
+# --- Ações ---
+- en: Kill
+  pt: [matar, mata, matou, matei]
+- en: Die / Dies
+  pt: [morrer, morre*, morreu, morte, morto*, morta*]
+- en: Counter
+  pt: [anular, anula*, counterar, countera*, counterou]
+- en: Recycle
+  pt: [reciclar, recicla*]
+- en: Ready
+  pt: [preparar, prepara*, desvirar, desvira*]
+- en: Exhaust
+  pt: [exaurir, exauri*, exausto*, exausta*]
+- en: Recall
+  pt: [voltar para a base, voltar pra base, volta para a base, volta pra base]
+- en: Move
+  pt: [mover, move, moveu, movimento*]
+- en: Conquer
+  pt: [conquistar, conquista*]
+- en: Hold
+  pt: [segurar, segura, segurou, segurando]
+- en: Score
+  pt: [pontuar, pontua*, pontuou]
+- en: Draw
+  pt: [comprar, compra, comprou, comprei]
+- en: Channel
+  pt: [canalizar, canaliza*]
+- en: Discard
+  pt: [descartar, descarta*]
+- en: Heal
+  pt: [curar, cura*]
+- en: Stun
+  pt: [atordoar, atordo*]
+- en: Hide / Hidden
+  pt: [esconder, escond*, oculto*, oculta*]
+- en: Target
+  pt: [alvo*, mirar, mira*]
+- en: Play
+  pt: [jogar, joga, jogou, jogando, baixar, baixa, baixou, baixando]
+
+# --- Palavras-chave ---
+- en: Ambush
+  pt: [emboscada*]
+- en: Shield
+  pt: [escudo*]
+- en: Deathknell
+  pt: [último suspiro, ultimo suspiro]
+- en: Assault
+  pt: [assalto*]
+- en: Accelerate
+  pt: [acelerar, acelera*]
+- en: Deflect
+  pt: [desviar, desvia*]
+- en: Empower / Empowered
+  pt: [fortalecer, fortalec*, empoderad*]
+- en: Flow
+  pt: [fluxo]
+- en: Legion
+  pt: [legião, legiao]
+- en: Mighty
+  pt: [poderoso*, poderosa*]
+- en: Predict
+  pt: [prever, prevê, preve, previsão, previsao]
+- en: Quick-Draw
+  pt: [saque rápido, saque rapido]
+- en: Reaction
+  pt: [reação, reacao, reações, reacoes, reagir, reag*]
+- en: Repeat
+  pt: [repetir, repet*]
+- en: Temporary
+  pt: [temporári*, temporari*]
+- en: Weaponmaster
+  pt: [mestre de armas]
+- en: Equip
+  pt: [equipar, equipa, equipou]
+- en: Burn
+  pt: [queimar, queima*]
