@@ -5,7 +5,9 @@ Você pergunta em português, ele responde rápido, cita a regra ou página usad
 
 Por baixo, é um **RAG** (*Retrieval-Augmented Generation*): primeiro o app **busca** os trechos mais relevantes das regras e depois pede pra um LLM **responder usando só esses trechos**.
 
-> Projeto pessoal e de portfólio de dados, em construção.
+**Experimente:** [riftbound-juiz.streamlit.app](https://riftbound-juiz.streamlit.app). Sem cadastro, com um limite de perguntas por visita.
+
+> Projeto pessoal e de portfólio de dados. A fase 1 (o juiz) está concluída; a fase 2, um deck builder, está descrita no fim deste README.
 
 ## Status
 
@@ -18,8 +20,8 @@ Por baixo, é um **RAG** (*Retrieval-Augmented Generation*): primeiro o app **bu
 | 4 | Embeddings multilíngues + índice vetorial | ✅ concluída |
 | 5 | LLM + geração da resposta (com glossário PT→EN) | ✅ concluída |
 | 6 | Interface de chat em Streamlit | ✅ concluída |
-| 7 | Avaliação completa (métricas de busca e de resposta) | ✅ concluída (falta só comparar com o 3.8 Flash, que depende da cota diária) |
-| 8 | Atualização automática + publicação | 🟡 pronto pra publicar |
+| 7 | Avaliação completa (métricas de busca e de resposta) | ✅ concluída |
+| 8 | Atualização automática + publicação | ✅ concluída: [app publicado](https://riftbound-juiz.streamlit.app) |
 
 ## Como funciona
 
@@ -401,7 +403,7 @@ A melhora real fica entre 81% e 95%. Pra decisões importantes, cada pergunta pr
 A rodada 2 também revelou um bug na própria métrica: "Não encontrei" contava como a conclusão "não". Ele foi corrigido.
 
 Análise completa, com gráficos, a tabela de divergências e o antes × depois: [`notebooks/03_avaliar_respostas.ipynb`](notebooks/03_avaliar_respostas.ipynb).
-**Falta:** comparar com o modelo principal (Gemini 3.8 Flash) nas 18 perguntas de `config.IDS_COMPARACAO`, porque o tier grátis dele dá só 20 respostas por dia.
+**O que ficou de fora:** a comparação com o modelo principal (Gemini 3.8 Flash) e a busca Gemini no gabarito de 45 perguntas. O tier grátis do 3.8 Flash dá só 20 respostas por dia, e a cota e a sobrecarga não deixaram rodar. A avaliação foi encerrada com o Flash-Lite, o pior caso do juiz. A etapa 8 ainda comparou o Flash-Lite com os modelos do Groq (veja abaixo).
 
 ## Atualização e publicação (etapa 8)
 
@@ -489,7 +491,7 @@ Recursos do plano grátis: até 2,7 GB de memória. O app usa ~1 GB, a maior par
 
 ## Próximos passos (fase 2): deck builder
 
-Ideia pra depois que o juiz estiver pronto:
+Ideia pra próxima fase, agora que o juiz está pronto:
 
 1. **Cadastro da minha coleção** de cartas, usando o `card-catalog.json` do repositório do FAQ como tabela mestre.
 2. **Decks do meta já prontos no app**, coletados automaticamente e atualizados com frequência (por exemplo, uma vez por semana), sem precisar cadastrar nada.
