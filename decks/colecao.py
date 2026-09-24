@@ -3,11 +3,19 @@
 Uso pelo terminal (a partir da raiz do projeto):
     python -m decks.colecao exportar colecao.csv     # backup (ou pra editar numa planilha)
     python -m decks.colecao importar colecao.csv     # define as quantidades das cartas do arquivo
+    python -m decks.colecao importar export.csv --substituir   # coleção = exatamente o arquivo
     python -m decks.colecao definir "Jinx, Rebel" 2
 
 O CSV tem duas colunas, carta e quantidade. Aceita vírgula ou ponto e vírgula (o Excel em português
-salva com ponto e vírgula) e os cabeçalhos em inglês (name, quantity). Importar define a quantidade
-de cada carta do arquivo; as cartas que não estão no arquivo ficam como estavam.
+salva com ponto e vírgula) e os cabeçalhos em inglês (name, quantity).
+
+Também aceita direto a exportação de coleção da Liga Riftbound (ligariftbound.com.br): o nome vem da
+coluna "Card (EN)" (ou "Card (PT)", se a em inglês estiver vazia), e a mesma carta aparece em várias
+linhas, uma por qualidade, idioma ou foil. Por isso, linhas da mesma carta somam.
+
+Importar define a quantidade de cada carta do arquivo; as que não estão nele ficam como estavam. Com
+--substituir (ou a opção na tela), a coleção passa a ser exatamente a do arquivo: útil com a
+exportação completa da Liga, em que uma carta vendida some do arquivo.
 """
 
 import argparse
@@ -20,7 +28,8 @@ from pathlib import Path
 from decks.banco import Banco
 from decks.catalogo import Catalogo
 
-COLUNAS_CARTA = ("carta", "nome", "name", "card", "card name")
+# Em ordem de preferência: o catálogo é em inglês, então o nome em português da Liga é só reserva.
+COLUNAS_CARTA = ("carta", "nome", "name", "card", "card name", "card (en)", "card (pt)")
 COLUNAS_QUANTIDADE = ("quantidade", "qtd", "quantity", "qty", "count", "copies")
 
 
@@ -51,9 +60,10 @@ class RelatorioImportacao:
     invalidas: list[str] = field(default_factory=list)  # linhas com quantidade que não é número
 
 
-def _coluna(cabecalho: list[str], opcoes: tuple[str, ...]) -> int | None:
+def _colunas(cabecalho: list[str], opcoes: tuple[str, ...]) -> list[int]:
+    """Posições das colunas do cabeçalho que estão em `opcoes`, na ordem de preferência."""
     normal = [c.strip().lower() for c in cabecalho]
-    return next((normal.index(o) for o in opcoes if o in normal), None)
+    return [normal.index(o) for o in opcoes if o in normal]
 
 
 def ler_csv(texto: str, catalogo: Catalogo) -> RelatorioImportacao:
@@ -67,30 +77,34 @@ def ler_csv(texto: str, catalogo: Catalogo) -> RelatorioImportacao:
     relatorio = RelatorioImportacao()
     if not linhas:
         return relatorio
-    i_carta, i_qtd = _coluna(linhas[0], COLUNAS_CARTA), _coluna(linhas[0], COLUNAS_QUANTIDADE)
-    if i_carta is None or i_qtd is None:  # sem cabeçalho: carta, quantidade
-        i_carta, i_qtd = 0, 1
+    i_cartas, i_qtds = _colunas(linhas[0], COLUNAS_CARTA), _colunas(linhas[0], COLUNAS_QUANTIDADE)
+    if not i_cartas or not i_qtds:  # sem cabeçalho: carta, quantidade
+        i_cartas, i_qtd = [0], 1
     else:
+        i_qtd = i_qtds[0]
         linhas = linhas[1:]
     for linha in linhas:
-        if len(linha) <= max(i_carta, i_qtd):
-            relatorio.invalidas.append(";".join(linha))
-            continue
-        nome, qtd = linha[i_carta].strip(), linha[i_qtd].strip()
-        if not qtd.isdigit():
+        nome = next((linha[i].strip() for i in i_cartas if i < len(linha) and linha[i].strip()), "")
+        qtd = linha[i_qtd].strip() if i_qtd < len(linha) else ""
+        if not nome or not qtd.isdigit():
             relatorio.invalidas.append(";".join(linha))
             continue
         oficial = catalogo.resolver(nome)
         if oficial is None:
             relatorio.desconhecidas.append((nome, catalogo.sugestoes(nome)))
-        else:
-            relatorio.importadas[oficial] = int(qtd)
+        else:  # a mesma carta em várias linhas (qualidade, idioma, foil) soma
+            relatorio.importadas[oficial] = relatorio.importadas.get(oficial, 0) + int(qtd)
     return relatorio
 
 
-def importar_csv(banco: Banco, catalogo: Catalogo, texto: str) -> RelatorioImportacao:
+def importar_csv(banco: Banco, catalogo: Catalogo, texto: str, substituir: bool = False) -> RelatorioImportacao:
+    """Grava as quantidades do arquivo. Com substituir=True, as cartas fora do arquivo saem da coleção
+    (na mesma transação: se algo falhar, a coleção antiga continua)."""
     relatorio = ler_csv(texto, catalogo)
-    salvar_alteracoes(banco, relatorio.importadas)
+    comandos = [("DELETE FROM colecao", ())] if substituir else []
+    comandos += [_comando(carta, qtd) for carta, qtd in relatorio.importadas.items()]
+    if comandos:
+        banco.lote(comandos)
     return relatorio
 
 
@@ -109,7 +123,10 @@ def main() -> None:
     sys.stdout.reconfigure(errors="replace")
     parser = argparse.ArgumentParser(description="Importa, exporta ou altera a coleção de cartas.")
     sub = parser.add_subparsers(dest="acao", required=True)
-    sub.add_parser("importar").add_argument("arquivo")
+    importar_ = sub.add_parser("importar")
+    importar_.add_argument("arquivo")
+    importar_.add_argument("--substituir", action="store_true",
+                           help="a coleção passa a ser exatamente a do arquivo (cartas fora dele saem)")
     sub.add_parser("exportar").add_argument("arquivo", nargs="?")
     definir_ = sub.add_parser("definir")
     definir_.add_argument("carta")
@@ -120,7 +137,7 @@ def main() -> None:
     catalogo = preparar(banco)
     print(f"Banco: {banco.onde}")
     if args.acao == "importar":
-        r = importar_csv(banco, catalogo, Path(args.arquivo).read_text(encoding="utf-8-sig"))
+        r = importar_csv(banco, catalogo, Path(args.arquivo).read_text(encoding="utf-8-sig"), substituir=args.substituir)
         print(f"{len(r.importadas)} cartas importadas.")
         for nome, sugestoes in r.desconhecidas:
             print(f"  Não reconheci \"{nome}\"" + (f" (quis dizer {' / '.join(sugestoes)}?)" if sugestoes else ""))

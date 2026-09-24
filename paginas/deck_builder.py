@@ -153,20 +153,27 @@ with aba_colecao:
         st.dataframe(tabela, hide_index=True, width="stretch", height=altura)
 
     with st.expander("Importar ou exportar (CSV)"):
-        st.markdown("O CSV tem as colunas **carta** e **quantidade**. Importar define a quantidade das cartas do "
-                    "arquivo; as outras ficam como estão.")
+        st.markdown("O CSV tem as colunas **carta** e **quantidade**. Também aceita direto a exportação de "
+                    "coleção da **Liga Riftbound**. Importar define a quantidade das cartas do arquivo; as outras "
+                    "ficam como estão, a não ser que você marque a opção de substituir.")
         st.download_button("Baixar minha coleção (CSV)", colecao.exportar_csv(banco), file_name="colecao_riftbound.csv",
                            mime="text/csv", icon=":material/download:")
         if pode_editar:
             arquivo = st.file_uploader("Arquivo CSV", type=["csv"])
+            substituir = st.checkbox("Substituir a coleção inteira pelo arquivo",
+                                     help="Use com a exportação completa da Liga: cartas que não estão no arquivo "
+                                          "saem da coleção (ex.: as que você vendeu).")
             if arquivo and st.button("Importar CSV", icon=":material/upload:"):
                 try:
-                    relatorio = colecao.importar_csv(banco, catalogo, arquivo.getvalue().decode("utf-8-sig"))
+                    relatorio = colecao.importar_csv(banco, catalogo, arquivo.getvalue().decode("utf-8-sig"),
+                                                     substituir=substituir)
                 except Exception as erro:
                     traceback.print_exc()
                     st.error(f"Não consegui importar ({explicar_erro(erro)}).")
                 else:
-                    avisar_depois("success", f"{len(relatorio.importadas)} cartas importadas.")
+                    avisar_depois("success", f"{len(relatorio.importadas)} cartas importadas "
+                                             f"({sum(relatorio.importadas.values())} cópias)"
+                                             + (", substituindo a coleção anterior." if substituir else "."))
                     if relatorio.desconhecidas:
                         avisar_depois("warning", "Não reconheci: " + "; ".join(
                             com_sugestoes(n, s) for n, s in relatorio.desconhecidas))
