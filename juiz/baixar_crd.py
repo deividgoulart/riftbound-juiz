@@ -42,10 +42,9 @@ def baixar(url: str) -> bytes:
         return resposta.read()
 
 
-def main() -> None:
-    versao, nome = versao_atual()
+def baixar_e_salvar(versao: str, nome: str | None) -> dict:
+    """Baixa o HTML da versão pedida e grava a procedência em data/raw/crd_snapshot.json."""
     url = config.CRD_HTML_URL.format(versao=versao)
-    print(f"Baixando o CRD {versao} ({nome}) de {url} ...")
     conteudo = baixar(url)
 
     config.CRD_RAW_DIR.mkdir(parents=True, exist_ok=True)
@@ -64,7 +63,14 @@ def main() -> None:
         "baixado_em": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
     config.CRD_SNAPSHOT.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"Salvo em {snapshot['arquivo']} ({len(conteudo) / 1e6:.1f} MB)")
+    return snapshot
+
+
+def main() -> None:
+    versao, nome = versao_atual()
+    print(f"Baixando o CRD {versao} ({nome}) de {config.CRD_HTML_URL.format(versao=versao)} ...")
+    snapshot = baixar_e_salvar(versao, nome)
+    print(f"Salvo em {snapshot['arquivo']} ({snapshot['bytes'] / 1e6:.1f} MB)")
     print(f"Procedência salva em {config.CRD_SNAPSHOT.relative_to(config.RAIZ)}")
 
 

@@ -40,6 +40,7 @@ def resposta_com_fontes():
 @pytest.fixture
 def app(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "LOGS_DIR", tmp_path)
+    monkeypatch.delenv("SENHA_DO_APP", raising=False)  # sem senha = rodando no seu computador, sem limites
 
     def criar(juiz):
         at = AppTest.from_file(str(config.RAIZ / "app.py"), default_timeout=30)
@@ -137,3 +138,81 @@ def test_segunda_pergunta_leva_a_conversa_anterior(app):
     at.chat_input[0].set_value("e se for durante um showdown?").run()
     assert juiz.historicos[0] == []
     assert juiz.historicos[1] == [("como funciona a Chain?", resposta_com_fontes().texto)]
+
+
+# ---------------------------------------------------------------------------
+# App publicado (etapa 8): modo convidado com limites e senha
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def app_publico(app, monkeypatch):
+    import streamlit as st
+
+    monkeypatch.setenv("SENHA_DO_APP", "segredo")
+    monkeypatch.setattr(config, "LIMITE_POR_VISITA", 2)
+    st.cache_resource.clear()  # o contador do dia é compartilhado entre sessões: cada teste começa do zero
+    return app
+
+
+def perguntar(at, texto="posso usar emboscada na base?"):
+    return at.chat_input[0].set_value(texto).run()
+
+
+def avisos_de_limite(at):
+    return [i.value for i in at.info if "limite" in i.value or "Você usou" in i.value]
+
+
+def test_publicado_mostra_modo_convidado_privacidade_e_nao_registra(app_publico, tmp_path):
+    at = app_publico(JuizFalso(resposta_com_fontes()))
+    assert "Modo convidado: 2 perguntas restantes" in at.caption[1].value
+    assert "Não escreva dados pessoais" in at.caption[1].value
+    perguntar(at)
+    assert not at.exception
+    assert len(at.get("feedback")) == 0  # sem registro local, sem 👍/👎
+    assert eventos(tmp_path) == []
+    assert "Modo convidado: 1 pergunta restante" in at.caption[1].value
+
+
+def test_convidado_fica_bloqueado_depois_do_limite_da_visita(app_publico):
+    juiz = JuizFalso(resposta_com_fontes())
+    at = app_publico(juiz)
+    perguntar(perguntar(at))
+    assert "Você usou as 2 perguntas desta visita" in avisos_de_limite(at)[0]
+    assert at.chat_input[0].disabled
+    assert len(juiz.historicos) == 2
+
+
+def test_limite_do_dia_vale_pra_todos_os_visitantes(app_publico, monkeypatch):
+    monkeypatch.setattr(config, "LIMITE_DIARIO", 1)
+    perguntar(app_publico(JuizFalso(resposta_com_fontes())))  # 1º visitante gasta a única pergunta do dia
+    outro_visitante = app_publico(JuizFalso(resposta_com_fontes()))
+    assert "limite de perguntas de convidados de hoje" in avisos_de_limite(outro_visitante)[0]
+    assert outro_visitante.chat_input[0].disabled
+
+
+def test_erro_devolve_a_pergunta_ao_limite_do_dia(app_publico, monkeypatch):
+    monkeypatch.setattr(config, "LIMITE_DIARIO", 1)
+    at = app_publico(JuizFalso(erro=RuntimeError("503")))
+    perguntar(at)
+    assert "Não consegui responder agora" in at.error[0].value
+    assert not at.chat_input[0].disabled  # a pergunta que deu erro não contou
+
+
+def test_senha_certa_libera_uso_sem_limite(app_publico):
+    at = app_publico(JuizFalso(resposta_com_fontes()))
+    at.sidebar.text_input[0].input("segredo")
+    [b for b in at.sidebar.button if b.label == "Entrar"][0].click().run()
+    assert "Uso sem limite liberado" in at.sidebar.success[0].value
+    for _ in range(3):  # passa do limite de 2 da visita
+        perguntar(at)
+    assert not avisos_de_limite(at) and not at.chat_input[0].disabled
+    assert not any("Modo convidado" in c.value for c in at.caption)
+
+
+def test_senha_errada_nao_libera(app_publico):
+    at = app_publico(JuizFalso(resposta_com_fontes()))
+    at.sidebar.text_input[0].input("chute")
+    [b for b in at.sidebar.button if b.label == "Entrar"][0].click().run()
+    assert "Senha incorreta" in at.sidebar.error[0].value
+    assert not at.sidebar.success
+

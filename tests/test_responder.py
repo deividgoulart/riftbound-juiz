@@ -193,6 +193,7 @@ def test_citacoes_no_formato_F_e_custos_de_carta_nao_se_confundem():
     "CITAÇÃO PENDENTE",
     "NÃO é voltar para a mão (CRD 455)",  # Recall em Riftbound vai pra base (em LoR, vai pra mão)
     "são CUSTOS da carta, não fontes",
+    "Se a pergunta for sobre OUTRO jogo",  # achado da etapa 7: "No Legends of Runeterra, como funciona..."
 ])
 def test_instrucoes_cobrem_os_requisitos_do_projeto(trecho):
     assert trecho in INSTRUCOES
@@ -373,3 +374,9 @@ def test_toda_regra_do_arquivo_de_definicoes_existe_no_crd():
     regras = {json.loads(l)["numero"] for l in (config.PROCESSED_DIR / "crd_regras.jsonl").open(encoding="utf-8")}
     for d in yaml.safe_load(config.DEFINICOES.read_text(encoding="utf-8")):
         assert set(d.get("regras", [])) <= regras, d["termos"]
+
+
+def test_passar_a_prioridade_vira_pass_no_glossario():
+    # Etapa 7: "meu oponente passa" precisa trazer a definição oficial de passar a prioridade (CRD 339.1).
+    assert "Pass" in [en for _, en in encontrar_termos("meu oponente passa, o que acontece?")]
+    assert all(en != "Pass" for _, en in encontrar_termos("posso jogar na minha base?"))

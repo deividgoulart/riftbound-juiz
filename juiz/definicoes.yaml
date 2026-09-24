@@ -17,13 +17,17 @@
   glossario: chain
 - termos: [Pending]
   glossario: pending
-- termos: [Finalize, Finalized, Finalization]
+- termos: [Finalize, Finalized, Finalizing, Finalization]
+  regras: ["337.1.a", "337.2"]  # finalizar não passa a prioridade; Unit e Gear resolvem na hora
   glossario: finalization
 - termos: [Resolve, Resolves, Resolution]
   glossario: resolution
 - termos: [Priority]
-  regras: ["312.1"]
+  regras: ["312.1", "312.2"]  # o que é e QUANDO cada jogador recebe a prioridade
   glossario: priority
+- termos: [Pass, Passes, Passed]
+  # Quem recebe a prioridade depois de jogar algo, e por que a Chain resolve: todos passaram em sequência.
+  regras: ["337.4", "338.1.b.1", "339.1", "339.2", "340.1"]
 - termos: [Focus]
   regras: ["313.1"]
   glossario: focus

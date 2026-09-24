@@ -124,3 +124,40 @@ def test_sem_mudanca_nada_e_enviado():
     modelo.enviados.clear()
     atual = Indice.construir(modelo, TRECHOS, anterior=anterior)
     assert modelo.enviados == [] and np.allclose(atual.vetores, anterior.vetores)
+
+
+def test_mesclar_ranking_junta_sem_repetir_e_mantem_o_tamanho():
+    from juiz.avaliar_busca import _mesclar_ranking
+
+    posicoes, notas = _mesclar_ranking([5, 2, 9], [0.9, 0.7, 0.6], [2, 7, 5], [0.95, 0.8, 0.5])
+    assert posicoes.tolist() == [2, 5, 7] and notas.tolist() == [0.95, 0.9, 0.8]
+
+
+# --- vetores publicados (etapa 8: o app na nuvem monta o índice sem gastar cota) ---
+
+def test_vetores_publicados_nao_tem_texto_e_evitam_reenviar_trechos(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "VETORES_DIR", tmp_path)
+    modelo = ModeloQueConta()
+    Indice.construir(modelo, TRECHOS).publicar_vetores()
+    assert "Ambush" not in (tmp_path / "falso" / "trechos.json").read_text(encoding="utf-8")
+
+    publicados = Indice.carregar_vetores_publicados("falso")
+    alterado = dict(TRECHOS[1], texto="Shield changed text. shield")
+    modelo.enviados.clear()
+    atual = Indice.construir(modelo, [TRECHOS[0], alterado, TRECHOS[2]], anterior=publicados)
+    assert modelo.enviados == [alterado["texto"]]  # só o que mudou vai pro modelo
+    assert np.allclose(atual.vetores[0], publicados.vetores[0])
+
+
+def test_sem_indice_local_obter_indice_parte_dos_vetores_publicados(tmp_path, monkeypatch):
+    from juiz.indice import obter_indice
+
+    monkeypatch.setattr(config, "VETORES_DIR", tmp_path / "vetores")
+    monkeypatch.setattr(config, "INDEX_DIR", tmp_path / "index")
+    Indice.construir(ModeloFalso(), TRECHOS).publicar_vetores()
+
+    modelo = ModeloQueConta()
+    indice = obter_indice(modelo, TRECHOS)
+    assert modelo.enviados == [] and indice.acabou_de_ser_construido
+    assert Indice.existe("falso")  # o índice local foi salvo
+    assert not obter_indice(modelo, TRECHOS).acabou_de_ser_construido  # 2ª vez: já estava em dia

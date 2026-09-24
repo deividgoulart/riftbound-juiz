@@ -21,6 +21,9 @@ RAW_DIR = DATA_DIR / "raw"  # dados como vieram da fonte
 PROCESSED_DIR = DATA_DIR / "processed"  # dados limpos e divididos em trechos (etapa 2 em diante)
 
 INDEX_DIR = DATA_DIR / "index"  # vetores de cada modelo de embeddings (etapa 4)
+# Os mesmos vetores, sem o texto, publicados no GitHub pro app na nuvem não gastar a cota (etapa 8)
+VETORES_DIR = DATA_DIR / "vetores"
+ATUALIZACAO = DATA_DIR / "atualizacao.json"  # quando e o que a última atualização fez (etapa 8)
 LOGS_DIR = DATA_DIR / "logs"  # perguntas feitas no app e avaliações 👍/👎 (etapa 6; fora do git)
 
 # Modelo de embeddings escolhido na etapa 4 (notebooks/02_comparar_busca.ipynb):
@@ -63,6 +66,13 @@ USAR_GLOSSARIO_NA_BUSCA = False
 # Perguntas-gabarito escritas à mão (versionadas no git, ao contrário de data/).
 GABARITO = RAIZ / "avaliacao" / "gabarito.yaml"
 RESULTADOS_DIR = RAIZ / "avaliacao" / "resultados"  # tabelas das comparações (versionadas)
+# Avaliação das respostas (etapa 7). O avaliador é o Flash-Lite: tem cota diária maior, e a
+# concordância dele com uma revisão humana é medida (avaliacao/revisao_humana.csv).
+MODELO_AVALIADOR = "gemini-3.5-flash-lite"
+# Perguntas da comparação entre LLMs: o 3.8 Flash só tem 20 respostas por dia no tier grátis,
+# então a comparação usa 18 perguntas em comum, de todas as categorias.
+IDS_COMPARACAO = ["q01", "q04", "q05", "q08", "q12", "q15", "q29", "q18", "q20",
+                  "q22", "q30", "q34", "q37", "q40", "q35", "q25", "q27", "q45"]
 
 # --- Fonte 1: FAQ não oficial (riftboundfaq.com) ---
 FAQ_REPO_URL = "https://github.com/ChristianIvicevic/riftboundfaq.git"
@@ -103,3 +113,12 @@ CRD_HTML_URL = FAQ_SITE_URL + "/reference/core-rules/{versao}"
 CRD_REGRA_URL = CRD_HTML_URL + "#R{regra}"  # ex.: .../core-rules/1.4#R355.9.a
 CRD_RAW_DIR = RAW_DIR / "crd"
 CRD_SNAPSHOT = RAW_DIR / "crd_snapshot.json"
+
+# --- App publicado (etapa 8) ---
+# O app se atualiza sozinho (FAQ, CRD, trechos e índices) quando a última atualização tem mais que isso.
+ATUALIZAR_A_CADA_HORAS = 24
+# Modo convidado: só vale quando a variável SENHA_DO_APP existe (nos secrets do Streamlit Cloud).
+# Protege a cota grátis do Gemini de visitantes; com a senha, o uso não tem limite.
+LIMITE_POR_VISITA = 10  # perguntas por visita (sessão do navegador)
+LIMITE_DIARIO = 100  # perguntas de convidados por dia, somando todos os visitantes
+TENTATIVAS_DE_SENHA = 5  # por visita, pra ninguém ficar chutando senhas

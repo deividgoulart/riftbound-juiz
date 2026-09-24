@@ -118,6 +118,15 @@ def ranquear(nome: str, trechos: list[dict], perguntas: list[str], reconstruir: 
     return posicoes, notas, info
 
 
+def _mesclar_ranking(pos_a, notas_a, pos_b, notas_b) -> tuple[np.ndarray, np.ndarray]:
+    """Junta dois rankings do mesmo modelo (sem repetir trecho, fica a maior nota), como o juiz faz."""
+    melhores: dict[int, float] = {}
+    for p, n in list(zip(pos_a, notas_a)) + list(zip(pos_b, notas_b)):
+        melhores[int(p)] = max(float(n), melhores.get(int(p), float("-inf")))
+    ordem = sorted(melhores, key=lambda p: -melhores[p])[:len(pos_a)]
+    return np.array(ordem), np.array([melhores[p] for p in ordem])
+
+
 def _juntar_com_anterior(novo: pd.DataFrame, arquivo) -> pd.DataFrame:
     """Substitui só as linhas dos modelos avaliados agora; mantém as dos outros."""
     if not arquivo.exists():
@@ -133,11 +142,18 @@ def avaliar(nomes: list[str], reconstruir: bool = False, glossario: bool = False
     if glossario:  # etapa 5: acrescenta os termos oficiais em inglês, como o juiz faz
         perguntas = [expandir_pergunta(p) for p in perguntas]
     certas = [fontes_certas(q, trechos) for q in gabarito]
+    # Perguntas de continuação ("e se...?"): o juiz busca também junto com a pergunta anterior.
+    continuacoes = [(i, f"{q['historico'][-1]['pergunta']} {perguntas[i]}")
+                    for i, q in enumerate(gabarito) if q.get("historico")]
 
     detalhe, resumo = [], []
     for nome in nomes:
         print(f"\n=== {nome} ===")
         posicoes, notas, info = ranquear(nome, trechos, perguntas, reconstruir)
+        if continuacoes:
+            pos_extra, notas_extra, _ = ranquear(nome, trechos, [c for _, c in continuacoes], False)
+            for (i, _), pe, ne in zip(continuacoes, pos_extra, notas_extra):
+                posicoes[i], notas[i] = _mesclar_ranking(posicoes[i], notas[i], pe, ne)
         rotulo = f"{nome}+glossario" if glossario else nome
         linhas = []
         for q, cert, ranking, nts in zip(gabarito, certas, posicoes, notas):

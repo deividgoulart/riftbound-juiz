@@ -5,10 +5,17 @@ Uso (a partir da raiz do projeto):
     python -m juiz.indice --buscar "posso usar emboscada na base?"   # e faz uma busca de teste
     python -m juiz.indice --modelo e5-small --buscar "..."           # só um modelo
 
-Arquivos em data/index/<modelo>/:
+Arquivos em data/index/<modelo>/ (fora do git):
     vetores.npy    matriz com um vetor por trecho (NumPy)
     trechos.jsonl  os trechos na mesma ordem dos vetores (texto + metadados)
     info.json      qual modelo gerou, quando e a partir de qual versão das fontes
+
+Vetores publicados em data/vetores/<modelo>/ (esses VÃO pro GitHub, etapa 8):
+    vetores.npy    os mesmos vetores
+    trechos.json   só o id e a "assinatura" (hash) de cada trecho, sem o texto
+    Servem pro app na nuvem montar o índice sem gastar a cota de embeddings: ele baixa o FAQ e o
+    CRD, e só manda pro modelo os trechos cuja assinatura não está aqui. Como não têm o texto,
+    não republicam o conteúdo das fontes.
 
 Como a busca funciona: os vetores são normalizados, então a similaridade de cosseno entre
 a pergunta e cada trecho é um produto escalar (vetores @ pergunta). Com ~500 trechos,
@@ -56,6 +63,11 @@ def hash_dos_trechos(trechos: list[dict]) -> str:
     return h.hexdigest()
 
 
+def assinatura(t: dict) -> str:
+    """Hash do que gerou o vetor (título + texto). Se a assinatura é igual, o vetor pode ser reaproveitado."""
+    return hashlib.sha256(f"{titulo_do_trecho(t)}\0{t['texto']}".encode()).hexdigest()[:20]
+
+
 def _procedencia() -> dict:
     """De qual versão do FAQ e do CRD o índice foi gerado."""
     if not (config.FAQ_SNAPSHOT.exists() and config.CRD_SNAPSHOT.exists()):
@@ -71,6 +83,7 @@ class Indice:
         self.vetores = vetores
         self.trechos = trechos
         self.info = info
+        self.acabou_de_ser_construido = False  # distingue "atualizei agora" de "já estava em dia"
 
     # --- criar, salvar e carregar ---
 
@@ -82,10 +95,11 @@ class Indice:
         inicio = time.perf_counter()
         reaproveitados: dict[int, np.ndarray] = {}
         if anterior is not None and anterior.info.get("id_modelo") == modelo.id:
-            antigos = {t["id"]: (t, v) for t, v in zip(anterior.trechos, anterior.vetores)}
+            # Os vetores publicados guardam só a assinatura; os índices locais, o trecho inteiro.
+            antigos = {t["id"]: (t.get("assinatura") or assinatura(t), v) for t, v in zip(anterior.trechos, anterior.vetores)}
             for i, t in enumerate(trechos):
                 antigo = antigos.get(t["id"])
-                if antigo and antigo[0]["texto"] == t["texto"] and titulo_do_trecho(antigo[0]) == titulo_do_trecho(t):
+                if antigo and antigo[0] == assinatura(t):
                     reaproveitados[i] = antigo[1]
         novos = [i for i in range(len(trechos)) if i not in reaproveitados]
         if novos:
@@ -114,7 +128,9 @@ class Indice:
             # Quantos trechos passam do limite do modelo (o excesso é cortado sem aviso).
             info["max_tokens"] = modelo.max_tokens
             info["trechos_cortados"] = sum(modelo.contar_tokens(t["texto"]) > modelo.max_tokens for t in trechos)
-        return cls(modelo.nome, vetores, trechos, info)
+        indice = cls(modelo.nome, vetores, trechos, info)
+        indice.acabou_de_ser_construido = True
+        return indice
 
     def salvar(self) -> None:
         pasta = config.INDEX_DIR / self.nome_modelo
@@ -137,6 +153,30 @@ class Indice:
     def existe(nome_modelo: str) -> bool:
         return (config.INDEX_DIR / nome_modelo / "vetores.npy").exists()
 
+    # --- vetores publicados (etapa 8) ---
+
+    def publicar_vetores(self) -> None:
+        """Grava em data/vetores/<modelo>/ os vetores com id e assinatura, sem o texto dos trechos."""
+        pasta = config.VETORES_DIR / self.nome_modelo
+        pasta.mkdir(parents=True, exist_ok=True)
+        np.save(pasta / "vetores.npy", self.vetores)
+        ids = [{"id": t["id"], "assinatura": t.get("assinatura") or assinatura(t)} for t in self.trechos]
+        linhas = ",\n".join(json.dumps(i, ensure_ascii=False) for i in ids)  # um trecho por linha: diffs legíveis
+        (pasta / "trechos.json").write_text(f"[\n{linhas}\n]\n", encoding="utf-8", newline="\n")
+        # Só campos que não mudam se os trechos não mudarem (a data de criação ficaria sempre diferente no git).
+        info = {c: self.info[c] for c in ("modelo", "id_modelo", "dimensoes", "trechos", "hash_trechos",
+                                          "faq_commit", "crd_versao") if c in self.info}
+        (pasta / "info.json").write_text(json.dumps(info, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
+
+    @classmethod
+    def carregar_vetores_publicados(cls, nome_modelo: str) -> "Indice | None":
+        pasta = config.VETORES_DIR / nome_modelo
+        if not (pasta / "vetores.npy").exists():
+            return None
+        trechos = json.loads((pasta / "trechos.json").read_text(encoding="utf-8"))
+        info = json.loads((pasta / "info.json").read_text(encoding="utf-8"))
+        return cls(nome_modelo, np.load(pasta / "vetores.npy"), trechos, info)
+
     def atualizado(self, trechos: list[dict]) -> bool:
         """O índice foi gerado a partir destes mesmos trechos?"""
         return self.info.get("hash_trechos") == hash_dos_trechos(trechos)
@@ -157,17 +197,22 @@ class Indice:
 def obter_indice(modelo, trechos: list[dict], reconstruir: bool = False) -> Indice:
     """Carrega o índice salvo, ou cria um novo se não existir ou se os trechos mudaram."""
     anterior = Indice.carregar(modelo.nome) if Indice.existe(modelo.nome) else None
-    if anterior is not None and not reconstruir:
-        if anterior.atualizado(trechos):
-            return anterior
-        print("Os trechos mudaram desde a última vez: atualizando o índice.")
-    print(f"Indexando com {modelo.id} ({len(trechos)} trechos) ...")
-    # --reconstruir refaz tudo do zero; senão, só os trechos novos ou alterados vão pro modelo.
-    indice = Indice.construir(modelo, trechos, anterior=None if reconstruir else anterior)
-    indice.salvar()
-    info = indice.info
-    print(f"Pronto em {info['segundos_para_indexar']} s: {info['trechos_enviados_ao_modelo']} trechos enviados ao modelo, "
-          f"{info['trechos_reaproveitados']} reaproveitados ({info['dimensoes']} dimensões)")
+    if anterior is not None and not reconstruir and anterior.atualizado(trechos):
+        indice = anterior
+    else:
+        if anterior is not None and not reconstruir:
+            print("Os trechos mudaram desde a última vez: atualizando o índice.")
+        if anterior is None and not reconstruir:
+            # Sem índice local (ex.: o app acabou de subir na nuvem): parte dos vetores publicados.
+            anterior = Indice.carregar_vetores_publicados(modelo.nome)
+        print(f"Indexando com {modelo.id} ({len(trechos)} trechos) ...")
+        # --reconstruir refaz tudo do zero; senão, só os trechos novos ou alterados vão pro modelo.
+        indice = Indice.construir(modelo, trechos, anterior=None if reconstruir else anterior)
+        indice.salvar()
+        info = indice.info
+        print(f"Pronto em {info['segundos_para_indexar']} s: {info['trechos_enviados_ao_modelo']} trechos enviados ao modelo, "
+              f"{info['trechos_reaproveitados']} reaproveitados ({info['dimensoes']} dimensões)")
+    indice.publicar_vetores()  # mantém data/vetores/ igual ao índice, pra ir pro GitHub no próximo commit
     return indice
 
 

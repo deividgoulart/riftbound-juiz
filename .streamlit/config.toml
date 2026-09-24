@@ -10,3 +10,9 @@ gatherUsageStats = false
 [client]
 # Menu do canto superior mais enxuto.
 toolbarMode = "minimal"
+
+[server]
+# Desliga o "observador" que recarrega o app quando um arquivo muda. Depois que a busca reserva
+# carrega a biblioteca transformers, ele tenta importar centenas de submódulos dela a cada
+# interação (e enche o log de erros), o que deixa tudo lento. Editou o código? Reinicie o app.
+fileWatcherType = "none"
