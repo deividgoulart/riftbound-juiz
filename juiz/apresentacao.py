@@ -50,10 +50,11 @@ def linkar_citacoes(texto: str, fontes, regras: dict[str, str], versao_crd: str)
         links = []
         for parte in (p.strip() for p in m.group(1).split(",")):
             regra = re.fullmatch(r"(?:CRD\s+)?F?(\d{3}(?:\.[0-9a-z]+)*)", parte)
+            fonte = re.fullmatch(r"F(\d{1,2})(?:\.[0-9a-z]+)*", parte)
             if regra:  # "CRD 372" dentro dos colchetes, ou "F331.2" (o LLM misturou regra com fonte)
                 links.append(_link(f"CRD {regra.group(1)}", url_da_regra(regra.group(1))))
-            elif re.fullmatch(r"F\d+", parte):
-                links.append(_link(parte, urls.get(int(parte[1:]))))
+            elif fonte:  # "F1", ou "F1.4.3" (sufixo inventado pelo LLM: fica só o F1)
+                links.append(_link(f"F{fonte.group(1)}", urls.get(int(fonte.group(1)))))
             elif parte:
                 links.append(parte)
         return f"<sup>{', '.join(links)}</sup>"

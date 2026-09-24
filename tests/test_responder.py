@@ -193,7 +193,7 @@ def test_citacoes_no_formato_F_e_custos_de_carta_nao_se_confundem():
     "CITAÇÃO PENDENTE",
     "NÃO é voltar para a mão (CRD 455)",  # Recall em Riftbound vai pra base (em LoR, vai pra mão)
     "são CUSTOS da carta, não fontes",
-    "Se a pergunta for sobre OUTRO jogo",  # achado da etapa 7: "No Legends of Runeterra, como funciona..."
+    "nunca [F1.4.3]",  # o LLM reserva juntou números à fonte: [F1.4.3] em vez de [F1]
 ])
 def test_instrucoes_cobrem_os_requisitos_do_projeto(trecho):
     assert trecho in INSTRUCOES
@@ -270,6 +270,20 @@ def test_se_todas_as_buscas_falham_o_erro_aparece():
 
 def test_numero_de_regra_com_F_nao_conta_como_fonte_citada():
     assert fontes_citadas("Não [F1, F331.2]. Ver [F310, F343].") == {1}
+
+
+def test_sufixo_inventado_depois_da_fonte_conta_como_a_fonte():
+    # O LLM reserva escreveu [F1.4.3] e [F1.94.1] em vez de [F1]: com 1 ou 2 dígitos depois do F, é fonte.
+    assert fontes_citadas("O Victory Score é 8 [F1.4.3]. Você vence [F1.94.2].") == {1}
+    assert fontes_citadas("Sim [F2.1, F12.3.a].") == {2, 12}
+    assert fontes_citadas("Não [F331.2.a]. Ver [F100].") == set()  # 3 dígitos continua sendo regra
+
+
+def test_resposta_com_sufixo_inventado_marca_a_fonte_como_citada():
+    texto = ("O Victory Score padrão é 8 pontos [F1.4.3].\n\nVocê ganha pontos segurando (Hold) os Battlefields "
+             "[F1.94.1]. Durante um cleanup [Glossário], você vence se tiver essa pontuação [F1.94.2].")
+    resposta = juiz([(TRECHO_FAQ, 0.85), (TRECHO_CRD, 0.75)], LLMFalso(texto)).responder("quantos pontos preciso pra ganhar?")
+    assert [f.citada for f in resposta.fontes] == [True, False, False]  # antes: nenhuma citada
 
 
 
