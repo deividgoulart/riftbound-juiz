@@ -426,6 +426,32 @@ O problema era a busca: refazer os vetores do Gemini a cada vez que o app sobe g
 
 Depois de rodar `juiz.atualizar` com fontes novas, faça commit de `data/vetores/` pro app publicado aproveitar.
 
+### Quando o Gemini está sobrecarregado: Groq e plano B
+
+Publicado, o app falhava com frequência: no plano grátis, o Google recusa pedidos em horário de pico (erro 503, "high demand"). Num teste, o 3.8 Flash, o 3.7 Flash, o 3.5 Flash-Lite e o 3.1 Flash-Lite deram 503 ao mesmo tempo, e só o 3.5 Flash respondeu, depois de 27 s.
+
+**Por que não um LLM rodando no próprio servidor:** o servidor grátis tem 2 processadores, sem placa de vídeo. Um modelo que cabe na memória levaria de 1 a 2 minutos por resposta e erraria mais que o Gemini. Servidores grátis com mais memória também não têm placa de vídeo, então o problema de velocidade continua.
+
+**Duas camadas de proteção:**
+1. **Groq como reserva de outra empresa.** Quando os três Gemini falham, a resposta vem de um modelo aberto no Groq (`config.MODELO_GROQ`), que tem capacidade própria.
+   - Plano grátis: ~1 pergunta por minuto e ~40 por dia. Como reserva, basta.
+   - Só entra se `GROQ_API_KEY` estiver no `.env` ou nos secrets.
+   - **Qual modelo:** os dois modelos grátis do Groq foram comparados com o Flash-Lite nas 18 perguntas de `config.IDS_COMPARACAO`, com a mesma busca (e5-small):
+
+     | | Gemini 3.5 Flash-Lite | **Groq gpt-oss-120b** ✅ | Groq qwen3.8-27b |
+     |---|---|---|---|
+     | conclusão (Sim/Não/Depende) certa | 91% (10/11) | **91% (10/11)** | 64% (7/11) |
+     | citou a fonte certa | 93% | 87% | 73% |
+     | citações inventadas | 0 | 0 | 0 |
+     | respostas vazias | 0 | 0 | **4 de 17** |
+     | tempo (mediana) | 2,8 s | **1,7 s** | 3,4 s |
+
+   - O Qwen tem um limite de 1.000 tokens de **saída** por minuto no plano grátis. O raciocínio escondido gastava esse limite inteiro, e a resposta vinha vazia.
+   - Pior: o avaliador (Flash-Lite) deu "correta" pras 4 respostas vazias. Agora a avaliação dá "incorreta" pra resposta vazia sem nem chamar o avaliador, e o app trata resposta vazia como falha e passa pra próxima reserva.
+
+2. **Plano B sem LLM.** Se nenhum LLM responder, o app mostra os 3 trechos das regras que a busca achou, em inglês e com link, e explica o motivo. A busca funciona mesmo sem o Gemini, graças ao e5-small.
+   - Essa resposta não conta no limite do convidado.
+
 ### Proteção: modo convidado + senha
 
 A chave de API fica nos *secrets* do Streamlit Cloud e roda só no servidor; o visitante nunca a vê. O risco real é outro: alguém gastar a cota **grátis** do dia e o app parar até o dia seguinte. Com o projeto do Google **sem faturamento ativado**, o custo máximo continua zero.
@@ -453,7 +479,7 @@ Limitações conhecidas:
    - Main file path: `app.py`
 4. Em **Advanced settings**:
    - Python **3.12**.
-   - Em **Secrets**, cole o conteúdo de [`.streamlit/secrets.toml.example`](.streamlit/secrets.toml.example), preenchendo a chave e uma senha só sua.
+   - Em **Secrets**, cole o conteúdo de [`.streamlit/secrets.toml.example`](.streamlit/secrets.toml.example), preenchendo as chaves do Gemini e do Groq e uma senha só sua.
 5. **Deploy.**
    - A 1ª instalação demora uns minutos, por causa do PyTorch.
    - A 1ª pergunta demora ~1 minuto: o app baixa o FAQ, o CRD e o modelo da busca reserva.

@@ -23,7 +23,7 @@ import yaml
 from juiz import config
 from juiz.cartas import Catalogo, url_da_carta
 from juiz.embeddings import carregar_modelo
-from juiz.erros import CotaEsgotada
+from juiz.erros import CotaEsgotada, explicar_erro
 from juiz.glossario import encontrar_termos, expandir_pergunta
 from juiz.indice import Indice
 from juiz.llm import carregar_llm
@@ -86,6 +86,11 @@ QUANDO AS FONTES DISCORDAM
 
 MARGEM_CARTAS = 0.05  # página de carta do FAQ entra se a nota estiver até 0,05 abaixo da melhor
 
+TEXTO_SEM_LLM = (
+    "Não consegui escrever a resposta em português agora: os modelos de linguagem estão indisponíveis. "
+    "Enquanto isso, estes são os trechos das regras mais parecidos com a sua pergunta (em inglês):"
+)
+
 NAO_ENCONTREI = (
     "Não encontrei a resposta nas regras que eu consultei (FAQ e Core Rules). "
     "Se for uma dúvida de partida, vale chamar um juiz do evento ou conferir o Core Rules oficial."
@@ -119,6 +124,9 @@ class Resposta:
     uso: dict = field(default_factory=dict)  # tokens gastos no LLM
     modelo_busca: str | None = None  # qual busca foi usada (a principal ou a reserva)
     tipo: str = "direta"  # "direta" (sim/não, caso específico) ou "explicação" (o que é, como funciona)
+    # Plano B (etapa 8): nenhum LLM conseguiu responder, então a resposta são só os trechos achados
+    # pela busca. Aqui fica o motivo (ex.: "o Gemini está instável agora (erro 503)").
+    sem_llm: str | None = None
 
     def regras_citadas(self) -> dict[str, str]:
         """Regras do CRD citadas na resposta, como (CRD 355.9.a), com o link de cada uma."""
@@ -327,8 +335,13 @@ class Juiz:
 
     # --- resposta ---
 
-    def responder(self, pergunta: str, historico: list[tuple[str, str]] | None = None) -> Resposta:
-        """Responde a pergunta. `historico` = [(pergunta, resposta), ...] da conversa, da mais antiga pra mais recente."""
+    def responder(self, pergunta: str, historico: list[tuple[str, str]] | None = None,
+                  plano_b: bool = False) -> Resposta:
+        """Responde a pergunta. `historico` = [(pergunta, resposta), ...] da conversa, da mais antiga pra mais recente.
+
+        Com `plano_b`, se nenhum LLM responder, devolve os trechos achados pela busca em vez de levantar
+        o erro (o app usa isso; a avaliação não, porque precisa saber que o LLM falhou).
+        """
         historico = (historico or [])[-config.MAX_TURNOS_HISTORICO:]
         tipo = "explicação" if e_pedido_de_explicacao(pergunta) else "direta"
         k = config.K_TRECHOS_EXPLICACAO if tipo == "explicação" else self.k
@@ -358,7 +371,16 @@ class Juiz:
         definicoes = self.definicoes_relevantes(principais, [t.get("texto", "") for t, _ in resultados[:2]])
         mensagem = self.montar_mensagem(pergunta, termos, fontes, extras, tipo=tipo, historico=historico,
                                         definicoes=definicoes)
-        texto = self.llm.gerar(INSTRUCOES, mensagem)
+        try:
+            texto = self.llm.gerar(INSTRUCOES, mensagem)
+        except Exception as erro:
+            if not plano_b:
+                raise
+            resposta.sem_llm = explicar_erro(erro)
+            resposta.texto = TEXTO_SEM_LLM
+            resposta.encontrou = True  # a busca achou fontes; só o resumo em português falhou
+            resposta.fontes = fontes
+            return resposta
 
         citadas = fontes_citadas(texto)
         for f in fontes:

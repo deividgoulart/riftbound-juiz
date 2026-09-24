@@ -39,6 +39,12 @@ MODELO_LLM = "gemini-3.8-flash"  # escolhido na etapa 5: tier grátis, mesma cha
 # No tier grátis, os modelos mais novos às vezes ficam sobrecarregados (erro 503). Quando isso
 # acontece, o juiz tenta estes, em ordem (ambos também têm tier grátis).
 MODELOS_LLM_RESERVA = ["gemini-3.5-flash", "gemini-3.5-flash-lite"]
+# Reserva de outra empresa (etapa 8): quando os três Gemini falham (sobrecarga no plano grátis do
+# Google), a resposta vem de um modelo aberto no Groq. Só entra se GROQ_API_KEY estiver configurada.
+# Escolhido em 24/09/2026 nas 18 perguntas de comparação: o gpt-oss-120b empatou com o Flash-Lite na
+# conclusão (91%) e foi mais rápido; o qwen3.8-27b devolveu 4 respostas vazias (o raciocínio escondido
+# gastou o limite de 1.000 tokens de saída por minuto do plano grátis).
+MODELO_GROQ = "openai/gpt-oss-120b"
 K_TRECHOS = 5  # quantos trechos da busca vão pro LLM
 K_TRECHOS_EXPLICACAO = 8  # pedidos de explicação ("como funciona a Chain?") precisam de mais material
 MAX_TURNOS_HISTORICO = 3  # quantas perguntas e respostas anteriores o juiz leva em conta

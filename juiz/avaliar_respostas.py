@@ -38,7 +38,7 @@ from pydantic import BaseModel
 from juiz import config
 from juiz.erros import CotaEsgotada
 from juiz.glossario import normalizar
-from juiz.llm import LLMGemini
+from juiz.llm import LLMGemini, LLMGroq
 
 INSTRUCOES_AVALIADOR = """\
 Você avalia as respostas de um juiz de regras do Riftbound TCG. Compare a RESPOSTA DO JUIZ com a
@@ -128,6 +128,9 @@ def metricas_automaticas(questao: dict, resposta, regras_do_crd: set[str]) -> di
 # ---------------------------------------------------------------------------
 
 def avaliar_com_llm(avaliador, questao: dict, texto_da_resposta: str) -> dict:
+    if not texto_da_resposta.strip():
+        # O avaliador (Flash-Lite) chegou a dar "correta" pra respostas vazias: nesse caso, nem pergunta.
+        return {"nota": "incorreta", "justificativa": "Resposta vazia (nota automática, sem chamar o avaliador)."}
     partes = []
     for h in questao.get("historico", []):
         partes += [f"(Conversa anterior) Jogador: {h['pergunta']}", f"(Conversa anterior) Juiz: {h['resposta']}"]
@@ -402,10 +405,11 @@ def main() -> None:
         ids = set(args.ids or (config.IDS_COMPARACAO if args.comparacao else []))
         questoes = [q for q in carregar_gabarito() if not ids or q["id"] in ids]
         juiz = Juiz.padrao()
-        juiz.llm = LLMGemini(modelos=[args.modelo])  # sem reserva: queremos a qualidade DESTE modelo
+        # Sem reserva: queremos a qualidade DESTE modelo. "groq/..." usa o Groq (ex.: groq/openai/gpt-oss-120b).
+        juiz.llm = LLMGroq(args.modelo.removeprefix("groq/")) if args.modelo.startswith("groq/") else LLMGemini(modelos=[args.modelo])
         if args.busca:
             juiz.buscas = [b for b in juiz.buscas if b.nome == args.busca]
-        rotulo = args.rotulo or args.modelo
+        rotulo = args.rotulo or args.modelo.replace("/", "_")  # "groq/openai/gpt-oss-120b" vira nome de arquivo válido
         avaliador = None if args.sem_avaliador else LLMGemini(modelos=[config.MODELO_AVALIADOR])
         print(f"Avaliando {len(questoes)} perguntas com {args.modelo}, busca {[b.nome for b in juiz.buscas]} "
               f"(avaliador: {config.MODELO_AVALIADOR}); resultados: respostas_{rotulo}.jsonl")
