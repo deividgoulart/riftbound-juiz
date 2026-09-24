@@ -20,6 +20,7 @@ import json
 import re
 from dataclasses import dataclass
 
+from decks import codigos as cod
 from decks.banco import Banco
 from juiz import config
 from juiz.glossario import normalizar
@@ -75,7 +76,7 @@ def ler_catalogo_do_faq() -> list[Carta]:
 
 
 class Catalogo:
-    def __init__(self, cartas: list[Carta]):
+    def __init__(self, cartas: list[Carta], galeria: list[dict] | None = None):
         self.cartas = {c.nome: c for c in cartas}
         self._por_chave: dict[str, str] = {}
         for c in cartas:  # apelidos primeiro: um nome de verdade sempre ganha de um apelido igual
@@ -84,6 +85,8 @@ class Catalogo:
                     self._por_chave.setdefault(chave(f"{tag}, {c.nome}"), c.nome)
         for c in cartas:
             self._por_chave[chave(c.nome)] = c.nome
+        # código ("OGN-42") -> nome, pela galeria oficial (decks/codigos.py); vazio se ela não estiver disponível
+        self.codigos = cod.mapa_de_codigos(galeria or [], self.resolver)
 
     def __len__(self) -> int:
         return len(self.cartas)
@@ -104,6 +107,14 @@ class Catalogo:
         if sem_codigo != texto:
             return self.resolver(sem_codigo)
         return None
+
+    def por_codigo(self, codigo: str | None) -> str | None:
+        """Nome da carta pelo código ("OGN-042", "OGN-042/298", "VEN-R04"), ou None se não conhecer.
+        Uma variante sem código próprio no mapa (ex.: arte alternativa) cai no código da carta normal."""
+        if not codigo:
+            return None
+        normal = cod.normalizar_codigo(codigo)
+        return self.codigos.get(normal) or self.codigos.get(cod.codigo_base(normal))
 
     def sugestoes(self, texto: str, n: int = 3) -> list[str]:
         """Nomes parecidos, pra mostrar quando `resolver` não reconhece."""
@@ -137,9 +148,12 @@ def sincronizar(banco: Banco, cartas: list[Carta]) -> bool:
     return True
 
 
-def preparar(banco: Banco, cartas: list[Carta] | None = None) -> Catalogo:
-    """Cria as tabelas, sincroniza o catálogo e devolve o catálogo pronto pra reconhecer nomes."""
+def preparar(banco: Banco, cartas: list[Carta] | None = None, galeria: list[dict] | None = None) -> Catalogo:
+    """Cria as tabelas, sincroniza o catálogo e devolve o catálogo pronto pra reconhecer nomes e códigos.
+    Sem `cartas` e `galeria`, lê o catálogo do FAQ e a galeria oficial (baixando se preciso)."""
     banco.criar_tabelas()
-    cartas = cartas if cartas is not None else ler_catalogo_do_faq()
+    if cartas is None:
+        cartas = ler_catalogo_do_faq()
+        galeria = galeria if galeria is not None else cod.carregar_galeria()
     sincronizar(banco, cartas)
-    return Catalogo(cartas)
+    return Catalogo(cartas, galeria)

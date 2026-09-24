@@ -145,3 +145,9 @@ META_DIAS = 30  # torneios dos últimos N dias
 META_TOP_POR_TORNEIO = 8  # só as melhores colocações de cada torneio
 META_MIN_JOGADORES = 8  # torneios menores que isso ficam de fora (resultado pouco representativo)
 META_ATUALIZAR_A_CADA_DIAS = 7  # o app coleta de novo sozinho quando a última coleta tem mais que isso
+# Códigos das cartas (ex.: OGN-042): galeria oficial da Riot. Serve pra reconhecer as cartas pelo código
+# nas importações (TopDeck.gg, CSV da Liga); a coleção e os decks continuam guardados pelo nome.
+GALERIA_URL = "https://riftbound.leagueoflegends.com/en-us/card-gallery/"
+GALERIA_DADOS_URL = "https://riftbound.leagueoflegends.com/_next/data/{build_id}/en-us/card-gallery.json"
+GALERIA_CARTAS = RAW_DIR / "galeria_cartas.json"
+GALERIA_ATUALIZAR_A_CADA_DIAS = 7

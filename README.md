@@ -103,6 +103,7 @@ riftbound-juiz/
 │   ├── importar.py         # lê a lista de deck em texto e confere as regras de construção
 │   ├── meus_decks.py       # salva, lista e apaga decks
 │   ├── meta.py             # decks de torneio pela API do TopDeck.gg (etapa 2)
+│   ├── codigos.py          # código da carta (OGN-042) -> nome, pela galeria oficial da Riot
 │   └── conclusao.py        # % de conclusão, cartas que faltam e ranking dos decks
 ├── avaliacao/
 │   ├── gabarito.yaml       # perguntas-gabarito com resposta e fonte esperadas (etapa 2b; 45 na etapa 7)
@@ -559,11 +560,21 @@ A aba **Decks do meta** mostra os decks que ficaram entre os 8 primeiros em torn
 - **Fonte: a API oficial do TopDeck.gg**, que é grátis (com uma chave gratuita) e traz os torneios com as listas dos jogadores. O riftools.app, a primeira ideia, não tem API, e não deu pra conferir os termos de uso dele; ler o HTML de um site pode quebrar a qualquer mudança.
 - **Atualização:** o app coleta sozinho quando a última coleta tem mais de 7 dias; quem tem a senha também pode clicar em **Atualizar agora**. Pelo terminal: `python -m decks.meta --forcar`. Cada coleta **substitui** os decks do meta anteriores, numa transação só; os decks que você importou não mudam. Uma coleta vazia não apaga nada.
 - **Filtros:** só torneios com pelo menos 8 jogadores e só o top 8 de cada um (`config.META_MIN_JOGADORES` e `META_TOP_POR_TORNEIO`). A página mostra os 20 decks mais fáceis de montar.
-- **Cartas pelo nome:** a API identifica as cartas por código (ex.: OGN-042), que o catálogo do FAQ não tem, então elas são reconhecidas pelo nome, como na importação manual. Um deck com carta não reconhecida fica de fora, em vez de entrar com a conta errada, e o nome aparece no relatório da coleta.
+- **Cartas pelo código:** a API manda o código de cada carta (ex.: OGN-042), e o app acha a carta por ele; o nome fica de reserva (veja abaixo). Um deck com carta não reconhecida fica de fora, em vez de entrar com a conta errada, e o nome aparece no relatório da coleta.
 - **Privacidade:** o nome dos jogadores não é guardado; só o torneio, a data, a colocação e o link.
 - **Como ligar:** crie uma chave grátis na sua conta do [TopDeck.gg](https://topdeck.gg) e ponha em `TOPDECK_API_KEY`, no `.env` e nos secrets do app publicado.
 
-**Limite conhecido:** a documentação e a API do TopDeck.gg não abriam no ambiente onde o código foi escrito. O formato das respostas foi conferido no código de um projeto aberto que usa a API em produção, e os testes usam um servidor falso nesse formato. A primeira coleta real mostra no relatório quantos decks entraram e quais cartas não foram reconhecidas.
+### Código da carta × nome
+
+Nas importações, o **código** (OGN-042, VEN-R04) é a forma mais segura de saber qual é a carta: não depende de como o nome foi escrito ("Jinx - Loose Cannon", "Kayle, Justified (Overnumbered)"). A API do TopDeck.gg manda o código, e o CSV da Liga também (colunas `Edicao (Sigla)` e `Card #`). Então o app tenta o código primeiro e o nome depois.
+
+A **coleção e os decks continuam guardados pelo nome**: um deck pede "Jinx, Rebel", e qualquer impressão serve. A normal, a foil, a de arte alternativa (OGN-202a) e a overnumbered têm códigos diferentes e o mesmo nome.
+
+- **De onde vêm os códigos:** o catálogo do FAQ não tem. Eles vêm da [galeria de cartas oficial da Riot](https://riftbound.leagueoflegends.com/en-us/card-gallery/), baixada uma vez por semana pra `data/raw/galeria_cartas.json` ([`decks/codigos.py`](decks/codigos.py)). Nos campeões, a galeria dá só "Jinx" como nome; o nome completo vem do texto de acessibilidade da imagem ("Riftbound Unit: Jinx, Rebel. ...").
+- **Conferido com dados reais:** as 1.189 impressões da galeria ganharam código, e as 81 linhas do CSV da Liga deram a mesma carta pelo código e pelo nome.
+- **Se a galeria falhar** (fora do ar ou mudou de formato), tudo continua funcionando pelo nome, como antes.
+
+**Limite conhecido:** a galeria da Riot, a documentação e a API do TopDeck.gg não abriam no ambiente onde o código foi escrito. O formato das respostas foi conferido no código de um projeto aberto que usa a API em produção, e os testes usam um servidor falso nesse formato. A primeira coleta real mostra no relatório quantos decks entraram e quais cartas não foram reconhecidas.
 
 ### Próximos passos
 
