@@ -15,4 +15,6 @@ toolbarMode = "minimal"
 # Desliga o "observador" que recarrega o app quando um arquivo muda. Depois que a busca reserva
 # carrega a biblioteca transformers, ele tenta importar centenas de submódulos dela a cada
 # interação (e enche o log de erros), o que deixa tudo lento. Editou o código? Reinicie o app.
+# Quando o navegador reconecta, o Streamlit religa o observador mesmo assim: juiz/ajustes_streamlit.py
+# cobre esse caso.
 fileWatcherType = "none"

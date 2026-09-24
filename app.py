@@ -16,6 +16,7 @@ from datetime import timedelta
 import streamlit as st
 
 from juiz import config
+from juiz.ajustes_streamlit import nao_vasculhar_bibliotecas_pesadas
 from juiz.apresentacao import CREDITOS, ROTULOS, linkar_citacoes, plural, procedencia
 from juiz.erros import CotaEsgotada, explicar_erro
 from juiz.limites import ContadorDiario, modo_publico, senha_confere
@@ -23,6 +24,7 @@ from juiz.registro import registrar_avaliacao, registrar_erro, registrar_respost
 from juiz.segredos import aplicar_segredos
 
 st.set_page_config(page_title="Juiz Riftbound", page_icon="⚖️", layout="centered")
+nao_vasculhar_bibliotecas_pesadas()  # evita o observador de arquivos travar com a transformers
 
 
 # No Streamlit Cloud, a chave e a senha ficam em st.secrets; o juiz procura no ambiente (como no .env).
