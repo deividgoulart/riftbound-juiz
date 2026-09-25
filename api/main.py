@@ -29,7 +29,7 @@ from decks.banco import turso_configurado
 from decks.catalogo import nome_da_lenda
 from decks.compras import link_da_carta, lista_de_compra
 from decks.importar import NOMES_DAS_SECOES, ler_lista
-from decks.meus_decks import apagar_deck, cartas_dos_decks, listar_decks, salvar_deck
+from decks.meus_decks import apagar_deck, cartas_dos_decks, copiar_deck, editar_deck, lista_em_texto, listar_decks, salvar_deck
 from juiz import config
 from juiz.apresentacao import CREDITOS, ROTULOS, linkar_citacoes, procedencia, trecho_para_ler
 from juiz.erros import CotaEsgotada, explicar_erro
@@ -330,6 +330,10 @@ class MudancasNaColecao(BaseModel):
     mudancas: dict[str, int] = Field(max_length=2000)  # carta -> quantidade (0 tira da coleção)
 
 
+class CartasCompradas(BaseModel):
+    cartas: dict[str, int] = Field(max_length=200)  # carta -> cópias a somar
+
+
 class CsvDaColecao(BaseModel):
     texto: str = Field(max_length=2_000_000)
     substituir: bool = False
@@ -399,6 +403,18 @@ def rotas_decks():
         colecao.salvar_alteracoes(banco, dados.mudancas)
         return ver_colecao(request)
 
+    @r.post("/colecao/adicionar", dependencies=[Depends(so_o_dono)])
+    def adicionar_na_colecao(dados: CartasCompradas, request: Request):
+        """Soma cópias às que já tenho (ex.: "comprei o que faltava" num deck)."""
+        banco, catalogo = obter_deck_builder(request)
+        desconhecidas = [c for c in dados.cartas if c not in catalogo]
+        if desconhecidas:
+            raise HTTPException(400, f"Cartas desconhecidas: {', '.join(desconhecidas[:5])}")
+        if any(not 1 <= q <= 99 for q in dados.cartas.values()):
+            raise HTTPException(400, "A quantidade vai de 1 a 99.")
+        colecao.adicionar(banco, dados.cartas)
+        return ver_colecao(request)
+
     @r.post("/colecao/importar", dependencies=[Depends(so_o_dono)])
     def importar_colecao(dados: CsvDaColecao, request: Request):
         banco, catalogo = obter_deck_builder(request)
@@ -416,7 +432,7 @@ def rotas_decks():
     @r.get("/decks")
     def ver_decks(request: Request, tipo: str = Query("meus", pattern="^(meus|meta)$"),
                   ordem: str = Query("barato", pattern="^(barato|faltando)$"), sideboard: bool = False,
-                  runas: bool = True, lenda: str | None = None, limite: int = Query(MAX_DECKS_POR_PAGINA, ge=1, le=500)):
+                  runas: bool = False, lenda: str | None = None, limite: int = Query(MAX_DECKS_POR_PAGINA, ge=1, le=500)):
         """Meus decks (tipo=meus) ou os do meta (tipo=meta), na ordem escolhida: mais barato de completar
         (ordem=barato) ou menos cartas faltando (ordem=faltando). Sem preços guardados, vale "faltando"."""
         banco, catalogo = obter_deck_builder(request)
@@ -443,12 +459,26 @@ def rotas_decks():
             if tipo == "meta" else None,
         }
 
-    @r.get("/decks/{deck_id}")
-    def ver_deck(deck_id: str, request: Request, sideboard: bool = False, runas: bool = True):
-        banco, catalogo = obter_deck_builder(request)
+    def deck_ou_404(banco, deck_id: str) -> dict:
         deck = next((d for d in listar_decks(banco) if d["id"] == deck_id), None)
         if deck is None:
             raise HTTPException(404, "Deck não encontrado.")
+        return deck
+
+    def lista_valida(dados: "NovoDeck", catalogo):
+        lista = ler_lista(dados.texto, catalogo)
+        if lista.nao_reconhecidas and not dados.ignorar_desconhecidas:
+            raise HTTPException(400, "Não reconheci estas cartas: " + "; ".join(
+                f"\"{t}\"" + (f" (quis dizer {' / '.join(s)}?)" if s else "") for t, s in lista.nao_reconhecidas)
+                + ". Corrija a lista ou marque a opção de salvar sem elas.")
+        if not lista.cartas:
+            raise HTTPException(400, "A lista não tem nenhuma carta reconhecida.")
+        return lista
+
+    @r.get("/decks/{deck_id}")
+    def ver_deck(deck_id: str, request: Request, sideboard: bool = False, runas: bool = False):
+        banco, catalogo = obter_deck_builder(request)
+        deck = deck_ou_404(banco, deck_id)
         c = conclusao.calcular(banco, deck, incluir_sideboard=sideboard, runas_garantidas=runas)
         cartas = cartas_dos_decks(banco).get(deck_id, [])
         lenda = next((l["carta"] for l in cartas if l["secao"] == "lenda"), None)
@@ -468,6 +498,7 @@ def rotas_decks():
                           "imagem": catalogo.imagem_de(x.carta), "liga": link_da_carta(x.carta, catalogo)}
                          for x in c.faltando],
             "lista_de_compra": lista_de_compra(faltando, catalogo),
+            "lista_texto": lista_em_texto(cartas, lambda lenda: nome_da_lenda(lenda, catalogo)),  # pra editar o deck no mesmo formato da importação
             "compra_por_lista": config.LIGA_COMPRA_POR_LISTA,
             "legenda_dos_precos": legenda_dos_precos(precos.data_dos_precos(banco)) if precos_usd else None,
         }
@@ -481,15 +512,31 @@ def rotas_decks():
     @r.post("/decks", dependencies=[Depends(so_o_dono)])
     def novo_deck(dados: NovoDeck, request: Request):
         banco, catalogo = obter_deck_builder(request)
-        lista = ler_lista(dados.texto, catalogo)
-        if lista.nao_reconhecidas and not dados.ignorar_desconhecidas:
-            raise HTTPException(400, "Não reconheci estas cartas: " + "; ".join(
-                f"\"{t}\"" + (f" (quis dizer {' / '.join(s)}?)" if s else "") for t, s in lista.nao_reconhecidas)
-                + ". Corrija a lista ou marque a opção de salvar sem elas.")
-        if not lista.cartas:
-            raise HTTPException(400, "A lista não tem nenhuma carta reconhecida.")
+        lista = lista_valida(dados, catalogo)
         id_ = salvar_deck(banco, dados.nome, lista, url=dados.url.strip())
         return {"id": id_, "avisos": lista.avisos}
+
+    @r.put("/decks/{deck_id}", dependencies=[Depends(so_o_dono)])
+    def editar(deck_id: str, dados: NovoDeck, request: Request):
+        """Troca o nome, o link e a lista de um deck meu. Os do meta não mudam (copie pra editar)."""
+        banco, catalogo = obter_deck_builder(request)
+        deck = deck_ou_404(banco, deck_id)
+        if deck["origem"] == meta.ORIGEM:
+            raise HTTPException(400, "Os decks do meta são trocados a cada coleta: copie pros seus decks pra editar.")
+        lista = lista_valida(dados, catalogo)
+        editar_deck(banco, deck_id, dados.nome, lista, url=dados.url.strip())
+        return {"id": deck_id, "avisos": lista.avisos}
+
+    @r.post("/decks/{deck_id}/copiar", dependencies=[Depends(so_o_dono)])
+    def copiar(deck_id: str, request: Request):
+        """Cópia do deck (ex.: um do meta) nos meus decks, pra acompanhar e editar."""
+        banco, catalogo = obter_deck_builder(request)
+        deck = deck_ou_404(banco, deck_id)
+        cartas = cartas_dos_decks(banco).get(deck_id, [])
+        lenda = next((l["carta"] for l in cartas if l["secao"] == "lenda"), None)
+        nome = (f"{nome_da_lenda(lenda, catalogo)} (do meta)" if lenda and deck["origem"] == meta.ORIGEM
+                else f"{deck['nome']} (cópia)")
+        return {"id": copiar_deck(banco, deck, cartas, nome)}
 
     @r.delete("/decks/{deck_id}", dependencies=[Depends(so_o_dono)])
     def apagar(deck_id: str, request: Request):

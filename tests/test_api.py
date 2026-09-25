@@ -284,12 +284,12 @@ def test_previa_e_importar_deck(api, banco):
     r = cliente.post("/api/decks", json={"nome": "Jinx de teste", "texto": LISTA})
     assert r.status_code == 200 and any("mínimo é 40" in a for a in r.json()["avisos"])
     deck = cliente.get("/api/decks").json()["decks"][0]
-    # runas básicas contam como "tenho" (padrão): Abandon 2 + Jinx 1 + 12 runas de 18 cópias
+    # padrão: só conta as runas que estão na coleção (nenhuma aqui): Abandon 2 + Jinx 1 de 18 cópias
     assert (deck["nome"], deck["tenho"], deck["total"], deck["copias_faltando"], deck["cartas_faltando"]) == \
-        ("Jinx de teste", 15, 18, 3, 2)
+        ("Jinx de teste", 3, 18, 15, 4)
     assert deck["lenda"]["rotulo"] == "Jinx, Loose Cannon" and deck["lenda"]["dominios"] == ["Fury", "Chaos"]
-    sem_runas = cliente.get("/api/decks", params={"runas": False}).json()["decks"][0]
-    assert sem_runas["tenho"] == 3
+    com_runas = cliente.get("/api/decks", params={"runas": True}).json()["decks"][0]
+    assert com_runas["tenho"] == 15  # contando com as runas básicas de um deck inicial
 
 
 def test_ignorar_desconhecidas_salva_sem_elas(api, banco):
@@ -493,3 +493,52 @@ def test_ficha_tem_texto_duvidas_e_mecanicas(api, com_fichas):
 
 def test_runa_basica_nao_tem_texto(api, com_fichas):
     assert api(com_fichas).get("/api/carta", params={"nome": "Fury Rune"}).json()["texto"] is None
+
+
+
+# --- Editar, copiar e marcar como comprado ---
+
+def test_editar_deck_troca_nome_link_e_cartas(api, banco, catalogo):
+    id_ = salvar_deck(banco, "Jinx", ler_lista(LISTA, catalogo), url="https://antigo")
+    cliente = api()
+    texto = cliente.get(f"/api/decks/{id_}").json()["lista_texto"]
+    assert texto.startswith("Legend:\n1 Jinx, Loose Cannon") and "Main Deck:\n2 Abandon\n3 Jinx, Rebel" in texto
+    assert ler_lista(texto, catalogo).cartas == ler_lista(LISTA, catalogo).cartas  # o texto volta igual
+
+    r = cliente.put(f"/api/decks/{id_}", json={"nome": "Jinx 2.0", "texto": texto.replace("2 Abandon", "3 Abandon"),
+                                               "url": ""})
+    assert r.status_code == 200
+    deck = cliente.get(f"/api/decks/{id_}").json()
+    assert deck["nome"] == "Jinx 2.0" and deck["url"] is None
+    assert next(c for c in deck["cartas"] if c["carta"] == "Abandon")["quantidade"] == 3
+    assert len(listar_decks(banco)) == 1  # o mesmo deck, não um novo
+
+
+def test_editar_com_carta_errada_nao_estraga_o_deck(api, banco, catalogo):
+    id_ = salvar_deck(banco, "Jinx", ler_lista(LISTA, catalogo))
+    cliente = api()
+    r = cliente.put(f"/api/decks/{id_}", json={"nome": "X", "texto": "3 Jinks Rebel"})
+    assert r.status_code == 400 and "quis dizer Jinx, Rebel" in r.json()["detail"]
+    assert cliente.get(f"/api/decks/{id_}").json()["nome"] == "Jinx"
+
+
+def test_deck_do_meta_nao_se_edita_mas_se_copia(api, banco, catalogo):
+    coletar_meta(banco, catalogo)
+    cliente = api(topdeck="k")
+    do_meta = cliente.get("/api/decks", params={"tipo": "meta", "lenda": "Heart of the Tempest"}).json()["decks"][0]
+    assert cliente.put(f"/api/decks/{do_meta['id']}", json={"texto": "2 Abandon"}).status_code == 400
+
+    copia = cliente.post(f"/api/decks/{do_meta['id']}/copiar").json()["id"]
+    minha = cliente.get(f"/api/decks/{copia}").json()
+    assert minha["origem"] == "manual" and minha["nome"] == "Kennen, Heart of the Tempest (do meta)"
+    assert minha["url"] == do_meta["url"] and minha["total"] == cliente.get(f"/api/decks/{do_meta['id']}").json()["total"]
+    assert cliente.put(f"/api/decks/{copia}", json={"nome": "Meu Kennen", "texto": minha["lista_texto"]}).status_code == 200
+
+
+def test_comprei_o_que_faltava_soma_na_colecao(api, banco, catalogo):
+    colecao.definir(banco, "Jinx, Rebel", 1)
+    cliente = api()
+    r = cliente.post("/api/colecao/adicionar", json={"cartas": {"Jinx, Rebel": 2, "Abandon": 1}})
+    assert r.status_code == 200 and r.json()["cartas"] == {"Abandon": 1, "Jinx, Rebel": 3}
+    assert cliente.post("/api/colecao/adicionar", json={"cartas": {"Carta Inventada": 1}}).status_code == 400
+    assert api(senha="segredo").post("/api/colecao/adicionar", json={"cartas": {"Abandon": 1}}).status_code == 401
