@@ -205,6 +205,25 @@ export type FichaDaCarta = {
   mecanicas: { pagina: string; url: string }[];
 };
 
+export type Trocas = {
+  cartas: {
+    carta: string;
+    tipo: string | null;
+    dominios: string[];
+    imagem: string | null;
+    tenho: number;
+    guardar: number;
+    excedente: number;
+    trocar: number;
+    ajustado: boolean;
+    liga: string;
+  }[];
+  copias: number;
+  valor: number | null;
+  sem_preco: number;
+  lista_texto: string;
+};
+
 // --- Formatação ---
 
 export function reais(valor: number | null | undefined): string {

@@ -554,3 +554,37 @@ def test_sideboard_so_conta_no_que_falta_quando_pedido(api, banco, catalogo):
     com = cliente.get(f"/api/decks/{id_}", params={"sideboard": True}).json()
     assert [(f["carta"], f["falta"]) for f in com["faltando"]] == [("Void Seeker", 3)] and com["total"] == 5
     assert cliente.get("/api/decks", params={"sideboard": True}).json()["decks"][0]["copias_faltando"] == 3
+
+
+# --- Cartas pra trocar ---
+
+def test_trocas_pela_regra_do_tipo(api, banco, catalogo):
+    colecao.salvar_alteracoes(banco, {"Jinx, Rebel": 5, "Abandon": 3, "Altar of Blood": 3, "Loose Cannon": 2,
+                                      "Fury Rune": 14, "Void Seeker": 1})
+    dados = api().get("/api/trocas").json()
+    assert {c["carta"]: c["trocar"] for c in dados["cartas"]} == {
+        "Altar of Blood": 2,  # battlefield: guardo 1
+        "Fury Rune": 2,  # runas: guardo 12
+        "Jinx, Rebel": 2,  # unidade: guardo 3
+        "Loose Cannon": 1,  # lenda: guardo 1
+    }  # Abandon (3) e Void Seeker (1) estão dentro do limite
+    assert dados["copias"] == 7 and "2 Jinx - Rebel" in dados["lista_texto"]
+
+
+def test_ajuste_na_mao_vale_no_lugar_da_regra(api, banco, catalogo):
+    colecao.salvar_alteracoes(banco, {"Jinx, Rebel": 5, "Abandon": 3})
+    cliente = api()
+    dados = cliente.put("/api/trocas", json={"carta": "Abandon", "quantidade": 1}).json()  # troco 1 mesmo dentro do limite
+    assert {c["carta"]: (c["trocar"], c["ajustado"]) for c in dados["cartas"]} == {"Abandon": (1, True), "Jinx, Rebel": (2, False)}
+    dados = cliente.put("/api/trocas", json={"carta": "Jinx, Rebel", "quantidade": 0}).json()  # quero guardar todas
+    assert [c["carta"] for c in dados["cartas"]] == ["Abandon"]
+    dados = cliente.put("/api/trocas", json={"carta": "Jinx, Rebel", "quantidade": None}).json()  # volta pra regra
+    assert {c["carta"] for c in dados["cartas"]} == {"Abandon", "Jinx, Rebel"}
+    assert cliente.put("/api/trocas", json={"carta": "Abandon", "quantidade": 9}).status_code == 400  # só tenho 3
+    assert api(senha="segredo").put("/api/trocas", json={"carta": "Abandon", "quantidade": 1}).status_code == 401
+
+
+def test_valor_de_referencia_das_trocas(api, banco, catalogo):
+    colecao.salvar_alteracoes(banco, {"Jinx, Rebel": 5})
+    banco.executar("INSERT INTO precos_tcg (carta, usd) VALUES ('Jinx, Rebel', 0.5)")
+    assert api().get("/api/trocas").json()["valor"] == 1.66  # 2 cópias

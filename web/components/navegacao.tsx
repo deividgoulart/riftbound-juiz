@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Layers, Library, Lock, LockOpen, Scale, Trophy } from "lucide-react";
+import { ArrowLeftRight, Layers, Library, Lock, LockOpen, Scale, Trophy } from "lucide-react";
 import { useSessao } from "@/lib/sessao";
 import { juntar } from "./ui";
 
@@ -11,6 +11,7 @@ const ABAS = [
   { href: "/colecao", rotulo: "Coleção", icone: Library },
   { href: "/decks", rotulo: "Decks", icone: Layers },
   { href: "/meta", rotulo: "Meta", icone: Trophy },
+  { href: "/trocas", rotulo: "Trocas", icone: ArrowLeftRight },
 ];
 
 function ativa(caminho: string, href: string) {
@@ -68,7 +69,7 @@ export function BarraDeBaixo() {
   const caminho = usePathname();
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-linha bg-superficie/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
-      <div className="grid grid-cols-4">
+      <div className="grid grid-cols-5">
         {ABAS.map(({ href, rotulo, icone: Icone }) => {
           const sim = ativa(caminho, href);
           return (

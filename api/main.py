@@ -24,7 +24,7 @@ from pydantic import BaseModel, Field
 
 from api.acesso import Convidados, TentativasDeSenha, criar_token, e_dono
 from api.recursos import Recurso, recursos_padrao
-from decks import colecao, conclusao, meta, precos
+from decks import colecao, conclusao, meta, precos, trocas
 from decks.banco import turso_configurado
 from decks.catalogo import nome_da_lenda
 from decks.compras import link_da_carta, lista_de_compra
@@ -334,6 +334,11 @@ class CartasCompradas(BaseModel):
     cartas: dict[str, int] = Field(max_length=200)  # carta -> cópias a somar
 
 
+class AjusteDeTroca(BaseModel):
+    carta: str = Field(min_length=1, max_length=120)
+    quantidade: int | None = Field(default=None, ge=0, le=99)  # None: volta pra regra do tipo
+
+
 class CsvDaColecao(BaseModel):
     texto: str = Field(max_length=2_000_000)
     substituir: bool = False
@@ -422,6 +427,40 @@ def rotas_decks():
         return {"importadas": len(relatorio.importadas), "copias": sum(relatorio.importadas.values()),
                 "desconhecidas": [{"texto": t, "sugestoes": s} for t, s in relatorio.desconhecidas],
                 "invalidas": len(relatorio.invalidas), "substituiu": dados.substituir}
+
+    @r.get("/trocas")
+    def ver_trocas(request: Request):
+        """As cartas a mais (pela regra do tipo ou pelo ajuste do dono), com o valor de referência do total."""
+        banco, catalogo = obter_deck_builder(request)
+        lista = trocas.listar(banco, catalogo)
+        precos_usd = precos.precos_guardados(banco)
+        valor, sem_preco = precos.custo_pra_completar([(c.carta, c.trocar) for c in lista], precos_usd)
+        cartas = []
+        for c in lista:
+            carta = catalogo.cartas.get(c.carta)
+            cartas.append({"carta": c.carta, "tipo": carta.tipo_principal if carta else None,
+                           "dominios": [d for d in carta.dominios.split(", ") if d] if carta else [],
+                           "imagem": catalogo.imagem_de(c.carta), "tenho": c.tenho, "guardar": c.guardar,
+                           "excedente": c.excedente, "trocar": c.trocar, "ajustado": c.ajustado,
+                           "liga": link_da_carta(c.carta, catalogo)})
+        return {
+            "cartas": cartas, "copias": sum(c.trocar for c in lista),
+            "valor": valor if precos_usd and len(sem_preco) < len(lista) else None, "sem_preco": len(sem_preco),
+            "lista_texto": lista_de_compra([(c.carta, c.trocar) for c in lista], catalogo),
+            "regra": {k: v for k, v in config.GUARDAR_POR_TIPO.items()},
+        }
+
+    @r.put("/trocas", dependencies=[Depends(so_o_dono)])
+    def ajustar_troca(dados: AjusteDeTroca, request: Request):
+        """Quantas trocar de uma carta (0 = quero guardar todas); quantidade vazia volta pra regra do tipo."""
+        banco, catalogo = obter_deck_builder(request)
+        if dados.carta not in catalogo:
+            raise HTTPException(400, f"Carta desconhecida: {dados.carta}")
+        tenho = colecao.listar(banco).get(dados.carta, 0)
+        if dados.quantidade is not None and dados.quantidade > tenho:
+            raise HTTPException(400, f"Você tem {tenho} cópias de {dados.carta}: não dá pra trocar {dados.quantidade}.")
+        trocas.ajustar(banco, dados.carta, dados.quantidade)
+        return ver_trocas(request)
 
     @r.get("/colecao/exportar", response_class=PlainTextResponse)
     def exportar_colecao(request: Request):

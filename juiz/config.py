@@ -138,6 +138,10 @@ DECKS_DB = DATA_DIR / "decks.sqlite"
 # O catálogo do FAQ não traz as runas básicas, que entram no Rune Deck (12 por deck, CRD 103.2).
 RUNAS_BASICAS = {"Fury Rune": "Fury", "Calm Rune": "Calm", "Mind Rune": "Mind",
                  "Body Rune": "Body", "Chaos Rune": "Chaos", "Order Rune": "Order"}
+# Cartas pra trocar (fase 3): quantas cópias guardar de cada tipo; o que passa disso vai pra lista de
+# trocas (decks/trocas.py). Um deck usa 1 lenda e 1 de cada battlefield, até 3 cópias por nome no Main
+# Deck e 12 runas (CRD 103.2).
+GUARDAR_POR_TIPO = {"Legend": 1, "Battlefield": 1, "Rune": 12, "padrao": 3}
 # Decks do meta (fase 2, etapa 2): torneios de Riftbound pela API oficial do TopDeck.gg (grátis, com
 # chave em TOPDECK_API_KEY). Os decks guardados são substituídos a cada coleta.
 TOPDECK_API_URL = "https://topdeck.gg/api/v2/tournaments"

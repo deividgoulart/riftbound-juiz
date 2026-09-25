@@ -58,6 +58,10 @@ ESQUEMA = [
         carta TEXT PRIMARY KEY,       -- cartas.nome
         usd REAL NOT NULL             -- preço de mercado no TCGplayer (EUA), a impressão mais barata da carta
     )""",
+    """CREATE TABLE IF NOT EXISTS trocas (
+        carta TEXT PRIMARY KEY,       -- cartas.nome
+        quantidade INTEGER NOT NULL CHECK (quantidade >= 0)  -- quantas trocar, no lugar da regra (decks/trocas.py)
+    )""",
     """CREATE TABLE IF NOT EXISTS meta (
         chave TEXT PRIMARY KEY,
         valor TEXT
