@@ -477,7 +477,8 @@ class LlmFalso:
 
     def gerar(self, instrucoes, mensagem, esquema=None):
         self.chamadas.append(mensagem)
-        return "**O que a carta faz** Causa 4 de dano.\n\n**Cuidados e exceções**\n- Pode mirar a sua própria unidade [F2]."
+        return ("**O que a carta faz**\nCausa 4 de dano numa unidade [F1].\n\n**Exemplos**\n- Você tira uma unidade do caminho.\n\n"
+                "**Cuidados e exceções**\n- Pode mirar a sua própria unidade [F2].")
 
 
 @pytest.fixture
@@ -522,11 +523,11 @@ def test_explicacao_gerada_no_computador_aparece_na_ficha(api, com_fichas, banco
 
     mensagens = []
     assert gerar(juiz.fichario, banco, ["Void Seeker", "Fury Rune"], log=mensagens.append) == \
-        {"feitas": 1, "falhas": 0, "restantes": 0}  # a runa não tem texto: fica de fora
+        {"feitas": 1, "falhas": 0, "reprovadas": 0, "restantes": 0}  # a runa não tem texto: fica de fora
     assert "FONTES" in llm.chamadas[0] and "Can Void Seeker target my own unit?" in llm.chamadas[0]
     explicacao = api(juiz).get("/api/carta", params={"nome": "Void Seeker"}).json()["explicacao"]
     assert '<a href="https://faq/void-seeker#a" target="_blank">F2</a>' in explicacao["html"]
-    assert [f["numero"] for f in explicacao["fontes"]] == [2]  # só as citadas
+    assert [f["numero"] for f in explicacao["fontes"]] == [1, 2]  # só as citadas (a F3, não)
 
     gerar(juiz.fichario, banco, ["Void Seeker"], log=mensagens.append)
     assert len(llm.chamadas) == 1  # já estava pronta: pulou
@@ -550,3 +551,52 @@ def test_gerar_para_quando_o_ollama_nao_responde(com_fichas, banco, catalogo):
     r = gerar(juiz.fichario, banco, ["Void Seeker", "Abandon", "Void Seeker", "Abandon"], log=mensagens.append)
     assert r["feitas"] == 0 and r["falhas"] == 3
     assert any("Ollama está aberto" in m for m in mensagens)
+
+
+class LlmQueTraduz(LlmFalso):
+    """Erra na 1ª vez (traduz Spell, cita outra carta e inventa um cuidado) e acerta quando é corrigido."""
+
+    def gerar(self, instrucoes, mensagem, esquema=None):
+        if not self.chamadas:
+            self.chamadas.append(mensagem)
+            return ("**O que a carta faz**\nCancela um feitiço [F1].\n\n**Exemplos**\n- Use contra o Void Seeker.\n\n"
+                    "**Cuidados e exceções**\n- O dano é imediato [F1].\n- Funciona em spell counterado [F9].")
+        return super().gerar(instrucoes, mensagem, esquema)
+
+
+def test_conferencia_pede_de_novo_apontando_os_erros(com_fichas):
+    juiz, _ = com_fichas
+    juiz.fichario.llm = llm = LlmQueTraduz()
+    explicacao = juiz.fichario.explicar("Abandon")
+    assert len(llm.chamadas) == 2 and "Pode mirar" in explicacao.texto
+    correcao = llm.chamadas[1]
+    assert "feitiço" in correcao and "Void Seeker" in correcao and "F9" in correcao and "O dano é imediato" in correcao
+
+
+def test_explicacao_que_nao_melhora_fica_de_fora_e_o_lote_segue(com_fichas, banco, catalogo):
+    from api.gerar_explicacoes import gerar
+    from juiz.fichas import TENTATIVAS
+
+    juiz, _ = com_fichas
+
+    class SempreTraduz(LlmFalso):
+        def gerar(self, *a, **k):
+            self.chamadas.append(a)
+            return "**O que a carta faz**\nCancela um feitiço.\n\n**Exemplos**\n- Jogue no lixo."
+
+    juiz.fichario.llm = llm = SempreTraduz()
+    mensagens = []
+    r = gerar(juiz.fichario, banco, ["Abandon", "Void Seeker", "Abandon", "Void Seeker"], log=mensagens.append)
+    assert r["reprovadas"] == 4 and r["feitas"] == 0 and len(llm.chamadas) == 4 * TENTATIVAS  # não parou no 3º erro
+    assert any("reprovada na conferência" in m and "lixo" in m for m in mensagens)
+
+
+def test_carta_sem_duvidas_no_faq_nao_tem_secao_de_cuidados(com_fichas):
+    from juiz.fichas import Fichario
+
+    juiz, _ = com_fichas
+    sem_faq = Fichario(juiz.fichario.catalogo, [], None)
+    fontes = sem_faq._fontes("Abandon")
+    assert sem_faq.problemas("Abandon", "**O que a carta faz**\nCancela um Spell [F1].\n\n**Exemplos**\n- Contra um Spell.", fontes) == []
+    assert any("tire a seção" in p for p in sem_faq.problemas(
+        "Abandon", "**O que a carta faz**\nx [F1].\n\n**Exemplos**\n- y\n\n**Cuidados e exceções**\n- z [F1]", fontes))

@@ -14,6 +14,11 @@ Rodar (a partir da raiz do projeto):
     python -m api.gerar_explicacoes --carta "Jinx, Rebel" --refazer
     python -m api.gerar_explicacoes --modelo gemma3:12b   # outro modelo do Ollama
 
+Antes de guardar, cada explicação passa por uma conferência (juiz/fichas.py, Fichario.problemas): termo do
+jogo traduzido ("feitiço", "lixo"), outra carta citada, fonte que não existe ou "cuidado" que não vem do
+FAQ fazem o modelo escrever de novo, com os erros apontados. Depois de 3 tentativas, a carta fica de fora
+(não vai pro site) e o comando segue pras outras.
+
 Pode parar (Ctrl+C) e rodar de novo quando quiser: ele pula as cartas que já têm explicação com a
 mesma assinatura, e as cartas dos decks (meus e do meta) vêm primeiro. Quando o texto de uma carta
 muda (errata) ou o FAQ ganha dúvidas novas sobre ela, a assinatura muda e a carta volta pra fila.
@@ -27,7 +32,7 @@ import sys
 
 from juiz import config
 from juiz.erros import explicar_erro
-from juiz.fichas import Fichario, explicacao_guardada, guardar_explicacao
+from juiz.fichas import ExplicacaoRuim, Fichario, explicacao_guardada, guardar_explicacao
 
 
 def ordem_das_cartas(banco, nomes: list[str]) -> list[str]:
@@ -39,13 +44,17 @@ def ordem_das_cartas(banco, nomes: list[str]) -> list[str]:
 def gerar(fichario: Fichario, banco, cartas: list[str], limite: int | None = None, refazer: bool = False,
           log=print) -> dict:
     """Gera e guarda as explicações que faltam, uma por uma (cada uma fica salva assim que sai)."""
-    feitas = falhas = 0
+    feitas = falhas = reprovadas = 0
     pendentes = [n for n in cartas if fichario.ficha(n).texto
                  and (refazer or not explicacao_guardada(banco, n, fichario.assinatura(n)))]
     log(f"{len(cartas) - len(pendentes)} cartas já têm explicação (ou não têm texto); faltam {len(pendentes)}.")
     for i, nome in enumerate(pendentes[:limite], start=1):
         try:
             explicacao = fichario.explicar(nome)
+        except ExplicacaoRuim as erro:  # o modelo errou até depois de corrigido: a carta fica de fora, as outras seguem
+            reprovadas += 1
+            log(f"  ✗ {nome}: reprovada na conferência ({erro})")
+            continue
         except Exception as erro:
             falhas += 1
             log(f"  ✗ {nome}: {explicar_erro(erro)}")
@@ -57,8 +66,10 @@ def gerar(fichario: Fichario, banco, cartas: list[str], limite: int | None = Non
         feitas += 1
         log(f"  ✓ [{i}/{len(pendentes[:limite])}] {nome}")
     restantes = len(pendentes) - feitas
-    log(f"Pronto: {feitas} geradas agora, {restantes} ainda faltam.")
-    return {"feitas": feitas, "falhas": falhas, "restantes": restantes}
+    log(f"Pronto: {feitas} geradas agora, {restantes} ainda faltam"
+        + (f" ({reprovadas} reprovadas na conferência: rode de novo ou tente um modelo maior, ex.: --modelo qwen3:14b)."
+           if reprovadas else "."))
+    return {"feitas": feitas, "falhas": falhas, "reprovadas": reprovadas, "restantes": restantes}
 
 
 def main() -> None:

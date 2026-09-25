@@ -195,7 +195,9 @@ class LLMOllama:
         import httpx
 
         cliente = self._cliente or httpx.Client(timeout=600)  # no processador, uma resposta pode levar minutos
-        corpo = {"model": self.modelo, "stream": False, "think": False, "options": {"temperature": 0.3},
+        # num_ctx: o padrão do Ollama (~4 mil tokens) corta as fontes sem avisar
+        corpo = {"model": self.modelo, "stream": False, "think": False,
+                 "options": {"temperature": 0, "num_ctx": 8192},
                  "messages": [{"role": "system", "content": instrucoes}, {"role": "user", "content": mensagem}]}
         try:
             resposta = cliente.post(f"{self.URL}/api/chat", json=corpo)

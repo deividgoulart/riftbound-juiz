@@ -153,6 +153,9 @@ function Explicacao({ explicacao }: { explicacao: ExplicacaoDaCarta }) {
   return (
     <div className="space-y-3">
       <Markdown texto={explicacao.html} />
+      <p className="text-xs text-apagado">
+        Escrito por um modelo de IA a partir do texto da carta e do FAQ, e conferido só automaticamente. Pode errar: na dúvida, vale a fonte.
+      </p>
       {explicacao.fontes.length > 0 && (
         <ul className="space-y-1 border-t border-linha pt-3 text-xs text-apagado">
           {explicacao.fontes.map((f) => (

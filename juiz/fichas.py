@@ -20,22 +20,53 @@ from juiz import config
 from juiz.cartas import url_da_carta
 from juiz.responder import Fonte
 
-VERSAO_DA_EXPLICACAO = "1"  # mude se as instruções mudarem: as explicações guardadas são refeitas
+VERSAO_DA_EXPLICACAO = "2"  # mude se as instruções mudarem: as explicações guardadas são refeitas
 MAX_DUVIDAS = 8
+TENTATIVAS = 3  # a explicação que não passa na conferência volta pro LLM com os problemas apontados
 
 INSTRUCOES_DA_FICHA = """\
 Você é o Juiz Riftbound, explicando UMA carta do Riftbound TCG (o card game de League of Legends) para jogadores brasileiros, muitos deles iniciantes.
 
-Escreva em português do Brasil, como um amigo experiente explicando na mesa: frases curtas, voz ativa, sem juridiquês.
-Mantenha em inglês os nomes de cartas, palavras-chave, zonas e fases, exatamente como nas fontes (Stun, Deathknell, Showdown, Might, Chain, Battlefield, Trash). Na primeira vez que usar um termo técnico, explique em poucas palavras, usando SÓ as DEFINIÇÕES OFICIAIS e as FONTES da mensagem.
+LINGUAGEM
+- Português do Brasil, como um amigo experiente explicando na mesa: frases curtas, voz ativa, sem juridiquês.
+- NUNCA traduza os termos do jogo. Escreva exatamente assim, em inglês: Spell, Gear, Unit (ou "unidade"), Battlefield, Base, Trash, Main Deck, Rune, Legend, Champion, Might, Energy, Power, Chain, Showdown, Buff, Stun, Recycle, Counter, e os domínios Fury, Calm, Mind, Body, Chaos e Order.
+- Palavras PROIBIDAS (são traduções erradas ou termos de outros jogos): feitiço, unitário, lixo, cemitério, item, equipamento, campo de batalha, Força, mana, banimento, lacaio, criatura, Caos, Fúria.
+- Os verbos ficam em português: "a unidade morre", "você compra uma carta".
 
-Use exatamente estas seções, em Markdown:
-**O que a carta faz** — 2 a 4 frases, em linguagem simples, cobrindo todo o texto da carta (inclusive custo e palavras-chave).
-**Exemplos** — 2 exemplos curtos e concretos de jogada, numa lista. Use só o que a carta e as fontes dizem; não invente interações com outras cartas.
-**Cuidados e exceções** — uma lista com os pontos que costumam confundir, cada um citando a fonte no fim da frase, como [F1] ou [F1, F2]. Se as fontes não trazem nenhuma dúvida sobre a carta, escreva uma linha dizendo que o FAQ ainda não tem dúvidas registradas sobre ela e não invente nenhuma.
+O QUE ESCREVER (Markdown, com os títulos em negrito, cada um sozinho numa linha)
+**O que a carta faz**
+2 a 4 frases simples que dizem o que o TEXTO OFICIAL da carta [F1] faz, sem acrescentar nada que não esteja nele.
 
-Nunca invente regras. Se algo não estiver no texto da carta nem nas fontes, não afirme.
+**Exemplos**
+Uma lista com 2 jogadas curtas usando SÓ esta carta e o que o texto dela diz. Não cite nenhuma outra carta pelo nome.
+{secao_de_cuidados}
+REGRAS
+- Nunca invente regras, números, efeitos ou interações. Se não está no texto da carta nem nas fontes, não escreva.
+- Cite a fonte no fim da frase, só com o número: [F1] ou [F2, F3]. Nunca cite uma fonte que não está na mensagem.
+- Números entre colchetes no texto da carta, como [2] ou [Fury], são custos, não fontes.
 """
+
+CUIDADOS_COM_FAQ = """
+**Cuidados e exceções**
+Uma lista com um item para cada pergunta do FAQ (as fontes F2 em diante): diga em 1 frase, em português, o que o FAQ responde, e termine com a fonte, ex.: [F2]. Não escreva itens que não venham de uma dessas fontes.
+"""
+SEM_CUIDADOS = """
+Não escreva a seção de cuidados e exceções: o FAQ não tem dúvidas sobre esta carta.
+"""
+
+# Traduções que o LLM local costuma fazer (e o juiz não aceita): "feitiço" no lugar de Spell etc.
+TERMOS_PROIBIDOS = re.compile(
+    r"\b(feiti[çc]os?|unit[áa]rios?|lixo|cemit[ée]rio|itens|item|equipamentos?|campos? de batalha|for[çc]a|mana|"
+    r"banimento|lacaios?|criaturas?|caos|f[úu]ria)\b", re.IGNORECASE)
+
+
+# Termos do jogo que também são nomes de carta ("Buff", "Stun"...): não contam como "citou outra carta".
+TERMOS_DO_JOGO = {"spell", "gear", "unit", "battlefield", "base", "trash", "main deck", "rune", "legend", "champion",
+                  "might", "energy", "power", "chain", "showdown", "buff", "stun", "recycle", "counter"}
+
+
+class ExplicacaoRuim(RuntimeError):
+    """O LLM não fez uma explicação aceitável, nem depois de ser corrigido."""
 
 
 @dataclass
@@ -145,8 +176,41 @@ class Fichario:
     def assinatura(self, nome: str) -> str:
         """Muda quando o texto da carta, as dúvidas do FAQ ou as instruções mudam."""
         fontes = self._fontes(nome)
-        conteudo = json.dumps([VERSAO_DA_EXPLICACAO, INSTRUCOES_DA_FICHA] + [f.texto for f in fontes], ensure_ascii=False)
+        conteudo = json.dumps([VERSAO_DA_EXPLICACAO, INSTRUCOES_DA_FICHA, CUIDADOS_COM_FAQ] + [f.texto for f in fontes], ensure_ascii=False)
         return hashlib.sha256(conteudo.encode("utf-8")).hexdigest()[:16]
+
+    def problemas(self, nome: str, texto: str, fontes: list[Fonte]) -> list[str]:
+        """O que está errado na explicação, pra pedir outra ao LLM. Vazio: pode guardar."""
+        problemas = []
+        proibidos = sorted({m.group(0).lower() for m in TERMOS_PROIBIDOS.finditer(texto)})
+        if proibidos:
+            problemas.append("usou palavras proibidas (traduza nada; use os termos em inglês): " + ", ".join(proibidos))
+        numeros = {f.numero for f in fontes}
+        inexistentes = sorted({int(n) for n in re.findall(r"\bF(\d{1,2})\b", texto)} - numeros)
+        if inexistentes:
+            problemas.append("citou fontes que não existem: " + ", ".join(f"F{n}" for n in inexistentes))
+        outras = [c for c in self.catalogo.encontrar(texto)
+                  if c != nome and c.lower() not in TERMOS_DO_JOGO and not any(c in f.texto for f in fontes)]
+        if outras:
+            problemas.append("citou outras cartas, que não estão nas fontes: " + ", ".join(outras[:5]))
+        tem_faq = len(fontes) > 1
+        cuidados = texto.split("Cuidados e exceções", 1)[1] if "Cuidados e exceções" in texto else ""
+        if tem_faq:
+            itens = [l for l in cuidados.splitlines() if re.match(r"\s*(?:[-•]|\*(?!\*)|\d+\.)\s", l)]
+            if not itens:
+                problemas.append("faltou a seção **Cuidados e exceções**, com um item por pergunta do FAQ")
+            sem_faq = [l.strip() for l in itens if not re.search(r"\bF(?:[2-9]|\d{2})\b", l)]
+            if sem_faq:
+                problemas.append("estes cuidados não citam nenhuma pergunta do FAQ (F2 em diante); tire-os ou cite a "
+                                 "fonte certa: " + " | ".join(sem_faq[:3]))
+            if re.search(r"n[ãa]o tem (nenhuma )?d[úu]vidas", texto, re.IGNORECASE):
+                problemas.append("disse que o FAQ não tem dúvidas, mas as fontes F2 em diante são dúvidas do FAQ")
+        elif cuidados:
+            problemas.append("escreveu a seção de cuidados, mas o FAQ não tem dúvidas sobre esta carta: tire a seção")
+        for secao in ("O que a carta faz", "Exemplos"):
+            if secao not in texto:
+                problemas.append(f"faltou a seção **{secao}**")
+        return problemas
 
     def explicar(self, nome: str) -> Explicacao:
         if nome not in self.catalogo.cartas:
@@ -165,7 +229,17 @@ class Fichario:
             partes += [f.texto, ""]
         if self.llm is None:
             raise RuntimeError("sem LLM pra explicar cartas: use python -m api.gerar_explicacoes")
-        texto = self.llm.gerar(INSTRUCOES_DA_FICHA, "\n".join(partes).strip())
+        instrucoes = INSTRUCOES_DA_FICHA.format(secao_de_cuidados=CUIDADOS_COM_FAQ if len(fontes) > 1 else SEM_CUIDADOS)
+        mensagem = "\n".join(partes).strip()
+        for tentativa in range(1, TENTATIVAS + 1):
+            texto = self.llm.gerar(instrucoes, mensagem).strip()
+            problemas = self.problemas(nome, texto, fontes)
+            if not problemas:
+                break
+            if tentativa == TENTATIVAS:
+                raise ExplicacaoRuim("; ".join(problemas))
+            mensagem = ("\n".join(partes).strip() + "\n\nSUA EXPLICAÇÃO ANTERIOR (com erros):\n" + texto
+                        + "\n\nESCREVA DE NOVO, CORRIGINDO ESTES PROBLEMAS:\n" + "\n".join(f"- {p}" for p in problemas))
         citadas = {int(n) for n in re.findall(r"F(\d{1,2})", texto)}
         for f in fontes:
             f.citada = f.numero in citadas
