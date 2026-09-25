@@ -2,7 +2,8 @@
 
 // Peças visuais usadas em todas as telas.
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 const CORES_DOS_DOMINIOS: Record<string, string> = {
@@ -43,39 +44,106 @@ export function Cabecalho({ titulo, subtitulo, acao }: { titulo: string; subtitu
   );
 }
 
-/** Arte da carta (galeria oficial). Sem imagem, um cartão com as cores dos domínios e o nome. */
+/** Imagem deitada (os battlefields vêm na horizontal)? Decide pela própria imagem, quando ela carrega. */
+function useDeitada(): [boolean, (e: React.SyntheticEvent<HTMLImageElement>) => void] {
+  const [deitada, setDeitada] = useState(false);
+  return [deitada, (e) => setDeitada(e.currentTarget.naturalWidth > e.currentTarget.naturalHeight)];
+}
+
+/** A carta em tela cheia: toque ou Esc fecham. Battlefields aparecem deitados, do jeito que são. */
+function TelaCheia({ nome, imagem, onFechar }: { nome: string; imagem: string; onFechar: () => void }) {
+  useEffect(() => {
+    const fechar = (e: KeyboardEvent) => e.key === "Escape" && onFechar();
+    window.addEventListener("keydown", fechar);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", fechar);
+      document.body.style.overflow = "";
+    };
+  }, [onFechar]);
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal
+      aria-label={nome}
+      onClick={onFechar}
+      className="fixed inset-0 z-[60] flex cursor-zoom-out flex-col items-center justify-center gap-3 bg-black/85 p-4 backdrop-blur-sm"
+    >
+      <button type="button" onClick={onFechar} aria-label="Fechar" className="absolute right-4 top-4 rounded-full bg-superficie/80 p-2 text-texto">
+        <X size={22} />
+      </button>
+      {/* eslint-disable-next-line @next/next/no-img-element -- imagens do site da Riot */}
+      <img src={imagem} alt={nome} className="max-h-[82dvh] max-w-full rounded-2xl object-contain shadow-2xl shadow-black" />
+      <p className="text-sm font-semibold text-texto">{nome}</p>
+    </div>,
+    document.body,
+  );
+}
+
+/** Arte da carta (galeria oficial). Sem imagem, um cartão com as cores dos domínios e o nome.
+    Battlefields (imagem na horizontal) são girados pra caber no espaço de uma carta em pé. Com
+    `ampliavel`, passar o mouse destaca a carta e clicar (ou tocar, no celular) abre em tela cheia. */
 export function ImagemDaCarta({
   nome,
   imagem,
   dominios = [],
   className = "",
+  ampliavel = true,
 }: {
   nome: string;
   imagem: string | null | undefined;
   dominios?: string[];
   className?: string;
+  ampliavel?: boolean;
 }) {
+  const [deitada, aoCarregar] = useDeitada();
+  const [aberta, setAberta] = useState(false);
   const [a, b] = [corDoDominio(dominios[0]), corDoDominio(dominios[1] ?? dominios[0])];
+  const clicavel = ampliavel && !!imagem;
   return (
-    <div
-      className={juntar("relative aspect-[744/1039] overflow-hidden rounded-lg border border-linha bg-superficie-2", className)}
-      style={
-        imagem
-          ? undefined
-          : {
-              background: `linear-gradient(160deg, color-mix(in srgb, ${a} 45%, transparent), var(--color-superficie-2) 55%, color-mix(in srgb, ${b} 35%, transparent))`,
+    <>
+      <div
+        role={clicavel ? "button" : undefined}
+        tabIndex={clicavel ? 0 : undefined}
+        aria-label={clicavel ? `Ver ${nome} em tela cheia` : undefined}
+        onClick={clicavel ? () => setAberta(true) : undefined}
+        onKeyDown={clicavel ? (e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), setAberta(true)) : undefined}
+        className={juntar(
+          "relative aspect-[744/1039] overflow-hidden rounded-lg border border-linha bg-superficie-2",
+          clicavel &&
+            "cursor-zoom-in transition duration-200 hover:z-10 hover:-translate-y-0.5 hover:scale-[1.04] hover:border-ouro/70 hover:shadow-xl hover:shadow-black/50 focus-visible:outline-2 focus-visible:outline-ouro",
+          className,
+        )}
+        style={
+          imagem
+            ? undefined
+            : {
+                background: `linear-gradient(160deg, color-mix(in srgb, ${a} 45%, transparent), var(--color-superficie-2) 55%, color-mix(in srgb, ${b} 35%, transparent))`,
+              }
+        }
+      >
+        {imagem ? (
+          // eslint-disable-next-line @next/next/no-img-element -- imagens do site da Riot, sem otimização da Vercel
+          <img
+            src={imagem}
+            alt={nome}
+            loading="lazy"
+            onLoad={aoCarregar}
+            className={
+              deitada
+                ? // girada 90°: a largura dela vira a altura do quadro, e a altura, a largura
+                  "absolute left-1/2 top-1/2 h-[71.6%] w-[139.65%] max-w-none -translate-x-1/2 -translate-y-1/2 rotate-90 object-cover"
+                : "h-full w-full object-cover"
             }
-      }
-    >
-      {imagem ? (
-        // eslint-disable-next-line @next/next/no-img-element -- imagens do site da Riot, sem otimização da Vercel
-        <img src={imagem} alt={nome} loading="lazy" className="h-full w-full object-cover" />
-      ) : (
-        <div className="flex h-full items-end p-2">
-          <span className="line-clamp-3 text-[11px] font-semibold leading-tight text-texto/90">{nome}</span>
-        </div>
-      )}
-    </div>
+          />
+        ) : (
+          <div className="flex h-full items-end p-2">
+            <span className="line-clamp-3 text-[11px] font-semibold leading-tight text-texto/90">{nome}</span>
+          </div>
+        )}
+      </div>
+      {aberta && imagem && <TelaCheia nome={nome} imagem={imagem} onFechar={() => setAberta(false)} />}
+    </>
   );
 }
 

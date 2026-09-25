@@ -225,7 +225,7 @@ export default function PaginaDaColecao() {
                 {qtd > 0 && (
                   <span
                     className={juntar(
-                      "absolute right-1.5 top-1.5 min-w-7 rounded-full px-2 py-0.5 text-center text-xs font-bold shadow",
+                      "pointer-events-none absolute right-1.5 top-1.5 z-20 min-w-7 rounded-full px-2 py-0.5 text-center text-xs font-bold shadow",
                       mudou ? "bg-azul text-fundo" : "bg-ouro text-fundo",
                     )}
                   >

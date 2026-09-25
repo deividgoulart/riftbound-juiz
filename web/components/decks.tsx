@@ -21,7 +21,7 @@ export function CartaoDoDeck({ d }: { d: ResumoDoDeck }) {
       href={`/decks/${d.id}`}
       className="group flex gap-3 rounded-2xl border border-linha bg-superficie p-3 transition hover:border-ouro/50 hover:bg-superficie-2/60"
     >
-      <ImagemDaCarta nome={d.lenda?.rotulo ?? d.nome} imagem={d.lenda?.imagem} dominios={d.lenda?.dominios} className="w-16 shrink-0 sm:w-20" />
+      <ImagemDaCarta nome={d.lenda?.rotulo ?? d.nome} imagem={d.lenda?.imagem} dominios={d.lenda?.dominios} className="w-16 shrink-0 sm:w-20" ampliavel={false} />
       <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
         <div>
           <div className="flex items-start justify-between gap-2">
