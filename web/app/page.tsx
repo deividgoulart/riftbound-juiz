@@ -283,7 +283,7 @@ export default function PaginaDoJuiz() {
             </p>
             <div className="flex flex-wrap gap-2">
               {(info?.exemplos ?? []).map((exemplo) => (
-                <Chip key={exemplo} onClick={() => perguntar(exemplo)}>
+                <Chip key={exemplo} onClick={() => perguntar(exemplo)} className="max-w-full rounded-2xl text-left">
                   {exemplo}
                 </Chip>
               ))}
@@ -339,7 +339,7 @@ export default function PaginaDoJuiz() {
             rows={1}
             maxLength={500}
             disabled={!!bloqueio}
-            placeholder="Ex.: a Vex atordoa a unidade que acabou de ser jogada?"
+            placeholder="Pergunte sobre uma regra ou carta"
             className="max-h-40 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-[15px] outline-none placeholder:text-apagado/70"
           />
           <button

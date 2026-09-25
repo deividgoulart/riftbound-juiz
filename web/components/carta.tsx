@@ -186,7 +186,7 @@ export function FichaDaCarta({ carta, imagem, onFechar }: { carta: string; image
         </button>
       )}
 
-      <div className="mx-auto grid max-w-5xl gap-6 px-4 pb-16 pt-16 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] md:pt-12">
+      <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 px-4 pb-16 pt-16 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] md:pt-12">
         <div className="md:sticky md:top-12 md:self-start">
           {arte ? (
             <button type="button" onClick={() => setAmpliada(true)} className="mx-auto block cursor-zoom-in" aria-label="Ver a arte em tela cheia">
