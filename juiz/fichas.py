@@ -20,39 +20,40 @@ from juiz import config
 from juiz.cartas import url_da_carta
 from juiz.responder import Fonte
 
-VERSAO_DA_EXPLICACAO = "3"  # mude se as instruções mudarem: as explicações guardadas são refeitas
+VERSAO_DA_EXPLICACAO = "4"  # mude se as instruções mudarem: as explicações guardadas são refeitas
 MAX_DUVIDAS = 8
-TENTATIVAS = 3  # a explicação que não passa na conferência volta pro LLM com os problemas apontados
+TENTATIVAS = 3  # a parte que não passa na conferência é pedida de novo, com um pouco mais de variação
 
-INSTRUCOES_DA_FICHA = """\
+# Linguagem, igual pras duas instruções. Sem lista de palavras proibidas: no teste, o modelo copiava a lista.
+LINGUAGEM_DA_FICHA = """\
+- Português do Brasil, como um amigo experiente explicando na mesa: frases curtas, voz ativa, sem juridiquês.
+- Os termos do jogo ficam em inglês, exatamente como nas fontes: Spell, Gear, Unit (ou "unidade"), Battlefield, Base, Trash, Main Deck, Rune, Legend, Champion, Might, Energy, Power, Chain, Showdown, Buff, Stun, Recycle, Counter, e os domínios Fury, Calm, Mind, Body, Chaos e Order.
+- Os verbos ficam em português: "a unidade morre", "você compra uma carta".
+- Nunca invente regras, números, efeitos ou interações: use só o que está na mensagem."""
+
+INSTRUCOES_DA_FICHA = f"""\
 Você é o Juiz Riftbound, explicando UMA carta do Riftbound TCG (o card game de League of Legends) para jogadores brasileiros, muitos deles iniciantes.
 
 LINGUAGEM
-- Português do Brasil, como um amigo experiente explicando na mesa: frases curtas, voz ativa, sem juridiquês.
-- NUNCA traduza os termos do jogo. Escreva exatamente assim, em inglês: Spell, Gear, Unit (ou "unidade"), Battlefield, Base, Trash, Main Deck, Rune, Legend, Champion, Might, Energy, Power, Chain, Showdown, Buff, Stun, Recycle, Counter, e os domínios Fury, Calm, Mind, Body, Chaos e Order.
-- Palavras PROIBIDAS (são traduções erradas ou termos de outros jogos): feitiço, unitário, lixo, cemitério, item, equipamento, campo de batalha, Força, mana, banimento, lacaio, criatura, Caos, Fúria.
-- Os verbos ficam em português: "a unidade morre", "você compra uma carta".
+{{LINGUAGEM_DA_FICHA}}
 
-O QUE ESCREVER (Markdown, com os títulos em negrito, cada um sozinho numa linha)
+ESCREVA EXATAMENTE ESTAS DUAS SEÇÕES, em Markdown, com os títulos em negrito, cada um sozinho numa linha, e nada mais:
 **O que a carta faz**
-2 a 4 frases simples que dizem o que o TEXTO OFICIAL da carta [F1] faz, sem acrescentar nada que não esteja nele.
+2 a 4 frases simples que dizem o que o TEXTO OFICIAL DA CARTA faz, sem acrescentar nada que não esteja nele. Os números entre colchetes no texto da carta, como [2] ou [Fury], são custos.
 
 **Exemplos**
 Uma lista com 2 jogadas curtas usando SÓ esta carta e o que o texto dela diz. Não cite nenhuma outra carta pelo nome.
-{secao_de_cuidados}
-REGRAS
-- Nunca invente regras, números, efeitos ou interações. Se não está no texto da carta nem nas fontes, não escreva.
-- Cite a fonte no fim da frase, só com o número: [F1] ou [F2, F3]. Nunca cite uma fonte que não está na mensagem.
-- Números entre colchetes no texto da carta, como [2] ou [Fury], são custos, não fontes.
-"""
+""".replace("{LINGUAGEM_DA_FICHA}", LINGUAGEM_DA_FICHA)
 
-CUIDADOS_COM_FAQ = """
-**Cuidados e exceções**
-Uma lista com um item para cada pergunta do FAQ (as fontes F2 em diante): diga em 1 frase, em português, o que o FAQ responde, e termine com a fonte, ex.: [F2]. Não escreva itens que não venham de uma dessas fontes.
-"""
-SEM_CUIDADOS = """
-Não escreva a seção de cuidados e exceções: o FAQ não tem dúvidas sobre esta carta.
-"""
+# Os cuidados vêm um por um, de cada dúvida do FAQ: uma tarefa pequena, que o modelo local erra menos.
+INSTRUCOES_DA_DUVIDA = f"""\
+Você resume respostas do Riftbound FAQ (em inglês) para jogadores brasileiros do Riftbound TCG.
+
+Recebe UMA pergunta do FAQ sobre uma carta e a resposta dela. Escreva UMA frase, em português, dizendo o que o FAQ responde, do jeito que um jogador entende na mesa. Se a pergunta é de sim ou não, comece com "Sim," ou "Não,". Só a frase: sem título, sem lista, sem citar fonte.
+
+LINGUAGEM
+{{LINGUAGEM_DA_FICHA}}
+""".replace("{LINGUAGEM_DA_FICHA}", LINGUAGEM_DA_FICHA)
 
 # Traduções que o LLM local costuma fazer (e o juiz não aceita): "feitiço" no lugar de Spell etc.
 TERMOS_PROIBIDOS = re.compile(
@@ -97,7 +98,7 @@ def ajustar(texto: str) -> str:
 
 
 class ExplicacaoRuim(RuntimeError):
-    """O LLM não fez uma explicação aceitável, nem depois de ser corrigido."""
+    """O LLM não fez uma explicação aceitável, nem depois de várias tentativas."""
 
 
 @dataclass
@@ -207,74 +208,75 @@ class Fichario:
     def assinatura(self, nome: str) -> str:
         """Muda quando o texto da carta, as dúvidas do FAQ ou as instruções mudam."""
         fontes = self._fontes(nome)
-        conteudo = json.dumps([VERSAO_DA_EXPLICACAO, INSTRUCOES_DA_FICHA, CUIDADOS_COM_FAQ] + [f.texto for f in fontes], ensure_ascii=False)
+        conteudo = json.dumps([VERSAO_DA_EXPLICACAO, INSTRUCOES_DA_FICHA, INSTRUCOES_DA_DUVIDA] + [f.texto for f in fontes], ensure_ascii=False)
         return hashlib.sha256(conteudo.encode("utf-8")).hexdigest()[:16]
 
+    def _proibidos(self, texto: str) -> list[str]:
+        return sorted({m.group(0).lower() for m in TERMOS_PROIBIDOS.finditer(texto)})
+
     def problemas(self, nome: str, texto: str, fontes: list[Fonte]) -> list[str]:
-        """O que está errado na explicação, pra pedir outra ao LLM. Vazio: pode guardar."""
+        """O que está errado na parte principal (o que a carta faz + exemplos). Vazio: pode guardar."""
         problemas = []
-        proibidos = sorted({m.group(0).lower() for m in TERMOS_PROIBIDOS.finditer(texto)})
-        if proibidos:
-            problemas.append("usou palavras proibidas (traduza nada; use os termos em inglês): " + ", ".join(proibidos))
-        numeros = {f.numero for f in fontes}
-        inexistentes = sorted({int(n) for n in re.findall(r"\bF(\d{1,2})\b", texto)} - numeros)
-        if inexistentes:
-            problemas.append("citou fontes que não existem: " + ", ".join(f"F{n}" for n in inexistentes))
+        if self._proibidos(texto):
+            problemas.append("traduziu termos do jogo que devem ficar em inglês (" + ", ".join(self._proibidos(texto)) + ")")
         outras = [c for c in self.catalogo.encontrar(texto)
                   if c != nome and c.lower() not in TERMOS_DO_JOGO and not any(c in f.texto for f in fontes)]
         if outras:
-            problemas.append("citou outras cartas, que não estão nas fontes: " + ", ".join(outras[:5]))
-        tem_faq = len(fontes) > 1
-        cuidados = texto.split("**Cuidados e exceções**", 1)[1] if "**Cuidados e exceções**" in texto else ""
-        if tem_faq:
-            itens = [l for l in cuidados.splitlines() if re.match(r"\s*(?:[-•]|\*(?!\*)|\d+\.)\s", l)]
-            if not itens:
-                problemas.append("faltou a seção **Cuidados e exceções**, com um item por pergunta do FAQ")
-            sem_faq = [l.strip() for l in itens if not re.search(r"\bF(?:[2-9]|\d{2})\b", l)]
-            if sem_faq:
-                problemas.append("estes cuidados não citam nenhuma pergunta do FAQ (F2 em diante); tire-os ou cite a "
-                                 "fonte certa: " + " | ".join(sem_faq[:3]))
-            if re.search(r"n[ãa]o tem (nenhuma )?d[úu]vidas", texto, re.IGNORECASE):
-                problemas.append("disse que o FAQ não tem dúvidas, mas as fontes F2 em diante são dúvidas do FAQ")
-        elif cuidados:
-            problemas.append("escreveu a seção de cuidados, mas o FAQ não tem dúvidas sobre esta carta: tire a seção")
+            problemas.append("citou outras cartas: " + ", ".join(outras[:5]))
         for secao in ("O que a carta faz", "Exemplos"):
             if f"**{secao}**" not in texto:
                 problemas.append(f"faltou a seção **{secao}**")
+        if "Cuidados e exceções" in texto:
+            problemas.append("escreveu uma seção de cuidados, que não foi pedida")
         return problemas
+
+    def _gerar(self, instrucoes: str, mensagem: str, tentativa: int) -> str:
+        # Temperatura 0 na 1ª tentativa; depois, um pouco de variação (com 0, a resposta seria a mesma).
+        if hasattr(self.llm, "temperatura"):
+            self.llm.temperatura = 0.0 if tentativa == 1 else 0.3 * (tentativa - 1)
+        return ajustar(self.llm.gerar(instrucoes, mensagem))
+
+    def _parte_principal(self, nome: str, fontes: list[Fonte]) -> str:
+        definicoes = self.definicoes([fontes[0].texto])
+        partes = [f"CARTA: {nome}", "", "TEXTO OFICIAL DA CARTA", fontes[0].texto, ""]
+        if definicoes:
+            partes.append("DEFINIÇÕES OFICIAIS DOS TERMOS TÉCNICOS (use estas pra explicar os termos; não invente outras)")
+            partes += [f"- {rotulo}: {texto}" for rotulo, texto in definicoes] + [""]
+        if len(fontes) > 1:  # as dúvidas do FAQ ajudam a entender a carta, mas os cuidados são escritos à parte
+            partes.append("DÚVIDAS DO FAQ SOBRE A CARTA (só pra você entender; não escreva sobre elas)")
+            partes += [f"Pergunta: {f.resumo.split(' — ', 1)[-1]}\n{f.texto}\n" for f in fontes[1:]]
+        mensagem = "\n".join(partes).strip()
+        problemas: list[str] = []
+        for tentativa in range(1, TENTATIVAS + 1):
+            texto = self._gerar(INSTRUCOES_DA_FICHA, mensagem, tentativa)
+            problemas = self.problemas(nome, texto, fontes)
+            if not problemas:
+                return texto
+        raise ExplicacaoRuim("; ".join(problemas))
+
+    def _cuidado(self, nome: str, fonte: Fonte) -> str:
+        """Uma frase com o que o FAQ responde. Se o modelo não acertar, fica a pergunta do FAQ, em inglês."""
+        mensagem = (f"CARTA: {nome}\n\nPERGUNTA DO FAQ: {fonte.resumo.split(' — ', 1)[-1]}\n\n"
+                    f"PERGUNTA E RESPOSTA, COMO ESTÃO NO FAQ\n{fonte.texto}")
+        for tentativa in range(1, TENTATIVAS + 1):
+            frase = " ".join(self._gerar(INSTRUCOES_DA_DUVIDA, mensagem, tentativa).split())
+            frase = re.sub(r"\s*\[F?\d+\]\s*$", "", frase.lstrip("-•* ")).strip()
+            if frase and len(frase) <= 400 and "**" not in frase and not self._proibidos(frase):
+                return frase
+        return fonte.resumo.split(" — ", 1)[-1]  # a pergunta original, com o link na fonte
 
     def explicar(self, nome: str) -> Explicacao:
         if nome not in self.catalogo.cartas:
             raise KeyError(nome)
-        fontes = self._fontes(nome)
-        definicoes = self.definicoes([f.texto for f in fontes[:1]])
-        partes = [f"CARTA: {nome}", ""]
-        if definicoes:
-            partes.append("DEFINIÇÕES OFICIAIS DOS TERMOS TÉCNICOS (use estas pra explicar os termos; não invente outras)")
-            partes += [f"- {rotulo}: {texto}" for rotulo, texto in definicoes] + [""]
-        partes.append("FONTES")
-        for f in fontes:
-            partes.append(f"[F{f.numero}] {f.titulo}")
-            if f.citacao_pendente:
-                partes.append("CITAÇÃO PENDENTE: o próprio FAQ avisa que o CRD ainda não sustenta esta resposta por completo.")
-            partes += [f.texto, ""]
         if self.llm is None:
             raise RuntimeError("sem LLM pra explicar cartas: use python -m api.gerar_explicacoes")
-        instrucoes = INSTRUCOES_DA_FICHA.format(secao_de_cuidados=CUIDADOS_COM_FAQ if len(fontes) > 1 else SEM_CUIDADOS)
-        mensagem = "\n".join(partes).strip()
-        for tentativa in range(1, TENTATIVAS + 1):
-            texto = ajustar(self.llm.gerar(instrucoes, mensagem))
-            problemas = self.problemas(nome, texto, fontes)
-            if not problemas:
-                break
-            if tentativa == TENTATIVAS:
-                raise ExplicacaoRuim("; ".join(problemas))
-            # Sem a versão errada na mensagem: com ela, o modelo respondia com uma lista de conferência
-            # ("Spell: correct") em vez de reescrever.
-            mensagem = ("\n".join(partes).strip() + "\n\nATENÇÃO: uma versão anterior da sua explicação foi recusada por "
-                        "estes motivos:\n" + "\n".join(f"- {p}" for p in problemas)
-                        + "\n\nEscreva a explicação INTEIRA de novo, do começo, só com as seções pedidas e sem "
-                        "comentar os erros nem fazer listas de conferência.")
+        fontes = self._fontes(nome)
+        texto = self._parte_principal(nome, fontes)
+        carta = self.catalogo.cartas[nome]
+        da_carta, _ = self._trechos_da_carta(nome, "\n".join(filter(None, [carta.get("abilities"), carta.get("effects")])))
+        duvidas = fontes[1:1 + len(da_carta)]  # as dúvidas sobre a carta (as páginas de mecânica vêm depois)
+        if duvidas:
+            texto += "\n\n**Cuidados e exceções**\n" + "\n".join(f"- {self._cuidado(nome, f)} [F{f.numero}]" for f in duvidas)
         citadas = {int(n) for n in re.findall(r"F(\d{1,2})", texto)}
         for f in fontes:
             f.citada = f.numero in citadas

@@ -14,10 +14,11 @@ Rodar (a partir da raiz do projeto):
     python -m api.gerar_explicacoes --carta "Jinx, Rebel" --refazer
     python -m api.gerar_explicacoes --modelo gemma3:12b   # outro modelo do Ollama
 
-Antes de guardar, cada explicação passa por uma conferência (juiz/fichas.py, Fichario.problemas): termo do
-jogo traduzido ("feitiço", "lixo"), outra carta citada, fonte que não existe ou "cuidado" que não vem do
-FAQ fazem o modelo escrever de novo, com os erros apontados. Depois de 3 tentativas, a carta fica de fora
-(não vai pro site) e o comando segue pras outras.
+Cada carta leva 1 chamada pra "o que a carta faz" + "exemplos" e 1 chamada pequena por dúvida do FAQ
+(uma frase cada, com a fonte posta pelo código). Traduções diretas ("feitiço" -> Spell) são consertadas
+sem chamar o modelo; o que não tem conserto (termo traduzido, outra carta citada, seção faltando) é pedido
+de novo, com um pouco mais de variação. Depois de 3 tentativas, a carta fica de fora (não vai pro site) e
+o comando segue pras outras; uma dúvida que não sai vira a pergunta do FAQ em inglês, com o link.
 
 Pode parar (Ctrl+C) e rodar de novo quando quiser: ele pula as cartas que já têm explicação com a
 mesma assinatura, e as cartas dos decks (meus e do meta) vêm primeiro. Quando o texto de uma carta

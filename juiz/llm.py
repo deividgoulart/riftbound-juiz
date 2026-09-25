@@ -190,6 +190,7 @@ class LLMOllama:
         self.nome = f"ollama/{modelo}"
         self.ultimo_uso: dict = {}
         self._cliente = cliente
+        self.temperatura = 0.0  # quem chama pode subir numa nova tentativa (com 0, a resposta se repete)
 
     def gerar(self, instrucoes: str, mensagem: str, esquema=None) -> str:
         import httpx
@@ -197,7 +198,7 @@ class LLMOllama:
         cliente = self._cliente or httpx.Client(timeout=600)  # no processador, uma resposta pode levar minutos
         # num_ctx: o padrão do Ollama (~4 mil tokens) corta as fontes sem avisar
         corpo = {"model": self.modelo, "stream": False, "think": False,
-                 "options": {"temperature": 0, "num_ctx": 8192, "num_predict": 1500},
+                 "options": {"temperature": self.temperatura, "num_ctx": 8192, "num_predict": 1500},
                  "messages": [{"role": "system", "content": instrucoes}, {"role": "user", "content": mensagem}]}
         try:
             resposta = cliente.post(f"{self.URL}/api/chat", json=corpo)
