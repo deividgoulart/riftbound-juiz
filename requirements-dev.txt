@@ -2,6 +2,12 @@
 # Instalação: pip install -r requirements-dev.txt
 -r requirements.txt
 
+# PyTorch só pra CPU: o pacote padrão do PyPI no Linux vem com CUDA (placa de vídeo) e ocupa
+# vários GB a mais. No Windows, o pacote do PyPI já é o de CPU.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.6                  # roda a busca reserva local (e5-small) e as comparações da etapa 4
+sentence-transformers>=5.0  # carrega o modelo da busca reserva
+
 pandas>=3.0          # tabelas das avaliações e dos notebooks
 matplotlib>=3.11     # gráficos dos notebooks
 jupyter>=1.1         # roda os notebooks

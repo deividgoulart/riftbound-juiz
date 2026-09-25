@@ -62,8 +62,8 @@ def test_html_do_llm_nao_entra_na_pagina():
     assert linkar("<script>alert(1)</script> [F1]") == f"&lt;script&gt;alert(1)&lt;/script&gt;<sup>{a('F1', 'https://faq/1')}</sup>"
 
 
-def test_cifrao_nao_vira_formula():
-    assert linkar("custa $5") == "custa \\$5"
+def test_cifrao_fica_como_esta():
+    assert linkar("custa $5") == "custa $5"
 
 
 def test_citacoes_soltas_de_regra_e_glossario():

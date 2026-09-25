@@ -6,16 +6,12 @@ gastar a cota do dia e deixar o juiz fora do ar até o dia seguinte. Com o proje
 faturamento ativado, o pior caso é esse: o app para, sem custo nenhum.
 
 Como funciona:
-- Só vale quando existe a variável SENHA_DO_APP (nos secrets do Streamlit Cloud). Rodando no seu
+- Só vale quando existe a variável SENHA_DO_APP (nos secrets da API publicada). Rodando no seu
   computador, sem ela, não há limite nenhum.
-- Convidado: até config.LIMITE_POR_VISITA perguntas por visita e config.LIMITE_DIARIO no dia,
-  somando todos os visitantes.
-- Quem digita a senha usa sem limite.
+- Convidado: até config.LIMITE_POR_VISITANTE perguntas por dia e config.LIMITE_DIARIO no dia,
+  somando todos os visitantes. Quem digita a senha usa sem limite.
 
-Limitações conhecidas (aceitáveis pra um projeto de portfólio):
-- O limite por visita fica na sessão do navegador: recarregar a página zera. Quem protege a cota
-  de verdade é o limite diário.
-- O contador diário fica na memória do servidor: se o app reiniciar, ele volta a zero.
+Os contadores por visitante, o token do dono e as tentativas de senha ficam em api/acesso.py.
 """
 
 import hmac

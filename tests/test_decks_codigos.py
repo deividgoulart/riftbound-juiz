@@ -59,7 +59,7 @@ def test_codigo_base_tira_a_variante():
 def test_ler_pagina_acha_a_lista_de_cartas(galeria):
     assert len(galeria) == 7
     assert galeria[0] == {"codigo": "OGN-202/298", "nome": "Jinx",
-                          "texto": "Riftbound Unit: Jinx, Rebel. When you discard one or more cards..."}
+                          "texto": "Riftbound Unit: Jinx, Rebel. When you discard one or more cards...", "imagem": "x"}
 
 
 def test_mapa_usa_o_nome_completo_do_texto_da_imagem(catalogo_com_codigos):
@@ -138,3 +138,22 @@ def test_carregar_galeria_com_falha_usa_a_salva_ou_nada(tmp_path, monkeypatch, g
     assert codigos.carregar_galeria(AGORA, falha) == []
     (tmp_path / "galeria.json").write_text(json.dumps({"baixada_em": "2026-01-01T00:00:00+00:00", "cartas": galeria}))
     assert codigos.carregar_galeria(AGORA, falha) == galeria
+
+
+def test_imagem_da_carta_e_a_da_impressao_normal():
+    galeria = codigos.ler_pagina({"cartas": [
+        {"name": "Jinx", "publicCode": "OGN-202/298", "cardImage": {"accessibilityText": "Riftbound Unit: Jinx, Rebel.", "url": "https://img/202.png"}},
+        {"name": "Jinx", "publicCode": "OGN-202a/298", "cardImage": {"accessibilityText": "Riftbound Unit: Jinx, Rebel.", "url": "https://img/202a.png"}},
+        {"name": "Abandon", "publicCode": "UNL-131/219", "cardImage": {"accessibilityText": "Riftbound Spell: Abandon."}},
+    ]})
+    catalogo = Catalogo(CARTAS, galeria)
+    assert catalogo.imagem_de("Jinx, Rebel") == "https://img/202.png"  # não a de arte alternativa
+    assert catalogo.imagem_de("Abandon") is None  # a galeria não mandou imagem
+    assert Catalogo(CARTAS).imagem_de("Jinx, Rebel") is None  # sem galeria
+
+
+def test_galeria_salva_sem_imagens_e_baixada_de_novo(tmp_path, monkeypatch, galeria):
+    monkeypatch.setattr(config, "GALERIA_CARTAS", tmp_path / "galeria.json")
+    (tmp_path / "galeria.json").write_text(json.dumps({"baixada_em": AGORA.isoformat(), "cartas": []}))  # versão 1
+    assert codigos.carregar_galeria(AGORA, lambda: galeria) == galeria
+    assert json.loads((tmp_path / "galeria.json").read_text())["versao"] == codigos.VERSAO_DA_GALERIA

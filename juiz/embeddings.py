@@ -20,6 +20,7 @@ import time
 
 import numpy as np
 
+from juiz import config
 from juiz.erros import CotaEsgotada, cota_diaria_esgotada
 
 # Instrução pro Qwen3: ele funciona melhor quando sabe qual é a tarefa (a documentação
@@ -95,7 +96,7 @@ class ModeloGemini:
 
             chave = os.environ.get("GEMINI_API_KEY")
             if not chave:
-                raise RuntimeError("Coloque GEMINI_API_KEY no arquivo .env (veja o .env.example) ou, no app publicado, nos secrets do Streamlit Cloud")
+                raise RuntimeError("Coloque GEMINI_API_KEY no arquivo .env (veja o .env.example) ou, no app publicado, nos secrets da API (Render)")
             self._cliente = genai.Client(api_key=chave)
         return self._cliente
 
@@ -146,6 +147,20 @@ MODELOS = {
                                       instrucao_pergunta=INSTRUCAO_QWEN),
     "gemini-2": lambda: ModeloGemini(),
 }
+
+
+def modelos_de_busca() -> list[str]:
+    """As buscas que o juiz usa, em ordem de preferência: a principal (Gemini) e a reserva local (e5-small).
+
+    A reserva precisa do PyTorch, que ocupa ~1 GB de memória. A API publicada roda num servidor grátis
+    com 512 MB (Render), então lá ela é instalada sem o PyTorch (requirements.txt) e fica só a principal.
+    No seu computador, com requirements-dev.txt, as duas funcionam."""
+    import importlib.util
+
+    nomes = [config.MODELO_EMBEDDINGS]
+    if importlib.util.find_spec("sentence_transformers") is not None:
+        nomes.append(config.MODELO_EMBEDDINGS_RESERVA)
+    return nomes
 
 
 def carregar_modelo(nome: str):

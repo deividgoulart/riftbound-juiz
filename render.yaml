@@ -1,0 +1,25 @@
+# Configuração da API no Render (plano grátis). No painel do Render: New > Blueprint, escolha este
+# repositório e preencha os segredos que ele pedir (os "sync: false" abaixo). Passo a passo no README.
+services:
+  - type: web
+    name: juiz-riftbound-api
+    runtime: docker
+    plan: free
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /api/saude
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SENHA_DO_APP
+        sync: false
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
+      - key: TOPDECK_API_KEY
+        sync: false
+      - key: SITE_URL
+        sync: false

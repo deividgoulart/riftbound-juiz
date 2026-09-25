@@ -124,11 +124,11 @@ CRD_SNAPSHOT = RAW_DIR / "crd_snapshot.json"
 # --- App publicado (etapa 8) ---
 # O app se atualiza sozinho (FAQ, CRD, trechos e índices) quando a última atualização tem mais que isso.
 ATUALIZAR_A_CADA_HORAS = 24
-# Modo convidado: só vale quando a variável SENHA_DO_APP existe (nos secrets do Streamlit Cloud).
-# Protege a cota grátis do Gemini de visitantes; com a senha, o uso não tem limite.
-LIMITE_POR_VISITA = 10  # perguntas por visita (sessão do navegador)
+# Modo convidado: só vale quando a variável SENHA_DO_APP existe (nos secrets da API publicada).
+# Protege a cota grátis do Gemini de visitantes; com a senha, o uso não tem limite. Veja api/acesso.py.
+LIMITE_POR_VISITANTE = 10  # perguntas por dia de cada visitante (pelo IP)
 LIMITE_DIARIO = 100  # perguntas de convidados por dia, somando todos os visitantes
-TENTATIVAS_DE_SENHA = 5  # por visita, pra ninguém ficar chutando senhas
+TENTATIVAS_DE_SENHA = 5  # senhas erradas por IP em uma hora, pra ninguém ficar chutando
 
 # --- Fase 2: deck builder ---
 # Banco da coleção e dos decks. Com TURSO_DATABASE_URL e TURSO_AUTH_TOKEN (no .env ou nos secrets),

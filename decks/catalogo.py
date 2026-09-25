@@ -87,6 +87,7 @@ class Catalogo:
             self._por_chave[chave(c.nome)] = c.nome
         # código ("OGN-42") -> nome, pela galeria oficial (decks/codigos.py); vazio se ela não estiver disponível
         self.codigos = cod.mapa_de_codigos(galeria or [], self.resolver)
+        self._imagens = cod.mapa_de_imagens(galeria or [])
         # A impressão normal de cada carta: sem sufixo de variante ("a", "*"), número só com dígitos (promos
         # "SP5" e runas "R1" ficam de reserva) e o menor número, porque as overnumbered vêm depois do total
         # da coleção (a Vi lenda é UNL-187; a UNL-229 é a overnumbered).
@@ -130,6 +131,11 @@ class Catalogo:
     def codigo_de(self, nome: str) -> str | None:
         """Código de uma impressão normal da carta ("OGN-251"), ou None sem a galeria."""
         return self._codigo_por_nome.get(nome)
+
+    def imagem_de(self, nome: str) -> str | None:
+        """Link da imagem da impressão normal da carta (galeria oficial), ou None sem a galeria."""
+        codigo = self.codigo_de(nome)
+        return self._imagens.get(codigo) if codigo else None
 
     def sugestoes(self, texto: str, n: int = 3) -> list[str]:
         """Nomes parecidos, pra mostrar quando `resolver` não reconhece."""

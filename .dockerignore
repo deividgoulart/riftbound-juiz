@@ -1,0 +1,15 @@
+# Fica de fora da imagem da API o que ela não usa (o site, os testes, os dados baixados).
+.git
+.env
+web/
+notebooks/
+tests/
+avaliacao/resultados/
+data/raw/*
+data/processed/*
+data/index/
+data/logs/
+data/decks.sqlite*
+**/__pycache__
+.pytest_cache
+.claude

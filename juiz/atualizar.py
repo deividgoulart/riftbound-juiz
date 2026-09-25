@@ -32,7 +32,9 @@ def dados_prontos() -> bool:
     """O juiz consegue subir? (trechos, regras, catálogo de cartas e o índice de ao menos uma busca)"""
     necessarios = [config.PROCESSED_DIR / "faq_trechos.jsonl", config.PROCESSED_DIR / "crd_regras.jsonl",
                    config.PROCESSED_DIR / "crd_trechos.jsonl", config.FAQ_SOURCES_DIR / "card-catalog.json"]
-    indices = [config.INDEX_DIR / nome / "vetores.npy" for nome in (config.MODELO_EMBEDDINGS, config.MODELO_EMBEDDINGS_RESERVA)]
+    from juiz.embeddings import modelos_de_busca
+
+    indices = [config.INDEX_DIR / nome / "vetores.npy" for nome in modelos_de_busca()]
     return all(c.exists() for c in necessarios) and any(i.exists() for i in indices)
 
 
@@ -93,12 +95,12 @@ def processar_crd(log) -> None:
 
 def atualizar_indices(log) -> dict[str, str]:
     """Atualiza a busca principal e a reserva. Um erro numa (ex.: cota) não impede a outra."""
-    from juiz.embeddings import carregar_modelo
+    from juiz.embeddings import carregar_modelo, modelos_de_busca
     from juiz.indice import carregar_trechos, obter_indice
 
     trechos = carregar_trechos()
     situacao = {}
-    for nome in (config.MODELO_EMBEDDINGS, config.MODELO_EMBEDDINGS_RESERVA):
+    for nome in modelos_de_busca():
         try:
             indice = obter_indice(carregar_modelo(nome), trechos)
             info = indice.info
