@@ -22,7 +22,7 @@ RE_CITACAO_CRD = re.compile(
 RE_REGRA_SOLTA = re.compile(r"\s*\[(\d{3}(?:\.[0-9a-z]+)*(?:\s*,\s*\d{3}(?:\.[0-9a-z]+)*)*)\]")
 RE_GLOSSARIO_SOLTO = re.compile(r"\s*\[Gloss[áa]rio(?: do FAQ)?\]", re.IGNORECASE)
 
-ROTULOS = {"faq": "FAQ não oficial", "crd": "Core Rules (oficial)", "carta": "Carta"}
+ROTULOS = {"faq": "FAQ não oficial", "crd": "Core Rules (oficial)", "carta": "Carta", "deck": "Seu deck"}
 
 
 def trecho_para_ler(texto: str, limite: int = 700) -> str:

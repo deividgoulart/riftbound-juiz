@@ -59,6 +59,7 @@ MAX_TURNOS_HISTORICO = 3  # quantas perguntas e respostas anteriores o juiz leva
 LIMIAR_NAO_ENCONTREI = {"gemini-2": 0.60, "e5-small": 0.78}
 MAX_REGRAS_CITADAS = 20  # regras do CRD citadas pelo FAQ que entram no contexto (texto oficial)
 MAX_CARTAS = 5  # textos de carta que entram no contexto
+MAX_CARTAS_DO_DECK = 40  # cartas diferentes do deck em foco (fase 2) com o texto no contexto
 GLOSSARIO = RAIZ / "juiz" / "glossario.yaml"
 DEFINICOES = RAIZ / "juiz" / "definicoes.yaml"  # definições oficiais dos termos técnicos (números de regra)
 MAX_DEFINICOES = 6  # quantos termos técnicos ganham a definição oficial no contexto
@@ -151,3 +152,10 @@ GALERIA_URL = "https://riftbound.leagueoflegends.com/en-us/card-gallery/"
 GALERIA_DADOS_URL = "https://riftbound.leagueoflegends.com/_next/data/{build_id}/en-us/card-gallery.json"
 GALERIA_CARTAS = RAW_DIR / "galeria_cartas.json"
 GALERIA_ATUALIZAR_A_CADA_DIAS = 7
+
+# Compras (fase 2, etapa 3): Liga Riftbound. A página da carta traz o resumo de preços do marketplace
+# (menor, médio e maior, normal e foil); os preços de cada loja vêm como imagem e não são lidos.
+LIGA_URL = "https://www.ligariftbound.com.br/"
+LIGA_COMPRA_POR_LISTA = LIGA_URL + "?view=cards/lista"
+PRECOS_VALIDOS_POR_DIAS = 7  # preço guardado vale uma semana; depois, busca de novo
+PRECOS_INTERVALO_SEGUNDOS = 1.0  # entre um pedido e outro à Liga, pra não sobrecarregar o site

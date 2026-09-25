@@ -29,7 +29,7 @@ Por baixo, é um **RAG** (*Retrieval-Augmented Generation*): primeiro o app **bu
 |---|---|---|
 | 1 | Catálogo de cartas no banco, coleção, importação manual de deck e % de conclusão | ✅ concluída |
 | 2 | Decks do meta coletados automaticamente (API do TopDeck.gg) | ✅ concluída |
-| 3 | Sugestão de decks, links e preço das cartas que faltam, juiz falando dos meus decks | a fazer |
+| 3 | Links, lista de compra e preço das cartas que faltam (Liga Riftbound), juiz falando dos meus decks | ✅ concluída |
 
 ## Como funciona
 
@@ -104,6 +104,8 @@ riftbound-juiz/
 │   ├── meus_decks.py       # salva, lista e apaga decks
 │   ├── meta.py             # decks de torneio pela API do TopDeck.gg (etapa 2)
 │   ├── codigos.py          # código da carta (OGN-042) -> nome, pela galeria oficial da Riot
+│   ├── compras.py          # links e lista de compra da Liga Riftbound (etapa 3)
+│   ├── precos.py           # preço das cartas que faltam, pelo resumo do marketplace da Liga (etapa 3)
 │   └── conclusao.py        # % de conclusão, cartas que faltam e ranking dos decks
 ├── avaliacao/
 │   ├── gabarito.yaml       # perguntas-gabarito com resposta e fonte esperadas (etapa 2b; 45 na etapa 7)
@@ -576,6 +578,23 @@ A **coleção e os decks continuam guardados pelo nome**: um deck pede "Jinx, Re
 
 **Limite conhecido:** a galeria da Riot, a documentação e a API do TopDeck.gg não abriam no ambiente onde o código foi escrito. O formato das respostas foi conferido no código de um projeto aberto que usa a API em produção, e os testes usam um servidor falso nesse formato. A primeira coleta real mostra no relatório quantos decks entraram e quais cartas não foram reconhecidas.
 
+### Etapa 3: comprar o que falta e o juiz falando dos meus decks
+
+**Comprar o que falta (Liga Riftbound).** Em cada deck, a tabela do que falta ganhou:
+- **link pra carta na Liga**: com o código da carta, o link vai direto na impressão certa (`Jinx - Loose Cannon (251)`, coleção OGN), no mesmo formato da Liga; sem o código, vai pelo nome;
+- **lista de compra** no formato "3 Nome", pra copiar (ou baixar em .txt) e colar na [Compra por Lista da Liga](https://www.ligariftbound.com.br/?view=cards/lista), que monta o carrinho mais barato entre as lojas. É o "carrinho geral" que o plano pedia;
+- **menor preço e custo estimado pra completar**, com o botão **Buscar preços na Liga** (só com a senha).
+
+**De onde vem o preço.** A página de cada carta na Liga mostra o "Preço Médio de Venda no Marketplace": menor, médio e maior preço, separados em Normal e Foil, em texto. É isso que o app lê ([`decks/precos.py`](decks/precos.py)). O formato foi conferido numa página real salva em 25/09/2026, e o teste usa esse trecho (`tests/dados/liga_precos.html`).
+- Os preços de cada loja aparecem como **imagens embaralhadas**, ou seja, a Liga não quer que sejam lidos por robôs. Eles ficam de fora.
+- Pra não sobrecarregar o site: só as cartas que faltam, só quando alguém clica, **um pedido por segundo**, e o preço fica guardado por uma semana. Se a Liga recusar os pedidos (403 ou 429), a busca para na hora.
+- O custo usa o menor preço entre normal e foil, porque a foil também serve pro deck.
+- A MYP Cards ficou de fora: o formato da busca dela não foi encontrado.
+
+**O juiz falando dos meus decks.** No chat, a barra lateral tem **Deck em foco**, com os decks do deck builder (os seus primeiro, depois os do meta). Com um deck escolhido, o juiz recebe a lista e o texto oficial de cada carta como mais uma fonte, então dá pra perguntar "quais cartas do meu deck dão Stun?" ou "o que acontece se eu jogar a Jinx, Rebel com o Super Mega Death Rocket!?". Com deck em foco, o atalho do "não encontrei" (busca fraca) não vale, porque a resposta pode estar nas cartas do deck.
+
+**Limite conhecido:** a Liga é bloqueada no ambiente onde o código foi escrito. O leitor de preço foi testado com a página real salva, mas a busca de verdade só roda no seu computador ou no app publicado.
+
 ### Próximos passos
 
 O plano da fase 2, com o que já foi feito:
@@ -585,10 +604,9 @@ O plano da fase 2, com o que já foi feito:
 3. ✅ **Importação manual** de um deck específico, colando a lista no formato de texto que os sites exportam.
 4. ✅ Para cada deck, **porcentagem de conclusão e cartas que faltam** (deck menos coleção), com banco **SQLite** (Turso na nuvem).
 5. **Sugestão de decks**: comparar a coleção com os decks do meta e ordenar do mais fácil pro mais difícil de montar. A ordenação por porcentagem e cartas faltando já existe; falta incluir o custo pra completar, quando tiver preço.
-6. Para cada carta que falta, **link de busca direto** na [Liga Riftbound](https://ligariftbound.com.br) e na [MYP Cards](https://mypcards.com/riftbound). Descobrir um jeito de fazer uma busca geral, tipo um carrinho, ou de exportar só o que falta pra completar.
-7. **Preço das cartas que faltam**, tentando scraping nas duas lojas.
-   Referências pra estudar (não usar direto): [felipeas/liga-price-scraper](https://github.com/felipeas/liga-price-scraper) (Node.js, feito pra LigaMagic) e [apify.com/gio21/mypcards-scraper](https://apify.com/gio21/mypcards-scraper) (não lista Riftbound).
-8. ✅ (em parte) **Aba nova no Streamlit** pro deck builder. Falta o juiz passar a responder dúvidas sobre as cartas dos meus decks.
+6. ✅ Para cada carta que falta, **link direto** na [Liga Riftbound](https://ligariftbound.com.br) e a lista pra **Compra por Lista** (o carrinho geral). A [MYP Cards](https://mypcards.com/riftbound) ficou de fora (formato da busca desconhecido).
+7. ✅ **Preço das cartas que faltam**, pelo resumo do marketplace da Liga.
+8. ✅ **Aba nova no Streamlit** pro deck builder, e o juiz responde dúvidas sobre as cartas dos meus decks (Deck em foco).
 
 ## Créditos e licenças
 

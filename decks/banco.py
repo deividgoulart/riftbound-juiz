@@ -54,6 +54,12 @@ ESQUEMA = [
         quantidade INTEGER NOT NULL CHECK (quantidade > 0),
         PRIMARY KEY (deck_id, carta, secao)
     )""",
+    """CREATE TABLE IF NOT EXISTS precos (
+        carta TEXT PRIMARY KEY,       -- cartas.nome
+        menor REAL, medio REAL, maior REAL,  -- versão normal, em reais (resumo do marketplace da Liga)
+        menor_foil REAL,
+        atualizado_em TEXT NOT NULL
+    )""",
     """CREATE TABLE IF NOT EXISTS meta (
         chave TEXT PRIMARY KEY,
         valor TEXT

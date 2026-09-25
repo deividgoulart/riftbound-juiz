@@ -33,7 +33,7 @@ from datetime import datetime, timedelta, timezone
 import httpx
 
 from decks.banco import Banco
-from decks.catalogo import Catalogo
+from decks.catalogo import Catalogo, nome_da_lenda
 from decks.importar import ListaDeDeck
 from decks.meus_decks import comandos_do_deck
 from juiz import config
@@ -89,12 +89,6 @@ def buscar_torneios(chave: str, dias: int = config.META_DIAS, cliente: httpx.Cli
     if not isinstance(torneios, list):
         raise ErroNoMeta("o TopDeck.gg respondeu num formato inesperado")
     return torneios
-
-
-def nome_da_lenda(lenda: str, catalogo: Catalogo) -> str:
-    """ "Loose Cannon" (tag Jinx) -> "Jinx, Loose Cannon", como os jogadores chamam a lenda."""
-    tags = [t for t in catalogo.cartas[lenda].tags.split(", ") if t] if lenda in catalogo else []
-    return f"{tags[-1]}, {lenda}" if tags and not lenda.startswith(tags[-1]) else lenda
 
 
 def _nome_do_deck(lenda: str, catalogo: Catalogo, colocacao: int, torneio: str) -> str:

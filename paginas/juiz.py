@@ -60,6 +60,30 @@ def carregar_juiz():
     return Juiz.padrao()
 
 
+@st.cache_data(ttl=60, show_spinner=False)
+def decks_salvos() -> list[dict]:
+    """Decks do deck builder (fase 2), pro jogador perguntar sobre um deles. [] se o banco não abrir."""
+    try:
+        from decks.banco import abrir_banco
+        from decks.meus_decks import cartas_dos_decks, listar_decks
+
+        banco = abrir_banco()
+        banco.criar_tabelas()
+        cartas = cartas_dos_decks(banco)
+        decks = [{"id": d["id"], "nome": d["nome"], "origem": d["origem"],
+                  "cartas": [(l["secao"], l["carta"], l["quantidade"]) for l in cartas.get(d["id"], [])]}
+                 for d in listar_decks(banco)]
+        return sorted(decks, key=lambda d: d["origem"] != "manual")  # os meus primeiro, depois os do meta
+    except Exception:
+        traceback.print_exc()
+        return []
+
+
+def obter_decks() -> list[dict]:
+    # Os testes automáticos colocam aqui os decks (ou uma lista vazia), pra não abrir o banco de verdade.
+    return st.session_state["decks_de_teste"] if "decks_de_teste" in st.session_state else decks_salvos()
+
+
 def obter_juiz():
     # Os testes automáticos colocam aqui um juiz "de mentira", pra não chamar a API.
     return st.session_state.get("juiz_de_teste") or carregar_juiz()
@@ -92,7 +116,7 @@ def motivo_do_bloqueio() -> str | None:
 # Mensagens
 # ---------------------------------------------------------------------------
 
-def montar_mensagem(resposta, id_: str) -> dict:
+def montar_mensagem(resposta, id_: str, deck_nome: str | None = None) -> dict:
     versao = procedencia()["crd_versao"] or "1.4"
     return {
         "id": id_,
@@ -107,6 +131,7 @@ def montar_mensagem(resposta, id_: str) -> dict:
         "termos": resposta.termos,
         "busca": resposta.modelo_busca,
         "sem_llm": resposta.sem_llm,
+        "deck": deck_nome,
     }
 
 
@@ -132,7 +157,8 @@ def avaliar(id_: str) -> None:
 def mostrar_fonte(f: dict, detalhes: bool) -> None:
     titulo = (f["resumo"] or f["titulo"]).replace("[", "\\[").replace("]", "\\]")
     nota = f" · similaridade {f['nota']:.2f}" if detalhes and f["nota"] is not None else ""
-    st.markdown(f"**[F{f['numero']}]** {ROTULOS[f['tipo']]} · [{titulo}]({f['url']}){nota}")
+    link = f"[{titulo}]({f['url']})" if f["url"] else titulo  # o deck em foco não tem link
+    st.markdown(f"**[F{f['numero']}]** {ROTULOS[f['tipo']]} · {link}{nota}")
 
 
 def sem_markdown(texto: str) -> str:
@@ -159,6 +185,8 @@ def mostrar_resposta(msg: dict, detalhes: bool) -> None:
         return
     # unsafe_allow_html: as citações são <sup> com link; o texto do LLM já passou por html.escape.
     st.markdown(msg["texto"], unsafe_allow_html=True)
+    if msg.get("deck"):
+        st.caption(f"🃏 Respondido com o deck em foco: {msg['deck']}")
     if msg.get("busca") and msg["busca"] != config.MODELO_EMBEDDINGS:
         st.caption(f"🔁 Busca feita com o modelo reserva ({msg['busca']}), que roda junto com o app: "
                    "a busca principal (Gemini) está indisponível agora.")
@@ -214,6 +242,16 @@ with st.sidebar:
         st.session_state.mensagens = []
         st.session_state.pop("exemplo", None)
         st.rerun()
+    decks = obter_decks()
+    deck_escolhido = None
+    if decks:
+        por_id = {d["id"]: d for d in decks}
+        escolha = st.selectbox(
+            "Deck em foco", [None] + list(por_id), key="deck_em_foco",
+            format_func=lambda i: "Nenhum" if i is None else por_id[i]["nome"] + (" (meta)" if por_id[i]["origem"] != "manual" else ""),
+            help="Escolha um deck do Deck builder pra perguntar sobre ele (ex.: \"quais cartas do meu deck dão Stun?\"). "
+                 "O juiz recebe a lista e o texto oficial das cartas.")
+        deck_escolhido = por_id.get(escolha)
     with st.expander("Como funciona"):
         st.markdown(
             "1. A pergunta é comparada com ~500 trechos do FAQ e do Core Rules usando "
@@ -291,7 +329,10 @@ if pergunta:
     with st.chat_message("assistant", avatar="⚖️"):
         try:
             with st.spinner("Consultando as regras..."):
-                resposta = obter_juiz().responder(pergunta, historico=historico, plano_b=True)
+                from juiz.responder import DeckEmFoco  # aqui, e não no topo: juiz.responder é pesado de importar
+
+                deck = DeckEmFoco(deck_escolhido["nome"], deck_escolhido["cartas"]) if deck_escolhido else None
+                resposta = obter_juiz().responder(pergunta, historico=historico, plano_b=True, deck=deck)
         except Exception as erro:
             traceback.print_exc()  # o detalhe completo vai pro log do servidor (no Streamlit Cloud: Manage app)
             if reservou:
@@ -304,7 +345,7 @@ if pergunta:
                 st.error(f"Não consegui responder agora ({explicar_erro(erro)}). Tente de novo em alguns instantes.")
             st.session_state.mensagens.pop()
         else:
-            msg = montar_mensagem(resposta, uuid.uuid4().hex[:8])
+            msg = montar_mensagem(resposta, uuid.uuid4().hex[:8], deck_escolhido["nome"] if deck_escolhido else None)
             st.session_state.mensagens.append(msg)
             if resposta.sem_llm:  # plano B: não gastou o LLM, então não conta no limite do convidado
                 if reservou:

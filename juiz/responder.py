@@ -100,7 +100,7 @@ NAO_ENCONTREI = (
 @dataclass
 class Fonte:
     numero: int
-    tipo: str  # "faq", "crd" ou "carta"
+    tipo: str  # "faq", "crd", "carta" ou "deck" (o deck em foco, fase 2)
     titulo: str
     url: str
     texto: str
@@ -110,6 +110,17 @@ class Fonte:
     resumo: str = ""  # título curto pra mostrar na tela
     trecho_id: str = ""  # id do trecho de origem (ex.: "faq/cards/flash#target-in-base"); usado na avaliação
     regras: list[str] = field(default_factory=list)  # regras do CRD que o trecho contém ou cita
+
+
+@dataclass
+class DeckEmFoco:
+    """Um deck salvo no deck builder (fase 2), escolhido pelo jogador no chat pra perguntar sobre ele."""
+    nome: str
+    cartas: list[tuple[str, str, int]]  # (seção, carta, cópias), como em decks.meus_decks.cartas_dos_decks
+
+
+NOMES_DAS_SECOES = {"lenda": "Legend", "campeao": "Chosen Champion", "principal": "Main Deck",
+                    "battlefields": "Battlefields", "runas": "Runes", "sideboard": "Sideboard"}
 
 
 @dataclass
@@ -303,6 +314,19 @@ class Juiz:
         extras = [r for r in dict.fromkeys(citadas) if r not in ja_no_contexto and r in self.regras]
         return fontes, extras[:config.MAX_REGRAS_CITADAS]
 
+    def fonte_do_deck(self, deck: DeckEmFoco, numero: int) -> Fonte:
+        """O deck em foco vira uma fonte: a lista e o texto oficial de cada carta (runas básicas não têm)."""
+        linhas = [f"Deck do jogador: {deck.nome}", ""]
+        for secao, rotulo in NOMES_DAS_SECOES.items():
+            da_secao = [(carta, qtd) for s, carta, qtd in deck.cartas if s == secao]
+            if da_secao:
+                linhas.append(f"{rotulo}: " + "; ".join(f"{qtd}x {carta}" for carta, qtd in da_secao))
+        nomes = [c for c in dict.fromkeys(carta for _, carta, _ in deck.cartas) if c in self.catalogo.cartas]
+        linhas += ["", "Texto oficial das cartas do deck:"]
+        linhas += [self.catalogo.texto(nome) + "\n" for nome in nomes[:config.MAX_CARTAS_DO_DECK]]
+        return Fonte(numero, "deck", f"Deck do jogador: {deck.nome} (lista e texto oficial das cartas)", "",
+                     "\n".join(linhas).strip(), resumo=deck.nome, trecho_id=f"deck/{deck.nome}")
+
     def montar_mensagem(self, pergunta: str, termos: list[tuple[str, str]], fontes: list[Fonte], extras: list[str],
                         tipo: str = "direta", historico: list[tuple[str, str]] | None = None,
                         definicoes: list[tuple[str, str]] | None = None) -> str:
@@ -314,6 +338,11 @@ class Juiz:
                 resumo = resumo if len(resumo) <= 900 else resumo[:900] + " …"
                 partes += [f"Jogador: {pergunta_antiga}", f"Juiz: {resumo}", ""]
         partes += ["PERGUNTA DO JOGADOR", pergunta, "", f"TIPO DE PERGUNTA: {tipo}", ""]
+        deck = next((f for f in fontes if f.tipo == "deck"), None)
+        if deck:
+            partes += [f"DECK EM FOCO: o jogador escolheu o deck \"{deck.resumo}\". Quando a pergunta falar de \"meu deck\" "
+                       f"ou das cartas dele, use a lista e o texto das cartas da fonte [F{deck.numero}]. As regras continuam "
+                       "vindo das outras fontes.", ""]
         if termos:
             partes.append("TERMOS DO JOGO NA PERGUNTA (como o jogador escreveu -> termo oficial em inglês)")
             partes += [f'- "{pt}" -> {en}' for pt, en in termos]
@@ -336,11 +365,13 @@ class Juiz:
     # --- resposta ---
 
     def responder(self, pergunta: str, historico: list[tuple[str, str]] | None = None,
-                  plano_b: bool = False) -> Resposta:
+                  plano_b: bool = False, deck: DeckEmFoco | None = None) -> Resposta:
         """Responde a pergunta. `historico` = [(pergunta, resposta), ...] da conversa, da mais antiga pra mais recente.
 
         Com `plano_b`, se nenhum LLM responder, devolve os trechos achados pela busca em vez de levantar
         o erro (o app usa isso; a avaliação não, porque precisa saber que o LLM falhou).
+
+        Com `deck` (um deck salvo no deck builder), a lista e o texto das cartas dele entram como fonte.
         """
         historico = (historico or [])[-config.MAX_TURNOS_HISTORICO:]
         tipo = "explicação" if e_pedido_de_explicacao(pergunta) else "direta"
@@ -360,13 +391,17 @@ class Juiz:
         resposta = Resposta(pergunta, NAO_ENCONTREI, encontrou=False, termos=termos,
                             nota_busca=round(nota, 3), modelo_busca=busca.nome, tipo=tipo)
 
-        if nota < busca.limiar and not self.catalogo.encontrar(pergunta):
+        if nota < busca.limiar and not self.catalogo.encontrar(pergunta) and deck is None:
             return resposta  # nada parecido o bastante: "não encontrei" sem chamar o LLM
+        # (com um deck em foco, a resposta pode estar nas cartas dele, mesmo com a busca fraca:
+        # "quais cartas do meu deck dão Stun?")
 
         # Trechos abaixo do limiar só atrapalham; o 1º resultado fica sempre.
         resultados = resultados[:1] + [(t, n) for t, n in resultados[1:] if n >= busca.limiar]
 
         fontes, extras = self.montar_contexto(pergunta, resultados)
+        if deck is not None and deck.cartas:
+            fontes.append(self.fonte_do_deck(deck, len(fontes) + 1))
         principais = [pergunta] + [en for _, en in termos] + ([historico[-1][0]] if historico else [])
         definicoes = self.definicoes_relevantes(principais, [t.get("texto", "") for t, _ in resultados[:2]])
         mensagem = self.montar_mensagem(pergunta, termos, fontes, extras, tipo=tipo, historico=historico,
