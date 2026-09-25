@@ -44,7 +44,7 @@ class LLMGemini:
 
             chave = os.environ.get("GEMINI_API_KEY")
             if not chave:
-                raise RuntimeError("Coloque GEMINI_API_KEY no arquivo .env (veja o .env.example) ou, no app publicado, nos secrets da API (Hugging Face Spaces)")
+                raise RuntimeError("Coloque GEMINI_API_KEY no arquivo .env (veja o .env.example) ou, no app publicado, nos secrets da API (Render)")
             self._cliente = genai.Client(api_key=chave)
         return self._cliente
 
@@ -146,7 +146,7 @@ class LLMGroq:
 
         chave = os.environ.get("GROQ_API_KEY")
         if not chave:
-            raise RuntimeError("Coloque GROQ_API_KEY no .env ou, no app publicado, nos secrets da API (Hugging Face Spaces)")
+            raise RuntimeError("Coloque GROQ_API_KEY no .env ou, no app publicado, nos secrets da API (Render)")
         corpo = {
             "model": self.modelo,
             "messages": [{"role": "system", "content": instrucoes}, {"role": "user", "content": mensagem}],

@@ -3,7 +3,7 @@
 Dois lugares possíveis, com o mesmo SQL:
 - Local: um arquivo SQLite (config.DECKS_DB), usado no seu computador e nos testes (":memory:").
 - Turso: um SQLite na nuvem, com plano grátis. É o que o app publicado usa, porque o disco do
-  servidor grátis da API (Hugging Face Spaces) é apagado a cada reinício, e a coleção sumiria junto.
+  servidor grátis da API (Render) é apagado a cada reinício, e a coleção sumiria junto.
 
 Por que falar com o Turso pela API HTTP, e não pelo pacote oficial? O pacote do Turso é nativo
 (Rust) e já teve problema de instalação no Windows. A API HTTP ("Hrana", em /v2/pipeline) é um

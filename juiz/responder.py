@@ -22,7 +22,7 @@ import yaml
 
 from juiz import config
 from juiz.cartas import Catalogo, url_da_carta
-from juiz.embeddings import carregar_modelo
+from juiz.embeddings import carregar_modelo, modelos_de_busca
 from juiz.erros import CotaEsgotada, explicar_erro
 from juiz.glossario import encontrar_termos, expandir_pergunta
 from juiz.indice import Indice
@@ -225,8 +225,8 @@ class Juiz:
         regras = {r["numero"]: r for r in map(json.loads, caminho.open(encoding="utf-8"))}
         buscas = [
             Busca(nome, carregar_modelo(nome), Indice.carregar(nome), config.LIMIAR_NAO_ENCONTREI[nome])
-            for nome in (config.MODELO_EMBEDDINGS, config.MODELO_EMBEDDINGS_RESERVA)
-            if Indice.existe(nome)  # a reserva só entra se o índice dela já foi criado
+            for nome in modelos_de_busca()
+            if Indice.existe(nome)  # a reserva só entra se o índice dela já foi criado (e o PyTorch instalado)
         ]
         faq = map(json.loads, (config.PROCESSED_DIR / "faq_trechos.jsonl").open(encoding="utf-8"))
         glossario = {t["ancora"]: t["texto"].split("\n\n", 1)[1] for t in faq if t["categoria"] == "glossario"}

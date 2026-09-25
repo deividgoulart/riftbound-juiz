@@ -2,9 +2,8 @@
 # Pra desenvolver (notebooks, testes, avaliações): pip install -r requirements-dev.txt
 # Versões testadas em 24/09/2026.
 
-# PyTorch só pra CPU: o pacote padrão do PyPI no Linux vem com CUDA (placa de vídeo) e ocupa
-# vários GB a mais. No Windows, o pacote do PyPI já é o de CPU.
---extra-index-url https://download.pytorch.org/whl/cpu
+# Sem o PyTorch: a API publicada roda num servidor grátis com 512 MB de memória (Render), e o PyTorch
+# sozinho passa disso. A busca reserva local (e5-small), que precisa dele, fica no requirements-dev.txt.
 
 python-dotenv>=1.2          # lê as chaves de API do arquivo .env
 pyyaml>=6.0                 # glossário, definições e frontmatter dos MDX
@@ -12,7 +11,5 @@ beautifulsoup4>=4.13        # lê o HTML do Core Rules
 numpy>=2.0                  # vetores da busca e similaridade
 google-genai>=1.30          # SDK oficial do Gemini (embeddings e LLM)
 httpx>=0.27                 # chamadas à API do Groq (reserva de outra empresa)
-torch>=2.6                  # roda a busca reserva (e5-small)
-sentence-transformers>=5.0  # carrega o modelo da busca reserva
 fastapi>=0.115              # a API que o site (web/) usa
 uvicorn>=0.30               # servidor da API

@@ -1,4 +1,4 @@
-# Só o que a API precisa: juiz/, decks/, api/, data/vetores/ e os arquivos de configuração.
+# Fica de fora da imagem da API o que ela não usa (o site, os testes, os dados baixados).
 .git
 .env
 web/

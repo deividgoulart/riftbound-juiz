@@ -39,7 +39,7 @@ Junto com o juiz, um **deck builder**: minha coleção de cartas, os decks que e
 |---|---|---|
 | 1 | Design no Figma (5 telas, celular primeiro, tema escuro) | ✅ concluída |
 | 2 | API em FastAPI (juiz + deck builder) e site em Next.js + Tailwind, no lugar do Streamlit | ✅ concluída |
-| 3 | Publicação: API no Hugging Face Spaces, site na Vercel (grátis) | ⏳ falta criar as contas e ligar (passo a passo abaixo) |
+| 3 | Publicação: API no Render, site na Vercel (grátis) | ⏳ falta criar as contas e ligar (passo a passo abaixo) |
 
 ## Como funciona
 
@@ -135,8 +135,8 @@ riftbound-juiz/
 ├── tests/                  # testes automatizados (python -m pytest)
 ├── requirements.txt        # dependências da API (o que o Dockerfile instala)
 ├── requirements-dev.txt    # + notebooks, testes e comparações
-├── Dockerfile              # a API num contêiner (Hugging Face Spaces)
-├── .github/workflows/      # publica a API no Hugging Face a cada mudança no main
+├── Dockerfile              # a API num contêiner (Render)
+├── render.yaml             # configuração da API no Render (plano grátis)
 ├── pytest.ini              # configuração dos testes
 └── .env.example            # modelo do arquivo de chaves de API
 ```
@@ -370,6 +370,7 @@ As primeiras perguntas feitas no app mostraram três problemas que o gabarito n�
      - **Aviso na tela:** quando a resposta usa a reserva, o app mostra uma linha discreta dizendo isso.
      - **Primeiro teste real:** foi com a cota do Gemini esgotada. As 4 perguntas do uso real foram respondidas pela reserva, com a primeira levando ~20 s (carrega o modelo) e as seguintes ~1,5 s.
      - **Custo pra etapa 8:** o app publicado vai precisar do PyTorch pra rodar a reserva.
+     - **Na fase 3, a reserva local saiu da API publicada:** o servidor grátis (Render) tem 512 MB de memória, e só o PyTorch passa disso. Publicada, a API usa só a busca do Gemini; no seu computador, com `requirements-dev.txt`, a reserva continua funcionando. Se a busca do Gemini falhar lá (ex.: cota do dia), o juiz avisa que não conseguiu responder.
 
 ### Conversa com memória e respostas mais didáticas
 
@@ -528,7 +529,7 @@ Limitações conhecidas:
 
 ### Como publicar
 
-A publicação mudou na fase 3: veja [Como publicar (grátis)](#como-publicar-grátis-api-no-hugging-face-site-na-vercel).
+A publicação mudou na fase 3: veja [Como publicar (grátis)](#como-publicar-grátis-api-no-render-site-na-vercel).
 
 ## Deck builder (fase 2)
 
@@ -631,7 +632,7 @@ O plano da fase 2, com o que já foi feito:
 O Streamlit limitava o visual e a experiência no celular. Na fase 3, o app virou um site de verdade, desenhado antes no [Figma](https://www.figma.com/design/lXPI99tYoOrf3jwH5SXkoy) e trocado de uma vez.
 
 ```
-Navegador ──> site (Next.js, na Vercel) ──> API (FastAPI, no Hugging Face Spaces) ──> Gemini / Groq
+Navegador ──> site (Next.js, na Vercel) ──> API (FastAPI, no Render) ──> Gemini / Groq
                                                    │
                                                    └──> Turso (coleção e decks), TopDeck.gg, galeria da Riot
 ```
@@ -644,19 +645,19 @@ Navegador ──> site (Next.js, na Vercel) ──> API (FastAPI, no Hugging Fac
   - **Meta:** os decks de torneio, com filtro por lenda.
 - **API (`api/`):** FastAPI por cima dos pacotes `juiz/` e `decks/`, que não mudaram. A documentação de todas as rotas fica em `/docs`. O juiz e o deck builder carregam uma vez quando a API liga e se atualizam sozinhos uma vez por dia, sem parar os pedidos.
 - **Arte das cartas:** vem da galeria oficial da Riot (o mesmo lugar dos códigos das cartas); o site mostra a imagem direto do site da Riot. Sem a galeria, cada carta aparece como um cartão com as cores dos domínios.
-- **Por que dois serviços:** o juiz precisa de Python e ~1 GB de memória (a busca reserva roda um modelo no processador). A Vercel é ótima pra sites, mas não roda isso; o Hugging Face Spaces roda (16 GB de RAM no plano grátis), mas não é feito pra sites.
+- **Por que dois serviços:** a Vercel é ótima pra sites, mas o juiz precisa de um servidor Python ligado (ele carrega as regras e o índice na memória). A API fica no Render, que roda Python de graça.
+- **Sem a busca reserva local na API publicada:** o plano grátis do Render tem 512 MB de memória, e o PyTorch (que roda o e5-small) passa disso sozinho. A API instala `requirements.txt`, sem o PyTorch (medido: ~85 MB antes de carregar as regras); a reserva continua no seu computador (`requirements-dev.txt`). O Hugging Face Spaces, que teria memória de sobra, passou a cobrar por Spaces com Docker em 2026.
 
-### Como publicar (grátis): API no Hugging Face, site na Vercel
+### Como publicar (grátis): API no Render, site na Vercel
 
-**1. A API no Hugging Face Spaces**
-1. Crie uma conta em [huggingface.co](https://huggingface.co) e um **Space** novo: SDK **Docker**, modelo em branco, hardware grátis (**CPU basic**), visibilidade pública. Ex.: `deividgoulart/juiz-riftbound`.
-2. No Space, em **Settings > Variables and secrets**, crie os **secrets**: `GEMINI_API_KEY`, `GROQ_API_KEY`, `SENHA_DO_APP` (uma senha só sua), `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` e `TOPDECK_API_KEY`. Depois de publicar o site (passo 2), acrescente `SITE_URL` com o endereço dele, pra só o seu site poder chamar a API pelo navegador.
-3. Em [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens), crie um token com permissão de escrita (**Write**).
-4. No GitHub, em **Settings > Secrets and variables > Actions** do repositório: crie o secret `HF_TOKEN` (o token) e a variável `HF_SPACE` (ex.: `deividgoulart/juiz-riftbound`).
-5. Em **Actions**, rode **API no Hugging Face** (ou faça um push no `main`). A partir daí, cada mudança no `main` que mexe na API publica sozinha.
-6. A 1ª construção leva uns minutos (PyTorch). A API fica em `https://<usuario>-<space>.hf.space` (ex.: `https://deividgoulart-juiz-riftbound.hf.space/docs`).
+**1. A API no Render** (plano grátis, sem cartão de crédito)
+1. Crie uma conta em [render.com](https://render.com) entrando com a conta do GitHub.
+2. Clique em **New > Blueprint** e escolha o repositório `deividgoulart/riftbound-juiz`. O Render lê o [`render.yaml`](render.yaml) e cria o serviço `juiz-riftbound-api` (Docker, plano **Free**).
+3. Ele pede os segredos: `GEMINI_API_KEY`, `GROQ_API_KEY`, `SENHA_DO_APP` (uma senha só sua), `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` e `TOPDECK_API_KEY`. Deixe `SITE_URL` em branco por enquanto.
+4. **Apply.** A 1ª construção leva uns minutos. A API fica em `https://juiz-riftbound-api.onrender.com` (o Render mostra o endereço; `/docs` lista as rotas).
+5. Depois de publicar o site (passo 2), volte em **Environment** e preencha `SITE_URL` com o endereço dele, pra só o seu site poder chamar a API pelo navegador.
 
-No plano grátis, o Space **dorme depois de 48 horas sem visitas** e acorda no próximo acesso (leva ~1 minuto; o site avisa). O disco é apagado a cada reinício: por isso a coleção fica no Turso, e o FAQ e o CRD são baixados de novo.
+Cada push no `main` publica a API de novo. No plano grátis, a API **dorme depois de 15 minutos sem visitas** e acorda no próximo acesso (leva ~1 minuto, mais o tempo de baixar o FAQ e o CRD; o site avisa). O disco é apagado a cada reinício: por isso a coleção fica no Turso. São 750 horas grátis por mês, o bastante pra um serviço ligado o mês inteiro.
 
 **2. O site na Vercel**
 1. Entre em [vercel.com](https://vercel.com) com a conta do GitHub e importe o repositório `deividgoulart/riftbound-juiz`.
