@@ -30,10 +30,22 @@ def parametros(url):
     return {k: v[0] for k, v in parse_qs(urlparse(url).query).items()}
 
 
-def test_lenda_vai_com_o_campeao_na_frente_como_na_liga(catalogo):
+def test_campeoes_vao_com_hifen_como_na_liga(catalogo):
     assert nome_na_liga("Loose Cannon", catalogo) == "Jinx - Loose Cannon"
     assert nome_na_liga("Heart of the Tempest", catalogo) == "Kennen - Heart of the Tempest"
-    assert nome_na_liga("Jinx, Rebel", catalogo) == "Jinx, Rebel"
+    assert nome_na_liga("Jinx, Rebel", catalogo) == "Jinx - Rebel"  # com vírgula, a página da Liga não abre
+    assert nome_na_liga("Abandon", catalogo) == "Abandon"
+
+
+def test_link_usa_a_impressao_normal_e_nao_a_overnumbered_nem_a_promo():
+    galeria = [{"codigo": "UNL-229/219", "nome": "Loose Cannon", "texto": "Riftbound Legend: Loose Cannon. X"},
+               {"codigo": "UNL-187/219", "nome": "Loose Cannon", "texto": "Riftbound Legend: Loose Cannon. X"},
+               {"codigo": "VEN-SP5/006", "nome": "Jinx", "texto": "Riftbound Unit: Jinx, Rebel. X"},
+               {"codigo": "SFD-149/221", "nome": "Jinx", "texto": "Riftbound Unit: Jinx, Rebel. X"}]
+    c = Catalogo(CARTAS, galeria)
+    assert parametros(link_da_carta("Loose Cannon", c))["num"] == "187"
+    assert parametros(link_da_carta("Jinx, Rebel", c)) == {"view": "cards/card", "card": "Jinx - Rebel (149)",
+                                                           "ed": "SFD", "num": "149"}
 
 
 def test_link_com_codigo_vai_na_impressao_certa(com_codigos):
@@ -47,11 +59,12 @@ def test_link_sem_codigo_vai_pelo_nome(catalogo):
     url = link_da_carta("Loose Cannon", catalogo)
     assert url.startswith("https://www.ligariftbound.com.br/?")
     assert parametros(url) == {"view": "cards/card", "card": "Jinx - Loose Cannon"}
+    assert parametros(link_da_carta("Jinx, Rebel", catalogo))["card"] == "Jinx - Rebel"
 
 
 def test_lista_de_compra_no_formato_da_liga(catalogo):
     assert lista_de_compra([("Jinx, Rebel", 2), ("Loose Cannon", 1), ("Abandon", 0)], catalogo) == \
-        "2 Jinx, Rebel\n1 Jinx - Loose Cannon"
+        "2 Jinx - Rebel\n1 Jinx - Loose Cannon"
 
 
 # --- preços ---
