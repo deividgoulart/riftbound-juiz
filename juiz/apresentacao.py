@@ -1,6 +1,6 @@
 """Etapa 6: transforma a resposta do juiz em texto pra tela (links, rótulos, créditos).
 
-Fica separado do app.py pra dar pra testar sem abrir o navegador.
+Fica separado da API (api/main.py) pra dar pra testar sem servidor.
 """
 
 import html
@@ -47,8 +47,8 @@ def linkar_citacoes(texto: str, fontes, regras: dict[str, str], versao_crd: str)
     """Transforma as citações em números pequenos com link (como notas num artigo):
     [F1, F3] -> <sup>F1, F3</sup> e (CRD 355.9.a) -> <sup>CRD 355.9.a</sup>, cada um levando à fonte.
 
-    O resultado é Markdown com um pouco de HTML (st.markdown(..., unsafe_allow_html=True)). Por isso
-    o texto do LLM passa antes por html.escape: ele não consegue colocar HTML próprio na página.
+    O resultado é Markdown com um pouco de HTML (o site mostra com o HTML liberado só pra <sup> e <a>).
+    Por isso o texto do LLM passa antes por html.escape: ele não consegue colocar HTML próprio na página.
     """
     urls = {f.numero: f.url for f in fontes}
 
@@ -78,7 +78,7 @@ def linkar_citacoes(texto: str, fontes, regras: dict[str, str], versao_crd: str)
     texto = RE_REGRA_SOLTA.sub(citacao_crd, texto)
     texto = RE_GLOSSARIO_SOLTO.sub("<sup>glossário do FAQ</sup>", texto)
     texto = texto.replace("</sup><sup>", ", ")  # citações vizinhas viram um grupo só: "F4, F5, CRD 313.1.a"
-    return texto.replace("$", "\\$")  # "$" no Markdown do Streamlit vira fórmula matemática
+    return texto
 
 
 def procedencia() -> dict:

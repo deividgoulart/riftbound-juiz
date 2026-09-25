@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+/* Cores do design no Figma (tema escuro estilo Riftbound). */
+@theme {
+  --color-fundo: #0a0e18;
+  --color-superficie: #131a2a;
+  --color-superficie-2: #1b2438;
+  --color-linha: #26314a;
+  --color-ouro: #d4af5a;
+  --color-ouro-escuro: #8c6e2e;
+  --color-azul: #3fb6e8;
+  --color-texto: #eaeff7;
+  --color-apagado: #8d97ad;
+  --color-ok: #3ccb8a;
+  --color-erro: #e0503c;
+
+  /* Domínios das cartas */
+  --color-fury: #e0503c;
+  --color-calm: #3fae6a;
+  --color-mind: #3f7fe0;
+  --color-body: #e08a3c;
+  --color-chaos: #9b5de5;
+  --color-order: #e3c04b;
+
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-titulo: var(--font-cinzel), Georgia, serif;
+}
+
+html {
+  color-scheme: dark;
+  background: var(--color-fundo);
+}
+
+body {
+  background:
+    radial-gradient(1200px 500px at 50% -200px, rgb(212 175 90 / 0.10), transparent 70%),
+    var(--color-fundo);
+  color: var(--color-texto);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Resposta do juiz: Markdown com as citações em <sup>. */
+.resposta p { margin: 0 0 0.75rem; line-height: 1.6; }
+.resposta p:last-child { margin-bottom: 0; }
+.resposta ul, .resposta ol { margin: 0 0 0.75rem 1.25rem; line-height: 1.6; }
+.resposta ul { list-style: disc; }
+.resposta ol { list-style: decimal; }
+.resposta li { margin: 0.2rem 0; }
+.resposta strong { color: #fff; }
+.resposta sup { font-size: 0.7em; margin-left: 1px; color: var(--color-azul); }
+.resposta sup a { color: var(--color-azul); text-decoration: none; }
+.resposta sup a:hover { text-decoration: underline; }
+.resposta a { color: var(--color-azul); }
+
+/* Esconde a barra de rolagem das fileiras de chips, mas deixa rolar. */
+.sem-barra { scrollbar-width: none; }
+.sem-barra::-webkit-scrollbar { display: none; }

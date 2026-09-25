@@ -5,9 +5,11 @@ Você pergunta em português, ele responde rápido, cita a regra ou página usad
 
 Por baixo, é um **RAG** (*Retrieval-Augmented Generation*): primeiro o app **busca** os trechos mais relevantes das regras e depois pede pra um LLM **responder usando só esses trechos**.
 
-**Experimente:** [riftbound-juiz.streamlit.app](https://riftbound-juiz.streamlit.app). Sem cadastro, com um limite de perguntas por visita.
+Junto com o juiz, um **deck builder**: minha coleção de cartas, os decks que eu cadastrei e os decks de torneio (meta), com quanto falta pra montar cada um, o custo estimado e a lista pronta pra comprar na Liga Riftbound.
 
-> Projeto pessoal e de portfólio de dados. A fase 1 (o juiz) está concluída. A fase 2, um **deck builder**, está em andamento: a 1ª etapa (coleção, importação de decks e o que falta pra montar cada um) já está no app.
+É um **site** (Next.js, pensado primeiro pro celular) que conversa com uma **API** em Python (FastAPI): veja [O site (fase 3)](#o-site-fase-3). Sem cadastro pra usar, com um limite de perguntas por dia.
+
+> Projeto pessoal e de portfólio de dados. Fase 1 (o juiz) e fase 2 (o deck builder) concluídas. Na fase 3, o app saiu do Streamlit e virou um site de verdade.
 
 ## Status
 
@@ -19,9 +21,9 @@ Por baixo, é um **RAG** (*Retrieval-Augmented Generation*): primeiro o app **bu
 | 3 | Core Rules Document (CRD) oficial | ✅ concluída |
 | 4 | Embeddings multilíngues + índice vetorial | ✅ concluída |
 | 5 | LLM + geração da resposta (com glossário PT→EN) | ✅ concluída |
-| 6 | Interface de chat em Streamlit | ✅ concluída |
+| 6 | Interface de chat (em Streamlit; hoje, no site da fase 3) | ✅ concluída |
 | 7 | Avaliação completa (métricas de busca e de resposta) | ✅ concluída |
-| 8 | Atualização automática + publicação | ✅ concluída: [app publicado](https://riftbound-juiz.streamlit.app) |
+| 8 | Atualização automática + publicação | ✅ concluída |
 
 **Fase 2: deck builder**
 
@@ -30,6 +32,14 @@ Por baixo, é um **RAG** (*Retrieval-Augmented Generation*): primeiro o app **bu
 | 1 | Catálogo de cartas no banco, coleção, importação manual de deck e % de conclusão | ✅ concluída |
 | 2 | Decks do meta coletados automaticamente (API do TopDeck.gg) | ✅ concluída |
 | 3 | Links, lista de compra e preço das cartas que faltam (Liga Riftbound), juiz falando dos meus decks | ✅ concluída |
+
+**Fase 3: site de verdade**
+
+| Etapa | Descrição | Status |
+|---|---|---|
+| 1 | Design no Figma (5 telas, celular primeiro, tema escuro) | ✅ concluída |
+| 2 | API em FastAPI (juiz + deck builder) e site em Next.js + Tailwind, no lugar do Streamlit | ✅ concluída |
+| 3 | Publicação: API no Hugging Face Spaces, site na Vercel (grátis) | ⏳ falta criar as contas e ligar (passo a passo abaixo) |
 
 ## Como funciona
 
@@ -68,11 +78,14 @@ Os dados **não ficam no repositório**: são baixados pelos scripts pra `data/r
 
 ```
 riftbound-juiz/
-├── app.py                  # entrada do app: menu com as duas páginas
-├── paginas/
-│   ├── juiz.py             # chat do juiz de regras (etapa 6)
-│   └── deck_builder.py     # coleção e decks (fase 2)
-├── .streamlit/config.toml  # tema e configurações do Streamlit
+├── api/                    # API (fase 3): o que o site usa, em FastAPI
+│   ├── main.py             # as rotas: perguntar, coleção, decks, meta
+│   ├── acesso.py           # senha do dono (token) e limite dos convidados
+│   └── recursos.py         # carrega o juiz e o deck builder uma vez e recarrega uma vez por dia
+├── web/                    # site (fase 3): Next.js + Tailwind, celular primeiro
+│   ├── app/                # as telas: Juiz, Coleção, Meus decks, Detalhe do deck, Meta
+│   ├── components/         # peças visuais (cartas, barras de progresso, navegação...)
+│   └── lib/                # conversa com a API e a sessão (senha, preferências)
 ├── juiz/                   # código Python do projeto
 │   ├── config.py           # caminhos, URLs das fontes, leitura do .env
 │   ├── baixar_faq.py       # baixa/atualiza o FAQ (git sparse checkout)
@@ -94,9 +107,8 @@ riftbound-juiz/
 │   ├── registro.py         # guarda perguntas e 👍/👎 em data/logs/ (etapa 6)
 │   ├── avaliar_respostas.py # avalia as respostas: métricas, avaliador LLM e revisão humana (etapa 7)
 │   ├── atualizar.py        # baixa e processa FAQ e CRD e atualiza os índices, só o que mudou (etapa 8)
-│   ├── limites.py          # modo convidado do app publicado: limites e senha (etapa 8)
-│   └── acesso.py           # formulário de senha, usado pelas duas páginas (fase 2)
-├── decks/                  # deck builder (fase 2), sem Streamlit: só lógica e banco
+│   └── limites.py          # modo convidado do app publicado: limites e senha (etapa 8)
+├── decks/                  # deck builder (fase 2), sem a API: só lógica e banco
 │   ├── banco.py            # SQLite local ou Turso (SQLite na nuvem) pela API HTTP
 │   ├── catalogo.py         # tabela mestre de cartas (card-catalog.json + runas) e nomes
 │   ├── colecao.py          # minha coleção: quantidades, CSV e comandos no terminal
@@ -121,17 +133,17 @@ riftbound-juiz/
 │   ├── processed/          # dados limpos e divididos em trechos (não versionado)
 │   └── vetores/            # vetores da busca, sem o texto (versionado: o app publicado reaproveita)
 ├── tests/                  # testes automatizados (python -m pytest)
-├── requirements.txt        # dependências do app (o que o Streamlit Cloud instala)
+├── requirements.txt        # dependências da API (o que o Dockerfile instala)
 ├── requirements-dev.txt    # + notebooks, testes e comparações
-├── packages.txt            # pacote do sistema pro Streamlit Cloud (git)
+├── Dockerfile              # a API num contêiner (Hugging Face Spaces)
+├── .github/workflows/      # publica a API no Hugging Face a cada mudança no main
 ├── pytest.ini              # configuração dos testes
-├── .streamlit/secrets.toml.example  # modelo dos secrets do app publicado
 └── .env.example            # modelo do arquivo de chaves de API
 ```
 
 ## Como rodar
 
-Requisitos: Python 3.12+ e git.
+Requisitos: Python 3.12+, git e, pro site, Node.js 20+.
 
 ```powershell
 # 1. Criar e ativar o ambiente virtual
@@ -145,11 +157,17 @@ pip install -r requirements-dev.txt
 #    Da 2ª vez em diante, só refaz o que mudou nas fontes.
 python -m juiz.atualizar
 
-# 4. Abrir o app no navegador (http://localhost:8501): o chat do juiz e, no menu, o deck builder.
-#    Ele também roda o passo 3 sozinho, se os dados não existirem ou tiverem mais de um dia.
-streamlit run app.py
+# 4. Ligar a API (http://localhost:8000/docs mostra todas as rotas). Ela também roda o passo 3
+#    sozinha, se os dados não existirem ou tiverem mais de um dia.
+uvicorn api.main:app --reload --port 8000
 
-# (Deck builder) Coleção pelo terminal, além da tela do app
+# 5. Noutro terminal, ligar o site (http://localhost:3000). Na 1ª vez: copie web/.env.example
+#    pra web/.env.local (o endereço da API) e instale as dependências com npm install.
+cd web
+npm install
+npm run dev
+
+# (Deck builder) Coleção pelo terminal, além do site
 python -m decks.colecao exportar colecao.csv
 python -m decks.colecao importar colecao.csv
 python -m decks.colecao importar export_liga.csv --substituir   # coleção = exatamente o arquivo
@@ -180,8 +198,9 @@ python -m juiz.avaliar_respostas --concordancia flash-lite_e5             # revi
 # Explorar os dados e ver as comparações
 jupyter notebook notebooks/
 
-# 5. Rodar os testes
+# 6. Rodar os testes (Python) e conferir o site (tipos, lint e build)
 python -m pytest
+cd web; npm run lint; npm run build
 ```
 
 A partir da etapa 4 é preciso uma chave grátis do Gemini: crie em [aistudio.google.com/apikey](https://aistudio.google.com/apikey), copie `.env.example` para `.env` e cole a chave em `GEMINI_API_KEY=`.
@@ -316,24 +335,25 @@ pergunta ─► glossário (termos PT → EN) ─► busca (Gemini Embedding 2, 
 
 ## A interface (etapa 6)
 
-`streamlit run app.py` abre um chat no navegador, que também funciona no celular:
+> Até a fase 2, a interface era em Streamlit. Na fase 3 ela virou o site em `web/` (veja [O site (fase 3)](#o-site-fase-3)); o que está descrito aqui continua lá, com outro visual.
+
+O chat, que também funciona no celular:
 - **Resposta com links:** as citações `[F1]` abrem a página do FAQ na pergunta certa, e `(CRD 355.9.a)` abre a regra exata no Core Rules.
 - **Fontes:** num painel que abre e fecha, primeiro as citadas e depois as só consultadas, com títulos curtos ("Smite — Can Guardian Angel... save a unit from Smite?").
 - **Aviso de cautela** quando uma fonte tem "citação pendente" (o FAQ avisa que o CRD ainda não confirma tudo).
 - **👍/👎 em cada resposta.** A pergunta, a resposta e a avaliação ficam em `data/logs/conversas.jsonl`, só na sua máquina e fora do git. As perguntas reais vão alimentar o gabarito da etapa 7.
-- **Barra lateral:**
+- **Como funciona** (no botão ⓘ do chat):
   - versões das fontes (data do FAQ e versão do CRD);
   - "Como funciona", em 3 passos;
   - créditos e licença do FAQ (CC BY-SA 4.0);
-  - aviso de que o projeto não é oficial da Riot;
-  - opção pra mostrar os detalhes da busca (similaridade, modelo, tokens e termos do glossário).
+  - aviso de que o projeto não é oficial da Riot.
 
 **Ajustes feitos depois de ver o app funcionando:**
 - **Fontes demais:** eram 10 por resposta, e agora são 3 a 5. Só entram as cartas citadas na pergunta e as das páginas do FAQ com nota perto da melhor, e trechos abaixo do corte de 0,70 saem do contexto.
 - **Citação misturada:** `[F1, CRD 372]` (fonte e regra no mesmo colchete) passou a ser entendida.
 - **Exemplos:** as perguntas de exemplo somem depois da primeira pergunta.
 
-Os testes da interface usam o **AppTest** do Streamlit. Ele roda o app sem navegador, com um juiz "de mentira", e confere o que aparece na tela.
+Os testes usam um juiz "de mentira" e conferem o que a API devolve (`tests/test_api.py`), sem gastar cota.
 
 ### Ajustes depois do primeiro uso real
 
@@ -489,52 +509,40 @@ Publicado, o app falhava com frequência: no plano grátis, o Google recusa pedi
 
 ### Proteção: modo convidado + senha
 
-A chave de API fica nos *secrets* do Streamlit Cloud e roda só no servidor; o visitante nunca a vê. O risco real é outro: alguém gastar a cota **grátis** do dia e o app parar até o dia seguinte. Com o projeto do Google **sem faturamento ativado**, o custo máximo continua zero.
+A chave de API fica nos *secrets* do servidor da API e nunca vai pro navegador; o visitante nunca a vê. O risco real é outro: alguém gastar a cota **grátis** do dia e o app parar até o dia seguinte. Com o projeto do Google **sem faturamento ativado**, o custo máximo continua zero.
 
 | Quem | O que pode |
 |---|---|
-| **Convidado** | 10 perguntas por visita e 100 por dia, somando todos os visitantes (`config.LIMITE_POR_VISITA` e `LIMITE_DIARIO`) |
-| **Com a senha** | uso sem limite (5 tentativas por visita, comparação em tempo constante) |
+| **Convidado** | 10 perguntas por dia por visitante (pelo IP) e 100 por dia, somando todos (`config.LIMITE_POR_VISITANTE` e `LIMITE_DIARIO`); só vê a coleção e os decks |
+| **Com a senha** | uso sem limite e edição da coleção e dos decks (5 senhas erradas por IP por hora, comparação em tempo constante) |
+
+No site, a senha fica no cadeado do topo. A API devolve um **token assinado** com a própria senha (HMAC), que o navegador guarda por 30 dias; trocar a senha desconecta todo mundo.
 
 O modo convidado só liga quando `SENHA_DO_APP` existe. No seu computador, sem ela, não há limite.
 
 Limitações conhecidas:
-- recarregar a página zera o limite da visita; quem protege a cota de verdade é o limite diário;
-- o contador diário fica na memória do servidor e zera se o app reiniciar.
+- quem usa a mesma rede (mesmo IP) divide o limite do visitante; quem protege a cota de verdade é o limite diário;
+- os contadores ficam na memória do servidor e zeram se a API reiniciar.
 
 **Privacidade:** no plano gratuito, o Google pode usar as perguntas pra melhorar os produtos dele, e pessoas podem revisá-las. O app avisa isso na tela. No app publicado, o registro das conversas em arquivo fica desligado.
 
-### Como publicar no Streamlit Community Cloud (grátis)
+### Como publicar
 
-1. **Confira que o projeto do Google está sem faturamento:** em [aistudio.google.com](https://aistudio.google.com), a chave deve estar no plano gratuito. Assim, o pior caso é o app parar por cota, sem cobrança.
-2. **Suba o código pro GitHub**, incluindo `data/vetores/`, `requirements.txt` e `packages.txt`.
-3. Entre em [share.streamlit.io](https://share.streamlit.io) com a conta do GitHub e clique em **Create app**, depois em **Deploy a public app from GitHub**:
-   - Repository: `deividgoulart/riftbound-juiz`
-   - Branch: `main`
-   - Main file path: `app.py`
-4. Em **Advanced settings**:
-   - Python **3.12**.
-   - Em **Secrets**, cole o conteúdo de [`.streamlit/secrets.toml.example`](.streamlit/secrets.toml.example), preenchendo as chaves do Gemini e do Groq, uma senha só sua e, pro deck builder, as duas variáveis do Turso (veja a seção da fase 2).
-5. **Deploy.**
-   - A 1ª instalação demora uns minutos, por causa do PyTorch.
-   - A 1ª pergunta demora ~1 minuto: o app baixa o FAQ, o CRD e o modelo da busca reserva.
-   - Se a instalação falhar, veja o log: o `requirements.txt` usa o índice do PyTorch só pra CPU, que é bem menor.
-
-Recursos do plano grátis: até 2,7 GB de memória. O app usa ~1 GB, a maior parte com o PyTorch da busca reserva. Sem visitas por 12 horas, o app "dorme" e acorda no próximo acesso.
+A publicação mudou na fase 3: veja [Como publicar (grátis)](#como-publicar-grátis-api-no-hugging-face-site-na-vercel).
 
 ## Deck builder (fase 2)
 
-A página **Deck builder** (no menu do app) responde à pergunta "quais decks eu consigo montar com as cartas que tenho?".
+As telas **Coleção**, **Meus decks** e **Meta** do site respondem à pergunta "quais decks eu consigo montar com as cartas que tenho?".
 
 ### Etapa 1: coleção, importação de decks e conclusão
 
-- **Minha coleção:** uma tabela com as 935 cartas (as 929 do catálogo do FAQ + 6 runas básicas), com busca pelo nome ou pelo campeão, filtros por tipo e domínio e uma coluna de quantidade editável. A tabela só é gravada no botão **Salvar**, e não a cada número digitado. Dá pra importar e exportar em CSV (colunas `carta` e `quantidade`, com vírgula ou ponto e vírgula, como o Excel em português salva).
+- **Minha coleção:** uma grade com as 935 cartas (as 929 do catálogo do FAQ + 6 runas básicas), com a arte de cada uma, busca pelo nome ou pelo campeão, filtros por tipo e domínio e botões + e −. As mudanças só são gravadas no botão **Salvar**, e não a cada toque. Dá pra importar e exportar em CSV (colunas `carta` e `quantidade`, com vírgula ou ponto e vírgula, como o Excel em português salva).
 - **Exportação da Liga Riftbound:** o CSV de coleção que a [Liga Riftbound](https://ligariftbound.com.br) exporta entra direto. O nome vem da coluna `Card (EN)`, e as várias linhas da mesma carta (uma por qualidade, idioma ou foil) somam. Com a opção **substituir a coleção inteira**, a coleção passa a ser exatamente a do arquivo, então uma carta vendida some daqui também. Numa coleção real de 81 linhas, as 70 cartas foram reconhecidas, inclusive "Shen - Kinkou", "Jayce - Defender of Tomorrow" e "Kayle, Justified (Overnumbered)".
 - **Importar um deck:** cole a lista exportada por um site de decks. Aceita `3 Carta`, `3x Carta` e `Carta x3`, com ou sem cabeçalhos de seção (`Legend:`, `Main Deck:`, `Runes:`, `Sideboard:`… ou em português). Sem cabeçalho, a seção vem do tipo da carta.
 - **Porcentagem de conclusão:** conta cópias. Com 1 de 3 Jinx, Rebel, faltam 2. Cópias a mais não passam de 100%, o sideboard fica de fora por padrão e as runas básicas podem contar como "tenho" (quase todo jogador tem as de um deck inicial). Os decks aparecem do mais fácil pro mais difícil de montar, e cada um mostra a tabela do que falta.
 
 **Decisões, com o motivo:**
-- **Por que Streamlit, e não um site "normal":** o disco apagado a cada reinício não é problema só do Streamlit: as hospedagens grátis de sites fazem o mesmo, e o banco na nuvem seria necessário de qualquer jeito. O Streamlit mantém o projeto numa linguagem só (Python, como o juiz) e já está publicado, com senha e secrets. O preço é o visual mais limitado. Pra não ficar preso a ele, **toda a lógica fica em `decks/`, sem Streamlit** (um teste confere isso): trocar a tela por um site no futuro não mexe no banco, na importação nem nas contas.
+- **Por que Streamlit no começo:** mantinha o projeto numa linguagem só e já estava publicado. Pra não ficar preso a ele, **toda a lógica ficou em `decks/`, sem tela** (um teste confere isso). Foi o que deixou a troca pelo site da fase 3 mexer só na interface.
 - **Nomes das cartas:** o catálogo tem só o título das lendas ("Loose Cannon", com a tag Jinx), mas os sites escrevem "Jinx, Loose Cannon" ou "Jinx - Loose Cannon". Os dois viram apelidos da lenda. Caixa, acento, apóstrofo curvo e um código de coleção no fim (`(OGN-202)`) também não atrapalham.
 - **Nome não reconhecido não é adivinhado:** o app mostra as cartas parecidas ("quis dizer Jinx, Rebel?") e não salva até a lista ser corrigida (ou até você pedir pra salvar sem elas). Trocar uma carta por outra "parecida" daria uma conta de conclusão errada.
 - **Regras de construção só avisam:** o app confere a lista com o Core Rules (CRD 103.2: 1 lenda, deck principal com pelo menos 40 cartas contando o campeão escolhido, até 3 cópias por nome, 12 runas), mas salva mesmo assim, porque um deck em construção pode estar incompleto de propósito.
@@ -544,15 +552,15 @@ A página **Deck builder** (no menu do app) responde à pergunta "quais decks eu
 
 As tabelas (`cartas`, `colecao`, `decks`, `deck_cartas`) são SQLite. Com `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN` no `.env` ou nos secrets, elas ficam no [Turso](https://turso.tech), um SQLite na nuvem com plano grátis. Sem as duas variáveis, ficam em `data/decks.sqlite`, no seu computador (fora do git).
 
-- **Por que um banco na nuvem:** o disco do Streamlit Cloud é apagado a cada reinício do app, e a coleção sumiria junto.
+- **Por que um banco na nuvem:** o disco do servidor grátis da API é apagado a cada reinício, e a coleção sumiria junto.
 - **Por que falar com o Turso pela API HTTP**, e não pelo pacote oficial: o pacote é nativo (Rust) e já teve problema de instalação no Windows. A API é um POST com JSON, e o `httpx` já era dependência do projeto. Cada gravação (ex.: salvar a coleção) vai numa **transação**: ou tudo vale, ou nada.
 - **Economia de cota:** o catálogo só é regravado no banco quando muda (o app guarda uma assinatura dele), e a tela de decks faz uma consulta só pra todos os decks.
-- **Quem pode editar:** no app publicado, o visitante só vê a coleção e os decks; salvar, importar e apagar pedem a mesma senha do juiz. Se o Turso não estiver configurado no app publicado, a página avisa que o que for salvo vai sumir.
+- **Quem pode editar:** no site publicado, o visitante só vê a coleção e os decks; salvar, importar e apagar pedem a mesma senha do juiz. Se o Turso não estiver configurado, a tela da coleção avisa que o que for salvo vai sumir.
 
 **Como configurar no app publicado:**
 1. Crie uma conta grátis em [turso.tech](https://turso.tech) e um banco (`turso db create riftbound-decks`).
 2. Pegue a URL (`turso db show riftbound-decks --url`) e crie um token (`turso db tokens create riftbound-decks`).
-3. Cole os dois nos secrets do Streamlit Cloud como `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN`. Pra usar o mesmo banco no seu computador, cole também no `.env`.
+3. Cole os dois nos secrets do Space da API como `TURSO_DATABASE_URL` e `TURSO_AUTH_TOKEN`. Pra usar o mesmo banco no seu computador, cole também no `.env`.
 
 **Testes:** o banco local roda em memória, e o Turso é testado com um servidor falso que confere o JSON enviado e a leitura da resposta. A conexão com um banco Turso de verdade ainda precisa ser conferida depois de criar o banco (passos acima).
 
@@ -602,7 +610,7 @@ A estimativa usa o preço de mercado do TCGplayer (EUA), de uma cópia diária e
 
 A tela mostra a data da cópia, a razão e o erro junto com o custo. Pra recalibrar (ex.: se o dólar mudar muito), salve páginas de carta da Liga numa pasta e rode `python -m decks.calibrar_precos pasta/`.
 
-**O juiz falando dos meus decks.** No chat, a barra lateral tem **Deck em foco**, com os decks do deck builder (os seus primeiro, depois os do meta). Com um deck escolhido, o juiz recebe a lista e o texto oficial de cada carta como mais uma fonte, então dá pra perguntar "quais cartas do meu deck dão Stun?" ou "o que acontece se eu jogar a Jinx, Rebel com o Super Mega Death Rocket!?". Com deck em foco, o atalho do "não encontrei" (busca fraca) não vale, porque a resposta pode estar nas cartas do deck.
+**O juiz falando dos meus decks.** No chat, o seletor **Deck em foco** mostra, com os decks do deck builder (os seus primeiro, depois os do meta). Com um deck escolhido, o juiz recebe a lista e o texto oficial de cada carta como mais uma fonte, então dá pra perguntar "quais cartas do meu deck dão Stun?" ou "o que acontece se eu jogar a Jinx, Rebel com o Super Mega Death Rocket!?". Com deck em foco, o atalho do "não encontrei" (busca fraca) não vale, porque a resposta pode estar nas cartas do deck.
 
 
 ### Próximos passos
@@ -616,7 +624,49 @@ O plano da fase 2, com o que já foi feito:
 5. ✅ **Sugestão de decks**: os decks (meus e do meta) ordenados do mais barato pro mais caro de completar, pelo custo estimado, ou pelos que têm menos cartas faltando.
 6. ✅ Para cada carta que falta, **link direto** na [Liga Riftbound](https://ligariftbound.com.br) e a lista pra **Compra por Lista** (o carrinho geral). A [MYP Cards](https://mypcards.com/riftbound) ficou de fora (formato da busca desconhecido).
 7. ✅ **Preço das cartas que faltam**, estimado pelo TCGplayer e calibrado com o menor preço da Liga (erro medido na tela).
-8. ✅ **Aba nova no Streamlit** pro deck builder, e o juiz responde dúvidas sobre as cartas dos meus decks (Deck em foco).
+8. ✅ **Telas próprias** pro deck builder, e o juiz responde dúvidas sobre as cartas dos meus decks (Deck em foco).
+
+## O site (fase 3)
+
+O Streamlit limitava o visual e a experiência no celular. Na fase 3, o app virou um site de verdade, desenhado antes no [Figma](https://www.figma.com/design/lXPI99tYoOrf3jwH5SXkoy) e trocado de uma vez.
+
+```
+Navegador ──> site (Next.js, na Vercel) ──> API (FastAPI, no Hugging Face Spaces) ──> Gemini / Groq
+                                                   │
+                                                   └──> Turso (coleção e decks), TopDeck.gg, galeria da Riot
+```
+
+- **Site (`web/`):** Next.js + Tailwind, pensado primeiro pro celular (barra de navegação embaixo, janelas que sobem de baixo) e com tema escuro nas cores do Riftbound (dourado, azul e as cores dos domínios). Títulos em Cinzel e texto em Inter.
+  - **Juiz:** o chat, com o Deck em foco, as citações com link, as fontes e o plano B. A conversa fica guardada na aba do navegador.
+  - **Coleção:** grade de cartas com a arte oficial, + e −, filtros por tipo e domínio e importação do CSV da Liga.
+  - **Meus decks:** só os decks que você cadastrou, na ordem "mais barato de completar" ou "menos faltando", com o custo estimado.
+  - **Detalhe do deck:** o que falta, com link de cada carta na Liga, e a lista pronta pra copiar e colar na Compra por Lista.
+  - **Meta:** os decks de torneio, com filtro por lenda.
+- **API (`api/`):** FastAPI por cima dos pacotes `juiz/` e `decks/`, que não mudaram. A documentação de todas as rotas fica em `/docs`. O juiz e o deck builder carregam uma vez quando a API liga e se atualizam sozinhos uma vez por dia, sem parar os pedidos.
+- **Arte das cartas:** vem da galeria oficial da Riot (o mesmo lugar dos códigos das cartas); o site mostra a imagem direto do site da Riot. Sem a galeria, cada carta aparece como um cartão com as cores dos domínios.
+- **Por que dois serviços:** o juiz precisa de Python e ~1 GB de memória (a busca reserva roda um modelo no processador). A Vercel é ótima pra sites, mas não roda isso; o Hugging Face Spaces roda (16 GB de RAM no plano grátis), mas não é feito pra sites.
+
+### Como publicar (grátis): API no Hugging Face, site na Vercel
+
+**1. A API no Hugging Face Spaces**
+1. Crie uma conta em [huggingface.co](https://huggingface.co) e um **Space** novo: SDK **Docker**, modelo em branco, hardware grátis (**CPU basic**), visibilidade pública. Ex.: `deividgoulart/juiz-riftbound`.
+2. No Space, em **Settings > Variables and secrets**, crie os **secrets**: `GEMINI_API_KEY`, `GROQ_API_KEY`, `SENHA_DO_APP` (uma senha só sua), `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` e `TOPDECK_API_KEY`. Depois de publicar o site (passo 2), acrescente `SITE_URL` com o endereço dele, pra só o seu site poder chamar a API pelo navegador.
+3. Em [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens), crie um token com permissão de escrita (**Write**).
+4. No GitHub, em **Settings > Secrets and variables > Actions** do repositório: crie o secret `HF_TOKEN` (o token) e a variável `HF_SPACE` (ex.: `deividgoulart/juiz-riftbound`).
+5. Em **Actions**, rode **API no Hugging Face** (ou faça um push no `main`). A partir daí, cada mudança no `main` que mexe na API publica sozinha.
+6. A 1ª construção leva uns minutos (PyTorch). A API fica em `https://<usuario>-<space>.hf.space` (ex.: `https://deividgoulart-juiz-riftbound.hf.space/docs`).
+
+No plano grátis, o Space **dorme depois de 48 horas sem visitas** e acorda no próximo acesso (leva ~1 minuto; o site avisa). O disco é apagado a cada reinício: por isso a coleção fica no Turso, e o FAQ e o CRD são baixados de novo.
+
+**2. O site na Vercel**
+1. Entre em [vercel.com](https://vercel.com) com a conta do GitHub e importe o repositório `deividgoulart/riftbound-juiz`.
+2. Em **Root Directory**, escolha `web` (a Vercel reconhece o Next.js sozinha).
+3. Em **Environment Variables**, crie `NEXT_PUBLIC_API_URL` com o endereço da API (passo 1.6, sem `/docs`).
+4. **Deploy.** Cada push no `main` publica de novo; cada PR ganha um endereço de prévia.
+
+**3. Desligar o Streamlit:** em [share.streamlit.io](https://share.streamlit.io), apague o app antigo (o código dele não existe mais no `main`).
+
+**Confira que o projeto do Google está sem faturamento:** em [aistudio.google.com](https://aistudio.google.com), a chave deve estar no plano gratuito. Assim, o pior caso é o juiz parar por cota, sem cobrança.
 
 ## Créditos e licenças
 

@@ -105,7 +105,8 @@ def test_turso_erro_de_sql_na_consulta():
         banco.consultar("SELECT * FROM x")
 
 
-def test_pacote_decks_nao_depende_do_streamlit():
-    """A lógica fica fora da tela: trocar o Streamlit por um site no futuro não mexe em decks/."""
+def test_pacote_decks_nao_depende_da_api():
+    """A lógica fica fora da API: trocar a API ou o site no futuro não mexe em decks/."""
     for arquivo in (pathlib.Path(modulo.__file__).parent).glob("*.py"):
-        assert "streamlit" not in arquivo.read_text(encoding="utf-8"), arquivo.name
+        texto = arquivo.read_text(encoding="utf-8")
+        assert "streamlit" not in texto and "fastapi" not in texto, arquivo.name

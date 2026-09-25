@@ -95,7 +95,7 @@ class ModeloGemini:
 
             chave = os.environ.get("GEMINI_API_KEY")
             if not chave:
-                raise RuntimeError("Coloque GEMINI_API_KEY no arquivo .env (veja o .env.example) ou, no app publicado, nos secrets do Streamlit Cloud")
+                raise RuntimeError("Coloque GEMINI_API_KEY no arquivo .env (veja o .env.example) ou, no app publicado, nos secrets da API (Hugging Face Spaces)")
             self._cliente = genai.Client(api_key=chave)
         return self._cliente
 

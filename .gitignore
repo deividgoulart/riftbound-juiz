@@ -1,7 +1,6 @@
 # --- Segredos ---
-# O .env guarda chaves de API e NUNCA deve ir para o GitHub. O mesmo vale pros secrets do Streamlit.
+# O .env guarda chaves de API e NUNCA deve ir para o GitHub.
 .env
-.streamlit/secrets.toml
 
 # --- Ambiente Python ---
 .venv/

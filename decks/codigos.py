@@ -30,6 +30,7 @@ from juiz import config
 # Navegador comum: a galeria recusa pedidos sem User-Agent.
 CABECALHOS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                             "Chrome/124.0 Safari/537.36"}
+VERSAO_DA_GALERIA = 2  # 2: com o link da imagem de cada carta
 _TEXTO_DA_IMAGEM = re.compile(r"^Riftbound [^:]{1,40}:\s*")
 
 
@@ -72,13 +73,14 @@ def _achar_cartas(no) -> list[dict]:
 
 
 def ler_pagina(dados: dict) -> list[dict]:
-    """JSON da galeria -> [{codigo, nome, texto}]."""
+    """JSON da galeria -> [{codigo, nome, texto, imagem}]. A imagem é o link da arte da carta no site da Riot."""
     cartas = []
     for c in _achar_cartas(dados.get("pageProps", dados)):
         texto = ((c.get("cardImage") or {}).get("accessibilityText") or "")
         texto = re.sub(r"<[^>]+>", " ", texto).strip()
         if c.get("publicCode") and c.get("name"):
-            cartas.append({"codigo": c["publicCode"], "nome": c["name"], "texto": texto})
+            cartas.append({"codigo": c["publicCode"], "nome": c["name"], "texto": texto,
+                           "imagem": (c.get("cardImage") or {}).get("url")})
     return cartas
 
 
@@ -103,6 +105,9 @@ def carregar_galeria(agora: datetime | None = None, baixar=baixar_galeria) -> li
     agora = agora or datetime.now(timezone.utc)
     salva = json.loads(config.GALERIA_CARTAS.read_text(encoding="utf-8")) if config.GALERIA_CARTAS.exists() else {}
     baixada_em = datetime.fromisoformat(salva["baixada_em"]) if salva.get("baixada_em") else None
+    # Galeria salva antes das imagens (versão 1): baixa de novo, pra o site ter a arte das cartas.
+    if salva.get("versao", 1) < VERSAO_DA_GALERIA:
+        baixada_em = None
     if baixada_em and agora - baixada_em < timedelta(days=config.GALERIA_ATUALIZAR_A_CADA_DIAS):
         return salva["cartas"]
     try:
@@ -111,7 +116,7 @@ def carregar_galeria(agora: datetime | None = None, baixar=baixar_galeria) -> li
         print(f"Galeria de cartas indisponível ({type(erro).__name__}: {erro}); cartas reconhecidas pelo nome.")
         return salva.get("cartas", [])
     config.GALERIA_CARTAS.parent.mkdir(parents=True, exist_ok=True)
-    config.GALERIA_CARTAS.write_text(json.dumps({"baixada_em": agora.isoformat(timespec="seconds"), "fonte": config.GALERIA_URL,
+    config.GALERIA_CARTAS.write_text(json.dumps({"versao": VERSAO_DA_GALERIA, "baixada_em": agora.isoformat(timespec="seconds"), "fonte": config.GALERIA_URL,
                                                  "cartas": cartas}, ensure_ascii=False), encoding="utf-8")
     return cartas
 
@@ -124,3 +129,8 @@ def mapa_de_codigos(galeria: list[dict], resolver) -> dict[str, str]:
         if nome:
             mapa[normalizar_codigo(carta["codigo"])] = nome
     return mapa
+
+
+def mapa_de_imagens(galeria: list[dict]) -> dict[str, str]:
+    """{código normalizado: link da imagem}."""
+    return {normalizar_codigo(c["codigo"]): c["imagem"] for c in galeria if c.get("imagem")}

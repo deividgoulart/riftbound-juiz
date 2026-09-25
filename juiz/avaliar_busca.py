@@ -35,7 +35,7 @@ from juiz.indice import carregar_trechos, obter_indice
 
 K_MAX = 10  # quantos resultados olhamos por pergunta
 # O qwen3-0.6b foi testado e descartado: no processador, levou mais de 20 min pra indexar
-# (o e5-base leva 2) e usou 3,3 GB de RAM, mais que os 2,7 GB do Streamlit Community Cloud.
+# (o e5-base leva 2) e usou 3,3 GB de RAM, mais que os 2,7 GB do Streamlit Community Cloud, onde o app ficava até a fase 2.
 # Continua disponível: python -m juiz.avaliar_busca --modelos qwen3-0.6b
 MODELOS_PADRAO = ["bm25", "e5-small", "e5-base", "gemini-2"]
 

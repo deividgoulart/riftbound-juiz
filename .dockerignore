@@ -1,0 +1,15 @@
+# Só o que a API precisa: juiz/, decks/, api/, data/vetores/ e os arquivos de configuração.
+.git
+.env
+web/
+notebooks/
+tests/
+avaliacao/resultados/
+data/raw/*
+data/processed/*
+data/index/
+data/logs/
+data/decks.sqlite*
+**/__pycache__
+.pytest_cache
+.claude
