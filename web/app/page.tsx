@@ -174,9 +174,16 @@ export default function PaginaDoJuiz() {
   const { data: doMeta } = useSWR<ListaDeDecks>("/api/decks?tipo=meta&ordem=faltando&limite=30", buscar, { revalidateOnFocus: false });
 
   useEffect(() => {
+    // Vindo da ficha de uma carta ("Perguntar ao juiz sobre esta carta"): a pergunta começa escrita.
+    const comecada = new URLSearchParams(window.location.search).get("pergunta");
+    if (comecada) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- só existe no navegador
+      setTexto(comecada);
+      window.history.replaceState(null, "", "/");
+      setTimeout(() => document.querySelector<HTMLTextAreaElement>("form textarea")?.focus(), 50);
+    }
     try {
       const salva = sessionStorage.getItem(CHAVE_DA_CONVERSA);
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- só existe no navegador
       if (salva) setMensagens(JSON.parse(salva));
     } catch {
       /* sem sessionStorage */

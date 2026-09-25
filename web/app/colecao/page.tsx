@@ -5,7 +5,8 @@ import useSWR from "swr";
 import { Download, FileUp, Minus, Plus, Search } from "lucide-react";
 import { API_URL, buscar, lerToken, pedir, type Carta, type Colecao, type RelatorioCsv } from "@/lib/api";
 import { useSessao } from "@/lib/sessao";
-import { Alternador, Aviso, Botao, Cabecalho, Carregando, Chip, Folha, ImagemDaCarta, NOMES_DOS_DOMINIOS, corDoDominio, juntar } from "@/components/ui";
+import { ImagemDaCarta } from "@/components/carta";
+import { Alternador, Aviso, Botao, Cabecalho, Carregando, Chip, Folha, NOMES_DOS_DOMINIOS, corDoDominio, juntar } from "@/components/ui";
 
 const TIPOS = [
   ["Unit", "Units"],

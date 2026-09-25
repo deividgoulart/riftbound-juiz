@@ -450,3 +450,103 @@ def test_juiz_e_deck_builder_nao_baixam_o_faq_ao_mesmo_tempo(monkeypatch, tmp_pa
     for t in threads:
         t.join()
     assert maximo[0] == 1
+
+
+# --- Ficha da carta (fase 3) ---
+
+def carta_do_faq(nome, abilities, tipos=("Unit",), dominios=("Fury",)):
+    return {"name": nome, "energyCost": 3, "powerCost": None, "might": 2, "domains": list(dominios),
+            "cardTypes": list(tipos), "superTypes": [], "tags": [], "abilities": abilities, "effects": None}
+
+
+TRECHOS_DO_FAQ = [
+    {"id": "faq/cards/void-seeker#a", "fonte": "faq", "categoria": "cards", "pagina": "Void Seeker", "carta": "Void Seeker",
+     "pergunta": "Can Void Seeker target my own unit?", "url": "https://faq/void-seeker#a", "texto": "Yes.",
+     "cartas_mencionadas": []},
+    {"id": "faq/cards/abandon#b", "fonte": "faq", "categoria": "cards", "pagina": "Abandon", "carta": "Abandon",
+     "pergunta": "Does Abandon work on Void Seeker?", "url": "https://faq/abandon#b", "texto": "No.",
+     "cartas_mencionadas": ["Void Seeker"]},
+    {"id": "faq/mechanics/ambush#c", "fonte": "faq", "categoria": "mechanics", "pagina": "Ambush", "carta": None,
+     "pergunta": "Can I Ambush to my base?", "url": "https://faq/ambush#c", "texto": "No.", "cartas_mencionadas": []},
+]
+
+
+class LlmFalso:
+    def __init__(self):
+        self.chamadas = []
+
+    def gerar(self, instrucoes, mensagem, esquema=None):
+        self.chamadas.append(mensagem)
+        return "**O que a carta faz** Causa 4 de dano.\n\n**Cuidados e exceções**\n- Pode mirar a sua própria unidade [F2]."
+
+
+@pytest.fixture
+def com_fichas():
+    from juiz.cartas import Catalogo as CatalogoDoJuiz
+    from juiz.fichas import Fichario
+
+    llm = LlmFalso()
+    catalogo = CatalogoDoJuiz([carta_do_faq("Void Seeker", "[Ambush] (You may play me as a [Reaction].)\nDeal 4 to a unit."),
+                               carta_do_faq("Abandon", "Counter a spell.", tipos=("Spell",))], {})
+    juiz = JuizFalso(resposta_com_fontes())
+    juiz.fichario = Fichario(catalogo, TRECHOS_DO_FAQ, llm)
+    return juiz, llm
+
+
+def test_ficha_tem_texto_duvidas_e_mecanicas(api, com_fichas):
+    juiz, llm = com_fichas
+    ficha = api(juiz).get("/api/carta", params={"nome": "Void Seeker"}).json()
+    assert ficha["texto"].startswith("[Ambush]") and ficha["atributos"]["energia"] == 3
+    assert [d["pergunta"] for d in ficha["duvidas"]] == ["Can Void Seeker target my own unit?", "Does Abandon work on Void Seeker?"]
+    assert ficha["mecanicas"] == [{"pagina": "Ambush", "url": "https://faq/ambush"}]
+    assert ficha["explicacao"] is None  # ainda não gerada
+    assert llm.chamadas == []  # a API nunca chama um LLM pra ficha
+
+
+def test_runa_basica_nao_tem_texto(api, com_fichas):
+    juiz, _ = com_fichas
+    assert api(juiz).get("/api/carta", params={"nome": "Fury Rune"}).json()["texto"] is None
+
+
+def test_api_nao_gera_explicacao_na_hora(api, com_fichas):
+    juiz, _ = com_fichas
+    assert api(juiz).post("/api/carta/explicar", json={"nome": "Void Seeker"}).status_code in (404, 405)
+
+
+def test_explicacao_gerada_no_computador_aparece_na_ficha(api, com_fichas, banco, catalogo):
+    from api.gerar_explicacoes import gerar, ordem_das_cartas
+
+    juiz, llm = com_fichas
+    salvar_deck(banco, "Com Abandon", ler_lista("2 Abandon", catalogo))
+    assert ordem_das_cartas(banco, ["Void Seeker", "Abandon"]) == ["Abandon", "Void Seeker"]  # as dos decks primeiro
+
+    mensagens = []
+    assert gerar(juiz.fichario, banco, ["Void Seeker", "Fury Rune"], log=mensagens.append) == \
+        {"feitas": 1, "falhas": 0, "restantes": 0}  # a runa não tem texto: fica de fora
+    assert "FONTES" in llm.chamadas[0] and "Can Void Seeker target my own unit?" in llm.chamadas[0]
+    explicacao = api(juiz).get("/api/carta", params={"nome": "Void Seeker"}).json()["explicacao"]
+    assert '<a href="https://faq/void-seeker#a" target="_blank">F2</a>' in explicacao["html"]
+    assert [f["numero"] for f in explicacao["fontes"]] == [2]  # só as citadas
+
+    gerar(juiz.fichario, banco, ["Void Seeker"], log=mensagens.append)
+    assert len(llm.chamadas) == 1  # já estava pronta: pulou
+    juiz.fichario.catalogo.cartas["Void Seeker"]["abilities"] = "Deal 5 to a unit."  # errata
+    assert api(juiz).get("/api/carta", params={"nome": "Void Seeker"}).json()["explicacao"] is None
+    gerar(juiz.fichario, banco, ["Void Seeker"], log=mensagens.append)
+    assert len(llm.chamadas) == 2  # a assinatura mudou: refez
+
+
+def test_gerar_para_quando_o_ollama_nao_responde(com_fichas, banco, catalogo):
+    from api.gerar_explicacoes import gerar
+
+    juiz, _ = com_fichas
+
+    class Desligado(LlmFalso):
+        def gerar(self, *a, **k):
+            raise RuntimeError("o Ollama não está rodando")
+
+    juiz.fichario.llm = Desligado()
+    mensagens = []
+    r = gerar(juiz.fichario, banco, ["Void Seeker", "Abandon", "Void Seeker", "Abandon"], log=mensagens.append)
+    assert r["feitas"] == 0 and r["falhas"] == 3
+    assert any("Ollama está aberto" in m for m in mensagens)

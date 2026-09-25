@@ -7,8 +7,9 @@ import useSWR from "swr";
 import { ArrowLeft, Check, CheckCircle2, Copy, Download, ExternalLink, ShoppingCart, Trash2 } from "lucide-react";
 import { buscar, dataCurta, pedir, reais, type DetalheDoDeck } from "@/lib/api";
 import { useSessao } from "@/lib/sessao";
+import { ImagemDaCarta, NomeDaCarta } from "@/components/carta";
 import { parametrosDaConta } from "@/components/decks";
-import { Aviso, Botao, Cartao, Carregando, ImagemDaCarta, PontosDosDominios, Progresso, juntar } from "@/components/ui";
+import { Aviso, Botao, Cartao, Carregando, PontosDosDominios, Progresso, juntar } from "@/components/ui";
 
 function ListaDeCompra({ d }: { d: DetalheDoDeck }) {
   const [copiada, setCopiada] = useState(false);
@@ -87,7 +88,7 @@ export default function PaginaDoDeck() {
 
       <Cartao className="overflow-hidden">
         <div className="flex gap-4 p-4">
-          <ImagemDaCarta nome={d.lenda?.rotulo ?? d.nome} imagem={d.lenda?.imagem} dominios={d.lenda?.dominios} className="w-24 shrink-0 sm:w-32" />
+          <ImagemDaCarta nome={d.lenda?.rotulo ?? d.nome} carta={d.lenda?.nome} imagem={d.lenda?.imagem} dominios={d.lenda?.dominios} className="w-24 shrink-0 sm:w-32" />
           <div className="min-w-0 flex-1">
             {d.lenda && <PontosDosDominios dominios={d.lenda.dominios} />}
             <h1 className="mt-1 font-titulo text-xl font-bold leading-tight text-ouro sm:text-2xl">{doMeta && d.lenda ? d.lenda.rotulo : d.nome}</h1>
@@ -136,7 +137,7 @@ export default function PaginaDoDeck() {
                 <li key={c.carta} className="flex items-center gap-3 py-2.5">
                   <ImagemDaCarta nome={c.carta} imagem={c.imagem} className="w-10 shrink-0 rounded-md" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{c.carta}</p>
+                    <NomeDaCarta carta={c.carta} className="block w-full text-sm font-medium" />
                     <p className="text-xs text-apagado">
                       tenho {c.tem} de {c.precisa}
                     </p>
@@ -173,7 +174,7 @@ export default function PaginaDoDeck() {
                     return (
                       <li key={`${c.secao}-${c.carta}`} className="flex items-center gap-2 text-sm">
                         <span className="w-6 text-right font-semibold text-ouro">{c.quantidade}</span>
-                        <span className={juntar("min-w-0 flex-1 truncate", c.tem !== null && !completa && "text-apagado")}>{c.carta}</span>
+                        <NomeDaCarta carta={c.carta} className={juntar("min-w-0 flex-1", c.tem !== null && !completa && "text-apagado")} />
                         {c.tem !== null && (completa ? <Check size={14} className="text-ok" /> : <span className="text-xs text-apagado">tenho {c.tem}</span>)}
                       </li>
                     );

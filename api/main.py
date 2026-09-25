@@ -33,6 +33,7 @@ from decks.meus_decks import apagar_deck, cartas_dos_decks, listar_decks, salvar
 from juiz import config
 from juiz.apresentacao import CREDITOS, ROTULOS, linkar_citacoes, procedencia, trecho_para_ler
 from juiz.erros import CotaEsgotada, explicar_erro
+from juiz.fichas import Fichario, explicacao_guardada
 from juiz.limites import modo_publico, senha_confere
 from juiz.registro import registrar_avaliacao, registrar_erro, registrar_resposta
 
@@ -313,6 +314,28 @@ def rotas_juiz():
 # Deck builder
 # ---------------------------------------------------------------------------
 
+def obter_fichario(request: Request):
+    """As fichas usam o catálogo, o FAQ e o LLM do juiz: uma por juiz carregado (ele é recarregado 1x por dia)."""
+    try:
+        juiz = request.app.state.juiz.obter()
+    except Exception as erro:
+        traceback.print_exc()
+        raise HTTPException(503, f"O juiz ainda não está pronto ({explicar_erro(erro)}). Tente de novo em instantes.") from None
+    if getattr(juiz, "fichario", None) is None:
+        juiz.fichario = Fichario.do_juiz(juiz)
+    return juiz.fichario
+
+
+def json_da_explicacao(texto: str, fontes: list[dict]) -> dict:
+    from juiz.responder import Fonte
+
+    objetos = [Fonte(**{k: f[k] for k in ("numero", "tipo", "titulo", "url", "texto", "citacao_pendente", "citada", "resumo")})
+               for f in fontes]
+    versao = procedencia()["crd_versao"] or "1.4"
+    return {"html": linkar_citacoes(texto, objetos, {}, versao),
+            "fontes": [fonte_json(f, com_trecho=False) for f in objetos if f.citada]}
+
+
 class MudancasNaColecao(BaseModel):
     mudancas: dict[str, int] = Field(max_length=2000)  # carta -> quantidade (0 tira da coleção)
 
@@ -355,6 +378,23 @@ def rotas_decks():
                  "energia": c.custo_energia, "poder": c.custo_poder, "might": c.might,
                  "codigo": catalogo.codigo_de(c.nome), "imagem": catalogo.imagem_de(c.nome)}
                 for c in catalogo.cartas.values()]
+
+    @r.get("/carta")
+    def ficha_da_carta(nome: str, request: Request):
+        """Texto oficial, dúvidas do FAQ e a explicação com exemplos, se já foi gerada. As explicações são
+        geradas de antemão, no computador do dono, por um LLM local (api/gerar_explicacoes.py): a API não
+        gasta o Gemini com elas."""
+        banco, catalogo = obter_deck_builder(request)
+        fichario = obter_fichario(request)
+        f = fichario.ficha(nome)
+        guardada = explicacao_guardada(banco, nome, fichario.assinatura(nome)) if f.texto else None
+        return {
+            "nome": f.nome, "texto": f.texto, "atributos": f.atributos, "errata": f.errata, "url_wiki": f.url_wiki,
+            "imagem": catalogo.imagem_de(nome),
+            "duvidas": [{"pergunta": d.pergunta, "url": d.url, "pagina": d.pagina} for d in f.duvidas],
+            "mecanicas": [{"pagina": d.pagina, "url": d.url} for d in f.mecanicas],
+            "explicacao": json_da_explicacao(**guardada) if guardada else None,
+        }
 
     @r.get("/colecao")
     def ver_colecao(request: Request):

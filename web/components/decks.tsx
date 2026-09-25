@@ -5,7 +5,8 @@ import { useState } from "react";
 import { CheckCircle2, SlidersHorizontal } from "lucide-react";
 import { dataCurta, reais, type Ordem, type ResumoDoDeck } from "@/lib/api";
 import { useSessao } from "@/lib/sessao";
-import { Alternador, Folha, ImagemDaCarta, PontosDosDominios, Progresso, Segmentos } from "./ui";
+import { ImagemDaCarta } from "./carta";
+import { Alternador, Folha, PontosDosDominios, Progresso, Segmentos } from "./ui";
 
 export function textoDoCusto(d: ResumoDoDeck): string | null {
   if (d.cartas_faltando === 0) return null;

@@ -58,6 +58,13 @@ ESQUEMA = [
         carta TEXT PRIMARY KEY,       -- cartas.nome
         usd REAL NOT NULL             -- preço de mercado no TCGplayer (EUA), a impressão mais barata da carta
     )""",
+    """CREATE TABLE IF NOT EXISTS explicacoes (
+        carta TEXT PRIMARY KEY,       -- cartas.nome
+        assinatura TEXT NOT NULL,     -- do texto da carta e das fontes usadas (juiz/fichas.py): mudou, refaz
+        texto TEXT NOT NULL,          -- a explicação (Markdown com [Fn])
+        fontes TEXT NOT NULL,         -- as fontes citáveis, em JSON
+        criado_em TEXT NOT NULL
+    )""",
     """CREATE TABLE IF NOT EXISTS meta (
         chave TEXT PRIMARY KEY,
         valor TEXT

@@ -193,6 +193,20 @@ export type RelatorioCsv = {
   substituiu: boolean;
 };
 
+export type ExplicacaoDaCarta = { html: string; fontes: Fonte[] };
+
+export type FichaDaCarta = {
+  nome: string;
+  texto: string | null;
+  atributos: { tipos?: string[]; dominios?: string[]; energia?: number | null; poder?: number | null; might?: number | null; tags?: string[] };
+  errata: boolean;
+  url_wiki: string | null;
+  imagem: string | null;
+  duvidas: { pergunta: string; url: string; pagina: string }[];
+  mecanicas: { pagina: string; url: string }[];
+  explicacao: ExplicacaoDaCarta | null;
+};
+
 // --- Formatação ---
 
 export function reais(valor: number | null | undefined): string {
