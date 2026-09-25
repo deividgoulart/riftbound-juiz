@@ -20,6 +20,7 @@ O resultado fica em data/atualizacao.json.
 import argparse
 import json
 import sys
+import threading
 from datetime import datetime, timedelta, timezone
 
 from juiz import baixar_crd, baixar_faq, config, limpar_crd, limpar_faq
@@ -52,15 +53,21 @@ def precisa_atualizar(agora: datetime | None = None) -> bool:
 
 # --- passos ---
 
+# A API prepara o juiz e o deck builder ao mesmo tempo, e os dois precisam do FAQ: sem a trava, um via
+# a pasta que o outro ainda estava clonando e o git falhava ("unknown revision HEAD").
+_TRAVA_DO_FAQ = threading.Lock()
+
+
 def atualizar_faq(log) -> bool:
     """Baixa ou atualiza o FAQ. Devolve True se o commit mudou."""
-    antes = _ler_json(config.FAQ_SNAPSHOT).get("commit")
-    if (config.FAQ_DIR / ".git").exists():
-        baixar_faq.atualizar()
-    else:
-        log("Baixando o FAQ (só as pastas necessárias) ...")
-        baixar_faq.clonar()
-    depois = baixar_faq.salvar_snapshot()["commit"]
+    with _TRAVA_DO_FAQ:
+        antes = _ler_json(config.FAQ_SNAPSHOT).get("commit")
+        if (config.FAQ_DIR / ".git").exists():
+            baixar_faq.atualizar()
+        else:
+            log("Baixando o FAQ (só as pastas necessárias) ...")
+            baixar_faq.clonar()
+        depois = baixar_faq.salvar_snapshot()["commit"]
     log(f"FAQ: commit {depois[:12]}" + (" (novo)" if depois != antes else " (sem mudança)"))
     return depois != antes
 

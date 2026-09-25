@@ -10,6 +10,7 @@ API tem o modo convidado e a senha do dono: veja api/acesso.py.
 """
 
 import os
+import re
 import threading
 import traceback
 import uuid
@@ -66,11 +67,41 @@ def criar_app(juiz: Recurso | None = None, deck_builder: Recurso | None = None, 
     app.state.juiz, app.state.deck_builder = juiz, deck_builder
     app.state.convidados, app.state.tentativas = Convidados(), TentativasDeSenha()
     # A senha vai num header (não em cookie), então liberar outros sites não abre brecha de CSRF.
-    origens = [o.strip() for o in os.environ.get("SITE_URL", "").split(",") if o.strip()] or ["*"]
-    app.add_middleware(CORSMiddleware, allow_origins=origens, allow_methods=["*"], allow_headers=["*"])
+    origens, previas = origens_do_site(os.environ.get("SITE_URL", ""))
+    app.add_middleware(CORSMiddleware, allow_origins=origens, allow_origin_regex=previas,
+                       allow_methods=["*"], allow_headers=["*"])
+    @app.get("/", include_in_schema=False)
+    def raiz():
+        """Quem abre o endereço da API no navegador (ou o Render, conferindo se ela subiu) cai aqui."""
+        return {"api": "Juiz Riftbound", "rotas": "/docs", "saude": "/api/saude"}
+
     app.include_router(rotas_juiz())
     app.include_router(rotas_decks())
     return app
+
+
+def origens_do_site(site_url: str) -> tuple[list[str], str | None]:
+    """Quais sites podem chamar a API pelo navegador (CORS), a partir de SITE_URL: endereços separados
+    por vírgula. Sem SITE_URL, qualquer um.
+
+    O navegador compara o endereço exato, sem "/" no fim: "https://x.vercel.app/" colado do navegador
+    bloquearia o próprio site. Por isso o endereço é limpo aqui. Um endereço da Vercel também libera as
+    previas do mesmo projeto (https://x-git-branch-usuario.vercel.app, https://x-abc123-usuario.vercel.app)."""
+    origens, projetos = [], []
+    for bruto in site_url.split(","):
+        endereco = bruto.strip().rstrip("/").lower()
+        if not endereco:
+            continue
+        if "://" not in endereco:
+            endereco = "https://" + endereco
+        origem = "/".join(endereco.split("/")[:3])  # só esquema + domínio: "https://x.vercel.app/decks" também vale
+        origens.append(origem)
+        dominio = origem.split("://", 1)[1]
+        if dominio.endswith(".vercel.app"):
+            projetos.append(re.escape(dominio.removesuffix(".vercel.app")))
+    if not origens:
+        return ["*"], None
+    return origens, (rf"https://({'|'.join(projetos)})(-[a-z0-9-]+)?\.vercel\.app" if projetos else None)
 
 
 def _aquecer(recurso: Recurso) -> None:

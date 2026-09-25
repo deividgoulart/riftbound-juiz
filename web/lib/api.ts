@@ -1,6 +1,14 @@
 // Tudo que o site pede à API (api/main.py). O endereço vem de NEXT_PUBLIC_API_URL.
 
-export const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+/** Aceita o endereço como vier colado: sem "https://", com "/" ou "/docs" no fim. */
+export function limparEndereco(bruto: string): string {
+  let endereco = bruto.trim().replace(/\/+$/, "").replace(/\/docs$/, "");
+  if (endereco && !/^https?:\/\//.test(endereco)) endereco = "https://" + endereco;
+  return endereco;
+}
+
+// NEXT_PUBLIC_* entra no site na hora do build: criar ou mudar a variável na Vercel pede um Redeploy.
+export const API_URL = limparEndereco(process.env.NEXT_PUBLIC_API_URL || "") || "http://localhost:8000";
 
 const CHAVE_DO_TOKEN = "juiz-riftbound:token";
 
@@ -36,7 +44,7 @@ export async function pedir<T>(caminho: string, opcoes: RequestInit = {}): Promi
   try {
     resposta = await fetch(API_URL + caminho, { ...opcoes, headers });
   } catch {
-    throw new ErroDaApi(0, "Não consegui falar com o servidor. Ele pode estar acordando (leva até 1 minuto no plano grátis); tente de novo.");
+    throw new ErroDaApi(0, explicarFalhaDeRede());
   }
   if (!resposta.ok) {
     let mensagem = `Erro ${resposta.status}`;
@@ -51,6 +59,23 @@ export async function pedir<T>(caminho: string, opcoes: RequestInit = {}): Promi
   }
   const tipo = resposta.headers.get("content-type") || "";
   return (tipo.includes("application/json") ? resposta.json() : resposta.text()) as Promise<T>;
+}
+
+/** O navegador não diz por que o pedido falhou (servidor fora do ar e CORS dão o mesmo erro): o texto
+    lista as causas possíveis, com o endereço que o site tentou. */
+function explicarFalhaDeRede(): string {
+  const noComputador = typeof window !== "undefined" && ["localhost", "127.0.0.1"].includes(window.location.hostname);
+  if (API_URL.includes("localhost") && !noComputador) {
+    return (
+      "O site não sabe o endereço da API: crie a variável NEXT_PUBLIC_API_URL na Vercel (Settings > Environment " +
+      "Variables) com o endereço do Render e faça um Redeploy (a variável só entra no site num build novo)."
+    );
+  }
+  return (
+    `Não consegui falar com a API (${API_URL}). Se ela estava dormindo, leva até 1 minuto pra acordar: tente de novo. ` +
+    `Se continuar, abra ${API_URL}/api/saude no navegador: se abrir, confira se SITE_URL no Render é o endereço ` +
+    "deste site; se não abrir, veja os Logs do serviço no Render."
+  );
 }
 
 export const buscar = <T,>(caminho: string) => pedir<T>(caminho);
