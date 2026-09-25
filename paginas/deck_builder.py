@@ -26,7 +26,7 @@ st.set_page_config(page_title="Deck builder · Juiz Riftbound", page_icon="🃏"
 aplicar_segredos(st.secrets.to_dict)  # a página pode ser aberta direto: lê o Turso e a senha dos secrets
 PUBLICO = modo_publico()
 
-MAX_DECKS_DO_META = 20  # a coleta traz centenas; a página mostra os mais fáceis de montar
+MAX_DECKS_DO_META = 20  # a coleta traz centenas; a página mostra os primeiros na ordem escolhida
 
 EXEMPLO_DE_LISTA = """Legend:
 1 Jinx, Loose Cannon
@@ -208,11 +208,18 @@ with st.sidebar:
     incluir_sideboard = st.toggle("Incluir o sideboard", help="O sideboard não é necessário pra jogar.")
 
 ranking = conclusao.ranking(banco, incluir_sideboard=incluir_sideboard, runas_garantidas=runas_garantidas)
-meus = [c for c in ranking if c.deck["origem"] != meta.ORIGEM]
-do_meta = [c for c in ranking if c.deck["origem"] == meta.ORIGEM]
 listas = cartas_dos_decks(banco) if ranking else {}
 precos_guardados = precos.precos_guardados(banco) if ranking else {}
 data_dos_precos = precos.data_dos_precos(banco) if ranking else None
+with st.sidebar:
+    opcoes = ["Mais barato de completar", "Menos cartas faltando"] if precos_guardados else ["Menos cartas faltando"]
+    ordem = st.radio("Ordenar os decks", opcoes, key="ordem_dos_decks",
+                     help="Mais barato: pelo custo estimado do que falta (TCGplayer convertido pra reais). "
+                          "Menos cartas faltando: pelo número de cópias que ainda faltam.")
+ranking = (conclusao.mais_baratos(ranking, precos_guardados) if ordem == "Mais barato de completar"
+           else conclusao.menos_faltando(ranking))
+meus = [c for c in ranking if c.deck["origem"] != meta.ORIGEM]
+do_meta = [c for c in ranking if c.deck["origem"] == meta.ORIGEM]
 
 
 def reais(valor: float | None) -> str:
@@ -220,26 +227,28 @@ def reais(valor: float | None) -> str:
 
 
 def mostrar_o_que_falta(c) -> None:
-    """Tabela do que falta, com link da Liga e preço estimado, e a lista pra Compra por Lista."""
+    """Tabela do que falta, com link da Liga, o custo estimado do total e a lista pra Compra por Lista.
+    Só o total: carta a carta a estimativa erra muito (33%), mas na soma os erros se compensam."""
     faltando = [(x.carta, x.falta) for x in c.faltando]
     tabela = pd.DataFrame([{
         "Carta": x.carta, "Precisa": x.precisa, "Tenho": x.tem, "Falta": x.falta,
-        "Preço estimado": ("≈ " + reais(precos.estimar_reais(precos_guardados[x.carta]))) if x.carta in precos_guardados else "—",
         "Liga": link_da_carta(x.carta, catalogo),
     } for x in c.faltando])
     st.dataframe(tabela, hide_index=True, width="stretch",
                  column_config={"Liga": st.column_config.LinkColumn("Liga", display_text="ver na Liga")})
 
-    custo, sem_preco = precos.custo_pra_completar(faltando, precos_guardados)
+    custo, sem_preco = conclusao.custo(c, precos_guardados)
     if len(sem_preco) < len(faltando):
         st.markdown(f"**Custo estimado pra completar: ≈ {reais(custo)}**"
                     + (f" (sem preço: {len(sem_preco)} cartas)" if sem_preco else ""))
+        baratas, caras = (f"{v:.2f}".replace(".", ",") for v in (config.REAIS_POR_DOLAR_BARATAS, config.REAIS_POR_DOLAR_CARAS))
+        # "R\\$": dois "$" no mesmo texto viram fórmula no Markdown do Streamlit
         st.caption(f"Estimativa do menor preço na Liga, não é o preço de lá: preço de mercado do TCGplayer (EUA)"
                    + (f" de {date.fromisoformat(data_dos_precos):%d/%m/%Y}" if data_dos_precos else "")
-                   + f" convertido com as razões medidas contra o menor preço da Liga (R$ {config.REAIS_POR_DOLAR_BARATAS:.2f} "
-                   f"por dólar nas cartas baratas, R$ {config.REAIS_POR_DOLAR_CARAS:.2f} nas caras). "
-                   f"Erro típico: {config.ERRO_TIPICO_POR_CARTA:.0%} numa carta e {config.ERRO_TIPICO_10_CARTAS:.0%} "
-                   "na soma de 10 cartas. O preço de verdade está no link de cada carta e na Compra por Lista.")
+                   + f" convertido com as razões medidas contra o menor preço da Liga (R\\$ {baratas} por dólar nas "
+                   f"cartas baratas, R\\$ {caras} nas caras). Erro típico: {config.ERRO_TIPICO_POR_CARTA:.0%} numa carta "
+                   f"e {config.ERRO_TIPICO_10_CARTAS:.0%} na soma de 10 cartas; por isso não há preço por carta. O preço de "
+                   "verdade está no link de cada carta e na Compra por Lista.")
 
     lista = lista_de_compra(faltando, catalogo)
     st.markdown(f"**Lista de compra:** copie e cole na [Compra por Lista da Liga]({config.LIGA_COMPRA_POR_LISTA}), "
@@ -253,7 +262,11 @@ def mostrar_deck(c, pode_apagar: bool) -> None:
     with st.container(border=True):
         st.markdown(f"**{c.deck['nome']}**" + (f" · [lista original]({c.deck['url']})" if c.deck.get("url") else "")
                     + (f" · {date.fromisoformat(c.deck['data']):%d/%m/%Y}" if c.deck.get("data") else ""))
-        st.progress(min(c.porcentagem / 100, 1.0), text=f"{c.porcentagem:.0f}% · tenho {c.tenho} de {c.total} cópias")
+        valor, sem_preco = conclusao.custo(c, precos_guardados)
+        texto_do_custo = (f" · falta ≈ {reais(valor)}" + (" + cartas sem preço" if sem_preco else "")
+                          if c.faltando and len(sem_preco) < len(c.faltando) else "")
+        st.progress(min(c.porcentagem / 100, 1.0),
+                    text=f"{c.porcentagem:.0f}% · tenho {c.tenho} de {c.total} cópias{texto_do_custo}")
         if c.faltando:
             with st.expander(f"Faltam {c.copias_faltando} cópias de {len(c.faltando)} cartas"):
                 mostrar_o_que_falta(c)
@@ -306,7 +319,7 @@ with aba_decks:
 
 with aba_meta:
     st.markdown("Decks que ficaram entre os primeiros em torneios recentes, coletados pela API do "
-                "[TopDeck.gg](https://topdeck.gg/riftbound), do mais fácil pro mais difícil de montar com a sua coleção.")
+                "[TopDeck.gg](https://topdeck.gg/riftbound), na ordem escolhida na barra lateral (mais barato de completar ou menos cartas faltando).")
     ultima = meta.ultima_coleta(banco)
     if not meta.chave_topdeck():
         st.info("A coleta dos decks do meta está desligada: falta a TOPDECK_API_KEY (uma chave grátis da sua conta "
@@ -334,7 +347,8 @@ with aba_meta:
                                     format_func=lambda lenda: nome_da_lenda(lenda, catalogo))
         filtrados = [c for c in do_meta if not escolhidas or any(
             l["secao"] == "lenda" and l["carta"] in escolhidas for l in listas.get(c.deck["id"], []))]
-        st.caption(f"{len(filtrados)} decks" + (f"; mostrando os {MAX_DECKS_DO_META} mais fáceis de montar."
+        criterio = "mais baratos de completar" if ordem == "Mais barato de completar" else "com menos cartas faltando"
+        st.caption(f"{len(filtrados)} decks" + (f"; mostrando os {MAX_DECKS_DO_META} {criterio}."
                                                 if len(filtrados) > MAX_DECKS_DO_META else "."))
         for c in filtrados[:MAX_DECKS_DO_META]:
             mostrar_deck(c, pode_apagar=False)

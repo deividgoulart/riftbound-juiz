@@ -78,3 +78,24 @@ def ranking(banco: Banco, incluir_sideboard: bool = False, runas_garantidas: boo
     por_deck = _cartas(banco, None, incluir_sideboard, runas_garantidas)
     conclusoes = [Conclusao(deck, por_deck.get(deck["id"], [])) for deck in listar_decks(banco)]
     return sorted(conclusoes, key=lambda c: (-c.porcentagem, c.copias_faltando, c.deck["nome"]))
+
+
+def custo(c: Conclusao, precos_usd: dict[str, float]) -> tuple[float, list[str]]:
+    """(custo estimado em reais pra completar o deck, cartas que faltam sem preço)."""
+    from decks.precos import custo_pra_completar  # aqui: o módulo de preços só é preciso pra essa conta
+
+    return custo_pra_completar([(x.carta, x.falta) for x in c.faltando], precos_usd)
+
+
+def mais_baratos(conclusoes: list[Conclusao], precos_usd: dict[str, float]) -> list[Conclusao]:
+    """Os decks do mais barato pro mais caro de completar (custo estimado), desempatando pelo mais completo.
+    Deck com carta sem preço vai depois dos que têm o custo completo: a conta dele está incompleta."""
+    def ordem(c: Conclusao):
+        valor, sem_preco = custo(c, precos_usd)
+        return bool(sem_preco), valor, -c.porcentagem, c.deck["nome"]
+    return sorted(conclusoes, key=ordem)
+
+
+def menos_faltando(conclusoes: list[Conclusao]) -> list[Conclusao]:
+    """Os decks com menos cópias faltando primeiro, desempatando pelo mais completo."""
+    return sorted(conclusoes, key=lambda c: (c.copias_faltando, -c.porcentagem, c.deck["nome"]))

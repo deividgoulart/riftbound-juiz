@@ -153,12 +153,32 @@ def test_o_que_falta_tem_lista_de_compra_link_e_custo_estimado(pagina, banco, ca
     assert not at.exception
     assert [c.value for c in at.code] == ["2 Jinx - Rebel\n1 Jinx - Loose Cannon"]
     tabela = at.dataframe[1].value  # [0] é a coleção
-    assert list(tabela["Carta"]) == ["Jinx, Rebel", "Loose Cannon"]
-    assert list(tabela["Preço estimado"]) == ["≈ R$ 0,83", "—"]  # 0,50 × 1,67 (faixa barata)
+    assert list(tabela.columns) == ["Carta", "Precisa", "Tenho", "Falta", "Liga"]  # sem preço por carta
     assert tabela["Liga"][0].startswith("https://www.ligariftbound.com.br/?view=cards%2Fcard&card=Jinx+-+Rebel")
     assert any("Custo estimado pra completar: ≈ R$ 1,66" in m.value and "sem preço: 1" in m.value for m in at.markdown)
-    assert any("TCGplayer (EUA) de 24/09/2026" in c.value and "Erro típico" in c.value for c in at.caption)
-    assert "Buscar preços na Liga" not in {b.label for b in at.button}
+    assert any("TCGplayer (EUA) de 24/09/2026" in c.value and "R\\$ 1,67 por dólar" in c.value
+               and "Erro típico" in c.value for c in at.caption)
+    assert progresso(at) == ["50% · tenho 3 de 6 cópias · falta ≈ R$ 1,66 + cartas sem preço"]
+
+
+def test_ordena_pelo_mais_barato_de_completar(pagina, banco, catalogo):
+    salvar_deck(banco, "Caro e quase completo", ler_lista("3 Jinx, Rebel", catalogo))
+    salvar_deck(banco, "Barato", ler_lista("3 Abandon", catalogo))
+    colecao.definir(banco, "Jinx, Rebel", 2)
+    banco.executar("INSERT INTO precos_tcg (carta, usd) VALUES ('Jinx, Rebel', 20.0), ('Abandon', 0.1)")
+    at = pagina()
+    nomes = [m.value for m in at.markdown]
+    assert nomes.index("**Barato**") < nomes.index("**Caro e quase completo**")  # padrão: mais barato primeiro
+    at = at.sidebar.radio(key="ordem_dos_decks").set_value("Menos cartas faltando").run()
+    nomes = [m.value for m in at.markdown]
+    assert nomes.index("**Caro e quase completo**") < nomes.index("**Barato**")  # falta 1 cópia contra 3
+
+
+def test_sem_precos_so_ordena_por_cartas_faltando(pagina, banco, catalogo):
+    salvar_deck(banco, "Um", ler_lista("3 Abandon", catalogo))
+    at = pagina()
+    assert at.sidebar.radio(key="ordem_dos_decks").options == ["Menos cartas faltando"]
+    assert not any("$" in c.value.replace("R\\$", "") for c in at.caption)  # nenhum $ solto (viraria fórmula)
 
 
 def test_modo_leitura_mostra_a_lista_de_compra(pagina, banco, catalogo):
