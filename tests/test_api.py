@@ -559,7 +559,7 @@ class LlmQueTraduz(LlmFalso):
     def gerar(self, instrucoes, mensagem, esquema=None):
         if not self.chamadas:
             self.chamadas.append(mensagem)
-            return ("**O que a carta faz**\nCancela um feitiço [F1].\n\n**Exemplos**\n- Use contra o Void Seeker.\n\n"
+            return ("**O que a carta faz**\nCancela um Spell e devolve a mana [F1].\n\n**Exemplos**\n- Use contra o Void Seeker.\n\n"
                     "**Cuidados e exceções**\n- O dano é imediato [F1].\n- Funciona em spell counterado [F9].")
         return super().gerar(instrucoes, mensagem, esquema)
 
@@ -570,7 +570,7 @@ def test_conferencia_pede_de_novo_apontando_os_erros(com_fichas):
     explicacao = juiz.fichario.explicar("Abandon")
     assert len(llm.chamadas) == 2 and "Pode mirar" in explicacao.texto
     correcao = llm.chamadas[1]
-    assert "feitiço" in correcao and "Void Seeker" in correcao and "F9" in correcao and "O dano é imediato" in correcao
+    assert "mana" in correcao and "Void Seeker" in correcao and "F9" in correcao and "O dano é imediato" in correcao
 
 
 def test_explicacao_que_nao_melhora_fica_de_fora_e_o_lote_segue(com_fichas, banco, catalogo):
@@ -582,13 +582,22 @@ def test_explicacao_que_nao_melhora_fica_de_fora_e_o_lote_segue(com_fichas, banc
     class SempreTraduz(LlmFalso):
         def gerar(self, *a, **k):
             self.chamadas.append(a)
-            return "**O que a carta faz**\nCancela um feitiço.\n\n**Exemplos**\n- Jogue no lixo."
+            return "**O que a carta faz**\nCancela um Spell.\n\n**Exemplos**\n- Custa mana."
 
     juiz.fichario.llm = llm = SempreTraduz()
     mensagens = []
     r = gerar(juiz.fichario, banco, ["Abandon", "Void Seeker", "Abandon", "Void Seeker"], log=mensagens.append)
     assert r["reprovadas"] == 4 and r["feitas"] == 0 and len(llm.chamadas) == 4 * TENTATIVAS  # não parou no 3º erro
-    assert any("reprovada na conferência" in m and "lixo" in m for m in mensagens)
+    assert any("reprovada na conferência" in m and "mana" in m for m in mensagens)
+
+
+def test_ajustar_conserta_titulos_e_traducoes_diretas():
+    from juiz.fichas import ajustar
+
+    texto = ajustar("### O que a carta faz\nÉ um feitiço de Caos: um unitário vai pro lixo.\n\n---\n\n**Exemplos:**\n- x\n\n"
+                    "**Cuidados e Exceções**\n- y [F2]")
+    assert texto == ("**O que a carta faz**\nÉ um Spell de Chaos: uma unidade vai pro Trash.\n\n**Exemplos**\n- x\n\n"
+                     "**Cuidados e exceções**\n- y [F2]")
 
 
 def test_carta_sem_duvidas_no_faq_nao_tem_secao_de_cuidados(com_fichas):

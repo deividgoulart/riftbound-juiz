@@ -46,9 +46,10 @@ MODELOS_LLM_RESERVA = ["gemini-3.5-flash", "gemini-3.5-flash-lite"]
 # gastou o limite de 1.000 tokens de saída por minuto do plano grátis).
 MODELO_GROQ = "openai/gpt-oss-120b"
 # Explicações das cartas (fase 3): escritas de antemão por um LLM no seu computador (Ollama), pra não
-# gastar a cota do Gemini (api/gerar_explicacoes.py). O Qwen3 8B escreve bem em português e roda num
-# computador com 8 GB de RAM livres (mais rápido com placa de vídeo).
-MODELO_OLLAMA = "qwen3:8b"
+# gastar a cota do Gemini (api/gerar_explicacoes.py). O Qwen3 30B-A3B (MoE: 30 bilhões de parâmetros, 3
+# bilhões ativos por palavra) cabe em 32 GB de RAM + 8 GB de placa de vídeo e erra bem menos que o 8B, que
+# no 1º teste traduziu os termos do jogo e inventou regras.
+MODELO_OLLAMA = "qwen3:30b-a3b"
 K_TRECHOS = 5  # quantos trechos da busca vão pro LLM
 K_TRECHOS_EXPLICACAO = 8  # pedidos de explicação ("como funciona a Chain?") precisam de mais material
 MAX_TURNOS_HISTORICO = 3  # quantas perguntas e respostas anteriores o juiz leva em conta

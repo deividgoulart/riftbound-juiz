@@ -4,7 +4,7 @@ Quem escreve é um LLM rodando no seu computador, pelo Ollama: não gasta a cota
 só pro juiz do site. O site não gera explicações; ele mostra as que este comando guardou no banco.
 
 Antes, uma vez:
-    1. Instale o Ollama (https://ollama.com) e baixe o modelo: ollama pull qwen3:8b
+    1. Instale o Ollama (https://ollama.com) e baixe o modelo: ollama pull qwen3:30b-a3b
     2. No .env, as variáveis do Turso (TURSO_DATABASE_URL e TURSO_AUTH_TOKEN), pra gravar no mesmo
        banco que o site usa.
 

@@ -20,7 +20,7 @@ from juiz import config
 from juiz.cartas import url_da_carta
 from juiz.responder import Fonte
 
-VERSAO_DA_EXPLICACAO = "2"  # mude se as instruções mudarem: as explicações guardadas são refeitas
+VERSAO_DA_EXPLICACAO = "3"  # mude se as instruções mudarem: as explicações guardadas são refeitas
 MAX_DUVIDAS = 8
 TENTATIVAS = 3  # a explicação que não passa na conferência volta pro LLM com os problemas apontados
 
@@ -63,6 +63,37 @@ TERMOS_PROIBIDOS = re.compile(
 # Termos do jogo que também são nomes de carta ("Buff", "Stun"...): não contam como "citou outra carta".
 TERMOS_DO_JOGO = {"spell", "gear", "unit", "battlefield", "base", "trash", "main deck", "rune", "legend", "champion",
                   "might", "energy", "power", "chain", "showdown", "buff", "stun", "recycle", "counter"}
+
+
+# Traduções que dá pra consertar sem pedir outra explicação ao LLM: sempre viram o mesmo termo do jogo.
+# ("item", "mana" e "banimento" ficam de fora: não dá pra saber o termo certo, então o LLM reescreve.)
+TROCAS = [
+    (r"\bfeiti[çc]os\b", "Spells"), (r"\bfeiti[çc]o\b", "Spell"),
+    # "unitário" é masculino e "unidade", feminino: os artigos mais comuns mudam junto
+    *[(rf"\b{m}\s+unit[áa]rios?\b", f) for m, f in [("um", "uma unidade"), ("o", "a unidade"), ("os", "as unidades"),
+                                                       ("do", "da unidade"), ("no", "na unidade"), ("ao", "à unidade"),
+                                                       ("seu", "sua unidade"), ("seus", "suas unidades"),
+                                                       ("este", "esta unidade"), ("esse", "essa unidade")]],
+    (r"\bunit[áa]rios\b", "unidades"), (r"\bunit[áa]rio\b", "unidade"),
+    (r"\b(?:lixo|cemit[ée]rio)\b", "Trash"),
+    (r"\bcampos de batalha\b", "Battlefields"), (r"\bcampo de batalha\b", "Battlefield"),
+    (r"\bequipamentos\b", "Gear"), (r"\bequipamento\b", "Gear"),
+    (r"\b(?:deck|baralho) principal\b", "Main Deck"),
+    (r"\bFor[çc]a\b", "Might"), (r"\bCaos\b", "Chaos"), (r"\bF[úu]ria\b", "Fury"),
+]
+# Os títulos das seções, em qualquer formato que o LLM escreva ("### Exemplos", "**Cuidados e Exceções:**").
+TITULOS = {"O que a carta faz": r"o que a carta faz", "Exemplos": r"exemplos?",
+           "Cuidados e exceções": r"cuidados e exce[çc][õo]es"}
+
+
+def ajustar(texto: str) -> str:
+    """Conserta o que tem conserto certo: títulos das seções no formato padrão e traduções diretas."""
+    for titulo, padrao in TITULOS.items():
+        texto = re.sub(rf"(?im)^[ \t]*(?:#+[ \t]*)?(?:\*\*)?[ \t]*{padrao}[ \t]*:?[ \t]*(?:\*\*)?[ \t]*:?[ \t]*$",
+                       f"**{titulo}**", texto)
+    for padrao, termo in TROCAS:
+        texto = re.sub(padrao, termo, texto, flags=re.IGNORECASE)
+    return re.sub(r"\n{3,}", "\n\n", re.sub(r"(?m)^[ \t]*-{3,}[ \t]*$", "", texto)).strip()  # tira as linhas "---"
 
 
 class ExplicacaoRuim(RuntimeError):
@@ -194,7 +225,7 @@ class Fichario:
         if outras:
             problemas.append("citou outras cartas, que não estão nas fontes: " + ", ".join(outras[:5]))
         tem_faq = len(fontes) > 1
-        cuidados = texto.split("Cuidados e exceções", 1)[1] if "Cuidados e exceções" in texto else ""
+        cuidados = texto.split("**Cuidados e exceções**", 1)[1] if "**Cuidados e exceções**" in texto else ""
         if tem_faq:
             itens = [l for l in cuidados.splitlines() if re.match(r"\s*(?:[-•]|\*(?!\*)|\d+\.)\s", l)]
             if not itens:
@@ -208,7 +239,7 @@ class Fichario:
         elif cuidados:
             problemas.append("escreveu a seção de cuidados, mas o FAQ não tem dúvidas sobre esta carta: tire a seção")
         for secao in ("O que a carta faz", "Exemplos"):
-            if secao not in texto:
+            if f"**{secao}**" not in texto:
                 problemas.append(f"faltou a seção **{secao}**")
         return problemas
 
@@ -232,14 +263,18 @@ class Fichario:
         instrucoes = INSTRUCOES_DA_FICHA.format(secao_de_cuidados=CUIDADOS_COM_FAQ if len(fontes) > 1 else SEM_CUIDADOS)
         mensagem = "\n".join(partes).strip()
         for tentativa in range(1, TENTATIVAS + 1):
-            texto = self.llm.gerar(instrucoes, mensagem).strip()
+            texto = ajustar(self.llm.gerar(instrucoes, mensagem))
             problemas = self.problemas(nome, texto, fontes)
             if not problemas:
                 break
             if tentativa == TENTATIVAS:
                 raise ExplicacaoRuim("; ".join(problemas))
-            mensagem = ("\n".join(partes).strip() + "\n\nSUA EXPLICAÇÃO ANTERIOR (com erros):\n" + texto
-                        + "\n\nESCREVA DE NOVO, CORRIGINDO ESTES PROBLEMAS:\n" + "\n".join(f"- {p}" for p in problemas))
+            # Sem a versão errada na mensagem: com ela, o modelo respondia com uma lista de conferência
+            # ("Spell: correct") em vez de reescrever.
+            mensagem = ("\n".join(partes).strip() + "\n\nATENÇÃO: uma versão anterior da sua explicação foi recusada por "
+                        "estes motivos:\n" + "\n".join(f"- {p}" for p in problemas)
+                        + "\n\nEscreva a explicação INTEIRA de novo, do começo, só com as seções pedidas e sem "
+                        "comentar os erros nem fazer listas de conferência.")
         citadas = {int(n) for n in re.findall(r"F(\d{1,2})", texto)}
         for f in fontes:
             f.citada = f.numero in citadas
