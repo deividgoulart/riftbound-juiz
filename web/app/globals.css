@@ -37,6 +37,8 @@ body {
     var(--color-fundo);
   color: var(--color-texto);
   -webkit-tap-highlight-color: transparent;
+  /* Rede de segurança: nada deixa a página mais larga que a tela no celular (o iPhone reduziria tudo). */
+  overflow-x: clip;
 }
 
 /* Resposta do juiz: Markdown com as citações em <sup>. */
@@ -51,6 +53,16 @@ body {
 .resposta sup a { color: var(--color-azul); text-decoration: none; }
 .resposta sup a:hover { text-decoration: underline; }
 .resposta a { color: var(--color-azul); }
+
+/* No iPhone, o Safari dá zoom sozinho ao tocar num campo com letra menor que 16px (e a página fica
+   ampliada depois). Com 16px nos campos, isso não acontece; o zoom de pinça continua funcionando. */
+@media (max-width: 767px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
 
 /* Esconde a barra de rolagem das fileiras de chips, mas deixa rolar. */
 .sem-barra { scrollbar-width: none; }

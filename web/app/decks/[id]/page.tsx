@@ -252,7 +252,7 @@ export default function PaginaDoDeck() {
                 {secao}
                 {secao === "Sideboard" && !prefs.sideboard && <span className="ml-2 normal-case tracking-normal">· não conta no que falta</span>}
               </h3>
-              <ul className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+              <ul className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2">
                 {d.cartas
                   .filter((c) => c.secao_nome === secao)
                   .map((c) => {

@@ -65,7 +65,17 @@ export function Progresso({ porcentagem }: { porcentagem: number }) {
   );
 }
 
-export function Chip({ ativo, onClick, children }: { ativo?: boolean; onClick?: () => void; children: React.ReactNode }) {
+export function Chip({
+  ativo,
+  onClick,
+  className = "",
+  children,
+}: {
+  ativo?: boolean;
+  onClick?: () => void;
+  className?: string;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"
@@ -73,6 +83,7 @@ export function Chip({ ativo, onClick, children }: { ativo?: boolean; onClick?: 
       className={juntar(
         "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition",
         ativo ? "border-ouro bg-ouro/15 text-ouro" : "border-linha bg-superficie text-apagado hover:text-texto",
+        className,
       )}
     >
       {children}

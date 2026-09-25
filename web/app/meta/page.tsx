@@ -94,7 +94,7 @@ export default function PaginaDoMeta() {
       {!data && !error && <Carregando />}
       {data && data.total === 0 && meta?.chave && <p className="py-10 text-center text-sm text-apagado">Nenhum deck do meta ainda.</p>}
 
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {data?.decks.map((d) => (
           <CartaoDoDeck key={d.id} d={d} />
         ))}
