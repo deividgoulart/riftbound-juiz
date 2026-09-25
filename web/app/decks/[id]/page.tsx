@@ -8,7 +8,7 @@ import { ArrowLeft, Check, CheckCircle2, Copy, CopyPlus, Download, ExternalLink,
 import { buscar, dataCurta, pedir, reais, type DetalheDoDeck } from "@/lib/api";
 import { useSessao } from "@/lib/sessao";
 import { ImagemDaCarta, NomeDaCarta } from "@/components/carta";
-import { parametrosDaConta } from "@/components/decks";
+import { OpcoesDaConta, parametrosDaConta } from "@/components/decks";
 import { FormularioDoDeck } from "@/components/formulario-deck";
 import { Aviso, Botao, Cartao, Carregando, PontosDosDominios, Progresso, juntar } from "@/components/ui";
 
@@ -152,11 +152,9 @@ export default function PaginaDoDeck() {
             )}
           </div>
         </div>
-        {prefs.runas && d.cartas.some((c) => c.secao === "runas") && (
-          <p className="border-t border-linha px-4 py-2 text-xs text-apagado">
-            Contando as runas básicas como suas. Pra contar só as da coleção, desligue em Meus decks ou Meta.
-          </p>
-        )}
+        <div className="border-t border-linha px-4 py-3">
+          <OpcoesDaConta />
+        </div>
       </Cartao>
 
       {podeEditar && (
@@ -188,7 +186,8 @@ export default function PaginaDoDeck() {
           <Cartao className="p-4">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="font-semibold">
-                Faltam {d.copias_faltando} cópias de {d.cartas_faltando} cartas
+                {d.copias_faltando === 1 ? "Falta 1 cópia" : `Faltam ${d.copias_faltando} cópias`} de{" "}
+                {d.cartas_faltando === 1 ? "1 carta" : `${d.cartas_faltando} cartas`}
               </h2>
               {podeEditar && (
                 <button
@@ -249,7 +248,10 @@ export default function PaginaDoDeck() {
         <div className="space-y-4">
           {secoes.map((secao) => (
             <div key={secao}>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-apagado">{secao}</h3>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-apagado">
+                {secao}
+                {secao === "Sideboard" && !prefs.sideboard && <span className="ml-2 normal-case tracking-normal">· não conta no que falta</span>}
+              </h3>
               <ul className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
                 {d.cartas
                   .filter((c) => c.secao_nome === secao)

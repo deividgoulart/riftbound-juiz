@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, Gem } from "lucide-react";
+import { CheckCircle2, Gem, Layers } from "lucide-react";
 import { dataCurta, reais, type Ordem, type ResumoDoDeck } from "@/lib/api";
 import { useSessao } from "@/lib/sessao";
 import { ImagemDaCarta } from "./carta";
@@ -69,12 +69,22 @@ export function AjustesDosDecks({ temPrecos }: { temPrecos: boolean }) {
           { valor: "faltando", rotulo: "Menos faltando" },
         ]}
       />
+      <OpcoesDaConta />
+    </div>
+  );
+}
+
+/** O que entra na conta do "quanto falta": runas básicas e sideboard. À vista na lista e no detalhe do deck. */
+export function OpcoesDaConta() {
+  const { prefs, setPrefs } = useSessao();
+  return (
+    <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <Chip ativo={prefs.runas} onClick={() => setPrefs({ runas: !prefs.runas })}>
-          <Gem size={13} /> {prefs.runas ? "Contando as runas básicas como minhas" : "Runas: só as da coleção"}
+          <Gem size={13} /> {prefs.runas ? "Runas básicas: conto como minhas" : "Runas: só as da coleção"}
         </Chip>
         <Chip ativo={prefs.sideboard} onClick={() => setPrefs({ sideboard: !prefs.sideboard })}>
-          {prefs.sideboard ? "Com o sideboard" : "Sem o sideboard"}
+          <Layers size={13} /> {prefs.sideboard ? "Sideboard: conta no que falta" : "Sideboard: não conta"}
         </Chip>
       </div>
       {prefs.runas && (

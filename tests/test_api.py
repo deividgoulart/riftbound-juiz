@@ -542,3 +542,15 @@ def test_comprei_o_que_faltava_soma_na_colecao(api, banco, catalogo):
     assert r.status_code == 200 and r.json()["cartas"] == {"Abandon": 1, "Jinx, Rebel": 3}
     assert cliente.post("/api/colecao/adicionar", json={"cartas": {"Carta Inventada": 1}}).status_code == 400
     assert api(senha="segredo").post("/api/colecao/adicionar", json={"cartas": {"Abandon": 1}}).status_code == 401
+
+
+def test_sideboard_so_conta_no_que_falta_quando_pedido(api, banco, catalogo):
+    id_ = salvar_deck(banco, "Com side", ler_lista("Main Deck:\n2 Abandon\nSideboard:\n3 Void Seeker", catalogo))
+    colecao.definir(banco, "Abandon", 2)
+    cliente = api()
+    sem = cliente.get(f"/api/decks/{id_}").json()  # padrão: o sideboard não é obrigatório
+    assert (sem["porcentagem"], sem["faltando"]) == (100.0, [])
+    assert any(c["secao"] == "sideboard" for c in sem["cartas"])  # mas continua na lista completa
+    com = cliente.get(f"/api/decks/{id_}", params={"sideboard": True}).json()
+    assert [(f["carta"], f["falta"]) for f in com["faltando"]] == [("Void Seeker", 3)] and com["total"] == 5
+    assert cliente.get("/api/decks", params={"sideboard": True}).json()["decks"][0]["copias_faltando"] == 3
