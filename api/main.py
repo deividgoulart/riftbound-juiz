@@ -33,7 +33,7 @@ from decks.meus_decks import apagar_deck, cartas_dos_decks, listar_decks, salvar
 from juiz import config
 from juiz.apresentacao import CREDITOS, ROTULOS, linkar_citacoes, procedencia, trecho_para_ler
 from juiz.erros import CotaEsgotada, explicar_erro
-from juiz.fichas import Fichario, explicacao_guardada
+from juiz.fichas import Fichario
 from juiz.limites import modo_publico, senha_confere
 from juiz.registro import registrar_avaliacao, registrar_erro, registrar_resposta
 
@@ -326,16 +326,6 @@ def obter_fichario(request: Request):
     return juiz.fichario
 
 
-def json_da_explicacao(texto: str, fontes: list[dict]) -> dict:
-    from juiz.responder import Fonte
-
-    objetos = [Fonte(**{k: f[k] for k in ("numero", "tipo", "titulo", "url", "texto", "citacao_pendente", "citada", "resumo")})
-               for f in fontes]
-    versao = procedencia()["crd_versao"] or "1.4"
-    return {"html": linkar_citacoes(texto, objetos, {}, versao),
-            "fontes": [fonte_json(f, com_trecho=False) for f in objetos if f.citada]}
-
-
 class MudancasNaColecao(BaseModel):
     mudancas: dict[str, int] = Field(max_length=2000)  # carta -> quantidade (0 tira da coleção)
 
@@ -381,19 +371,15 @@ def rotas_decks():
 
     @r.get("/carta")
     def ficha_da_carta(nome: str, request: Request):
-        """Texto oficial, dúvidas do FAQ e a explicação com exemplos, se já foi gerada. As explicações são
-        geradas de antemão, no computador do dono, por um LLM local (api/gerar_explicacoes.py): a API não
-        gasta o Gemini com elas."""
+        """Texto oficial e dúvidas do FAQ sobre a carta. Não chama nenhum LLM."""
         banco, catalogo = obter_deck_builder(request)
         fichario = obter_fichario(request)
         f = fichario.ficha(nome)
-        guardada = explicacao_guardada(banco, nome, fichario.assinatura(nome)) if f.texto else None
         return {
             "nome": f.nome, "texto": f.texto, "atributos": f.atributos, "errata": f.errata, "url_wiki": f.url_wiki,
             "imagem": catalogo.imagem_de(nome),
             "duvidas": [{"pergunta": d.pergunta, "url": d.url, "pagina": d.pagina} for d in f.duvidas],
             "mecanicas": [{"pagina": d.pagina, "url": d.url} for d in f.mecanicas],
-            "explicacao": json_da_explicacao(**guardada) if guardada else None,
         }
 
     @r.get("/colecao")

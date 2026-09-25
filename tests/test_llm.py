@@ -3,7 +3,6 @@
 Não chama a API: o cliente do Gemini é substituído por um "de mentira".
 """
 
-import json
 from types import SimpleNamespace
 
 import pytest
@@ -203,30 +202,3 @@ def test_resposta_vazia_conta_como_falha_e_passa_pra_proxima_reserva():
     with pytest.raises(RuntimeError, match="resposta vazia"):
         LLMComReservas([Vazio()]).gerar("i", "m")
 
-
-def test_ollama_manda_as_instrucoes_e_tira_o_raciocinio():
-    import httpx
-
-    from juiz.llm import LLMOllama
-
-    pedidos = []
-
-    def responder(pedido):
-        pedidos.append(json.loads(pedido.content))
-        return httpx.Response(200, json={"message": {"content": "<think>hmm</think>\n**O que a carta faz** ..."},
-                                         "prompt_eval_count": 10, "eval_count": 5})
-
-    llm = LLMOllama("qwen3:8b", cliente=httpx.Client(transport=httpx.MockTransport(responder)))
-    assert llm.gerar("instruções", "mensagem") == "**O que a carta faz** ..."
-    assert pedidos[0]["model"] == "qwen3:8b" and pedidos[0]["messages"][0] == {"role": "system", "content": "instruções"}
-    assert llm.ultimo_uso["modelo"] == "ollama/qwen3:8b"
-
-
-def test_ollama_sem_o_modelo_explica_como_baixar():
-    import httpx
-
-    from juiz.llm import LLMOllama
-
-    llm = LLMOllama("qwen3:8b", cliente=httpx.Client(transport=httpx.MockTransport(lambda p: httpx.Response(404))))
-    with pytest.raises(RuntimeError, match="ollama pull qwen3:8b"):
-        llm.gerar("i", "m")

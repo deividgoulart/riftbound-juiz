@@ -471,165 +471,25 @@ TRECHOS_DO_FAQ = [
 ]
 
 
-class LlmFalso:
-    def __init__(self):
-        self.chamadas = []
-
-    def gerar(self, instrucoes, mensagem, esquema=None):
-        from juiz.fichas import INSTRUCOES_DA_DUVIDA
-
-        self.chamadas.append(mensagem)
-        if instrucoes == INSTRUCOES_DA_DUVIDA:  # um cuidado: uma frase sobre uma dúvida do FAQ
-            return "Sim, pode mirar a sua própria unidade." if "own unit" in mensagem else "Não, o Abandon não afeta."
-        return "**O que a carta faz**\nCausa 4 de dano numa unidade.\n\n**Exemplos**\n- Você tira uma unidade do caminho."
-
-
 @pytest.fixture
 def com_fichas():
     from juiz.cartas import Catalogo as CatalogoDoJuiz
     from juiz.fichas import Fichario
 
-    llm = LlmFalso()
     catalogo = CatalogoDoJuiz([carta_do_faq("Void Seeker", "[Ambush] (You may play me as a [Reaction].)\nDeal 4 to a unit."),
                                carta_do_faq("Abandon", "Counter a spell.", tipos=("Spell",))], {})
     juiz = JuizFalso(resposta_com_fontes())
-    juiz.fichario = Fichario(catalogo, TRECHOS_DO_FAQ, llm)
-    return juiz, llm
+    juiz.fichario = Fichario(catalogo, TRECHOS_DO_FAQ)
+    return juiz
 
 
 def test_ficha_tem_texto_duvidas_e_mecanicas(api, com_fichas):
-    juiz, llm = com_fichas
-    ficha = api(juiz).get("/api/carta", params={"nome": "Void Seeker"}).json()
+    ficha = api(com_fichas).get("/api/carta", params={"nome": "Void Seeker"}).json()
     assert ficha["texto"].startswith("[Ambush]") and ficha["atributos"]["energia"] == 3
     assert [d["pergunta"] for d in ficha["duvidas"]] == ["Can Void Seeker target my own unit?", "Does Abandon work on Void Seeker?"]
     assert ficha["mecanicas"] == [{"pagina": "Ambush", "url": "https://faq/ambush"}]
-    assert ficha["explicacao"] is None  # ainda não gerada
-    assert llm.chamadas == []  # a API nunca chama um LLM pra ficha
+    assert "explicacao" not in ficha  # sem texto escrito por IA
 
 
 def test_runa_basica_nao_tem_texto(api, com_fichas):
-    juiz, _ = com_fichas
-    assert api(juiz).get("/api/carta", params={"nome": "Fury Rune"}).json()["texto"] is None
-
-
-def test_api_nao_gera_explicacao_na_hora(api, com_fichas):
-    juiz, _ = com_fichas
-    assert api(juiz).post("/api/carta/explicar", json={"nome": "Void Seeker"}).status_code in (404, 405)
-
-
-def test_explicacao_gerada_no_computador_aparece_na_ficha(api, com_fichas, banco, catalogo):
-    from api.gerar_explicacoes import gerar, ordem_das_cartas
-
-    juiz, llm = com_fichas
-    salvar_deck(banco, "Com Abandon", ler_lista("2 Abandon", catalogo))
-    assert ordem_das_cartas(banco, ["Void Seeker", "Abandon"]) == ["Abandon", "Void Seeker"]  # as dos decks primeiro
-
-    mensagens = []
-    assert gerar(juiz.fichario, banco, ["Void Seeker", "Fury Rune"], log=mensagens.append) == \
-        {"feitas": 1, "falhas": 0, "reprovadas": 0, "restantes": 0}  # a runa não tem texto: fica de fora
-    # 1 chamada pra parte principal + 1 por dúvida do FAQ sobre a carta (a página Ambush é de mecânica: não)
-    assert len(llm.chamadas) == 3
-    assert "TEXTO OFICIAL DA CARTA" in llm.chamadas[0] and "Can Void Seeker target my own unit?" in llm.chamadas[0]
-    explicacao = api(juiz).get("/api/carta", params={"nome": "Void Seeker"}).json()["explicacao"]
-    assert "Sim, pode mirar a sua própria unidade." in explicacao["html"]
-    assert '<a href="https://faq/void-seeker#a" target="_blank">F2</a>' in explicacao["html"]
-    assert [f["numero"] for f in explicacao["fontes"]] == [2, 3]  # só as citadas
-
-    gerar(juiz.fichario, banco, ["Void Seeker"], log=mensagens.append)
-    assert len(llm.chamadas) == 3  # já estava pronta: pulou
-    juiz.fichario.catalogo.cartas["Void Seeker"]["abilities"] = "Deal 5 to a unit."  # errata
-    assert api(juiz).get("/api/carta", params={"nome": "Void Seeker"}).json()["explicacao"] is None
-    gerar(juiz.fichario, banco, ["Void Seeker"], log=mensagens.append)
-    assert len(llm.chamadas) == 6  # a assinatura mudou: refez
-
-
-def test_gerar_para_quando_o_ollama_nao_responde(com_fichas, banco, catalogo):
-    from api.gerar_explicacoes import gerar
-
-    juiz, _ = com_fichas
-
-    class Desligado(LlmFalso):
-        def gerar(self, *a, **k):
-            raise RuntimeError("o Ollama não está rodando")
-
-    juiz.fichario.llm = Desligado()
-    mensagens = []
-    r = gerar(juiz.fichario, banco, ["Void Seeker", "Abandon", "Void Seeker", "Abandon"], log=mensagens.append)
-    assert r["feitas"] == 0 and r["falhas"] == 3
-    assert any("Ollama está aberto" in m for m in mensagens)
-
-
-class LlmQueErra(LlmFalso):
-    """Na 1ª vez, a parte principal sai com "mana" e cita outra carta; na 2ª, certa."""
-
-    def gerar(self, instrucoes, mensagem, esquema=None):
-        if not self.chamadas:
-            self.chamadas.append((mensagem, self.temperatura))
-            return "**O que a carta faz**\nCancela um Spell e devolve a mana.\n\n**Exemplos**\n- Use contra o Void Seeker."
-        self.chamadas.append((mensagem, self.temperatura))
-        return super().gerar(instrucoes, mensagem, esquema)
-
-    temperatura = 0.0
-
-
-def test_parte_errada_e_pedida_de_novo_com_mais_variacao(com_fichas):
-    juiz, _ = com_fichas
-    juiz.fichario.llm = llm = LlmQueErra()
-    explicacao = juiz.fichario.explicar("Abandon")
-    assert "mana" not in explicacao.texto and "Não, o Abandon não afeta. [F2]" in explicacao.texto
-    assert [t for _, t in llm.chamadas[:2]] == [0.0, 0.3]  # a 2ª tentativa varia um pouco
-    assert "ATENÇÃO" not in llm.chamadas[1][0]  # sem repetir a versão errada nem listar os erros
-
-
-def test_cuidado_que_nao_sai_vira_a_pergunta_do_faq(com_fichas):
-    juiz, _ = com_fichas
-
-    class NaoResume(LlmFalso):
-        def gerar(self, instrucoes, mensagem, esquema=None):
-            from juiz.fichas import INSTRUCOES_DA_DUVIDA
-
-            return "- Spell: correct\n- mana: ok" if instrucoes == INSTRUCOES_DA_DUVIDA else super().gerar(instrucoes, mensagem)
-
-    juiz.fichario.llm = NaoResume()
-    texto = juiz.fichario.explicar("Void Seeker").texto
-    assert "- Can Void Seeker target my own unit? [F2]" in texto  # a pergunta original, com o link
-
-
-def test_explicacao_que_nao_melhora_fica_de_fora_e_o_lote_segue(com_fichas, banco, catalogo):
-    from api.gerar_explicacoes import gerar
-    from juiz.fichas import TENTATIVAS
-
-    juiz, _ = com_fichas
-
-    class SempreTraduz(LlmFalso):
-        def gerar(self, *a, **k):
-            self.chamadas.append(a)
-            return "**O que a carta faz**\nCancela um Spell.\n\n**Exemplos**\n- Custa mana."
-
-        temperatura = 0.0
-
-    juiz.fichario.llm = llm = SempreTraduz()
-    mensagens = []
-    r = gerar(juiz.fichario, banco, ["Abandon", "Void Seeker", "Abandon", "Void Seeker"], log=mensagens.append)
-    assert r["reprovadas"] == 4 and r["feitas"] == 0 and len(llm.chamadas) == 4 * TENTATIVAS  # não parou no 3º erro
-    assert any("reprovada na conferência" in m and "mana" in m for m in mensagens)
-
-
-def test_ajustar_conserta_titulos_e_traducoes_diretas():
-    from juiz.fichas import ajustar
-
-    texto = ajustar("### O que a carta faz\nÉ um feitiço de Caos: um unitário vai pro lixo.\n\n---\n\n**Exemplos:**\n- x\n\n"
-                    "**Cuidados e Exceções**\n- y [F2]")
-    assert texto == ("**O que a carta faz**\nÉ um Spell de Chaos: uma unidade vai pro Trash.\n\n**Exemplos**\n- x\n\n"
-                     "**Cuidados e exceções**\n- y [F2]")
-
-
-def test_carta_sem_duvidas_no_faq_nao_tem_secao_de_cuidados(com_fichas):
-    from juiz.fichas import Fichario
-
-    juiz, llm = com_fichas
-    sem_faq = Fichario(juiz.fichario.catalogo, [], llm)
-    texto = sem_faq.explicar("Abandon").texto
-    assert "Cuidados" not in texto and len(llm.chamadas) == 1
-    assert any("não foi pedida" in p for p in sem_faq.problemas(
-        "Abandon", "**O que a carta faz**\nx\n\n**Exemplos**\n- y\n\n**Cuidados e exceções**\n- z", sem_faq._fontes("Abandon")))
+    assert api(com_fichas).get("/api/carta", params={"nome": "Fury Rune"}).json()["texto"] is None

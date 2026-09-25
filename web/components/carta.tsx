@@ -1,15 +1,14 @@
 "use client";
 
-// A arte da carta e a ficha que abre ao tocar nela: imagem grande, texto oficial, explicação com
-// exemplos (escrita de antemão por um LLM local; veja api/gerar_explicacoes.py) e as dúvidas do FAQ.
+// A arte da carta e a ficha que abre ao tocar nela: imagem grande, texto oficial, as dúvidas do FAQ
+// sobre a carta e um atalho pra perguntar ao juiz sobre ela.
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import useSWR from "swr";
-import { BookOpen, ExternalLink, HelpCircle, MessageCircleQuestion, X } from "lucide-react";
-import { buscar, type ExplicacaoDaCarta, type FichaDaCarta } from "@/lib/api";
-import { Markdown } from "./markdown";
+import { ExternalLink, HelpCircle, MessageCircleQuestion, X } from "lucide-react";
+import { buscar, type FichaDaCarta } from "@/lib/api";
 import { Aviso, NOMES_DOS_DOMINIOS, PontosDosDominios, corDoDominio, juntar } from "./ui";
 
 /** Imagem deitada (os battlefields vêm na horizontal)? Decide pela própria imagem, quando ela carrega. */
@@ -149,33 +148,6 @@ function Atributos({ ficha }: { ficha: FichaDaCarta }) {
   );
 }
 
-function Explicacao({ explicacao }: { explicacao: ExplicacaoDaCarta }) {
-  return (
-    <div className="space-y-3">
-      <Markdown texto={explicacao.html} />
-      <p className="text-xs text-apagado">
-        Escrito por um modelo de IA a partir do texto da carta e do FAQ, e conferido só automaticamente. Pode errar: na dúvida, vale a fonte.
-      </p>
-      {explicacao.fontes.length > 0 && (
-        <ul className="space-y-1 border-t border-linha pt-3 text-xs text-apagado">
-          {explicacao.fontes.map((f) => (
-            <li key={f.numero}>
-              <span className="font-semibold text-azul">F{f.numero}</span> ·{" "}
-              {f.url ? (
-                <a href={f.url} target="_blank" rel="noopener noreferrer" className="underline decoration-linha underline-offset-2 hover:text-texto">
-                  {f.titulo}
-                </a>
-              ) : (
-                f.titulo
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
 /** A ficha: em tela cheia no celular (rola pra baixo) e em duas colunas no computador. */
 export function FichaDaCarta({ carta, imagem, onFechar }: { carta: string; imagem?: string | null; onFechar: () => void }) {
   const { data: ficha, error } = useSWR<FichaDaCarta>(`/api/carta?nome=${encodeURIComponent(carta)}`, buscar, {
@@ -256,20 +228,17 @@ export function FichaDaCarta({ carta, imagem, onFechar }: { carta: string; image
                 <p className="text-sm text-apagado">Runa básica: gera a energia e o poder do seu domínio. Não tem texto próprio.</p>
               )}
 
-              {ficha.texto && (
-                <section className="rounded-2xl border border-ouro/30 bg-superficie p-4">
-                  <h3 className="mb-3 flex items-center gap-2 font-semibold">
-                    <BookOpen size={17} className="text-ouro" /> Como usar
-                  </h3>
-                  {ficha.explicacao ? (
-                    <Explicacao explicacao={ficha.explicacao} />
-                  ) : (
-                    <p className="text-sm text-apagado">
-                      A explicação desta carta ainda não foi escrita. Enquanto isso, veja as dúvidas do FAQ abaixo ou pergunte ao juiz.
-                    </p>
-                  )}
-                </section>
-              )}
+              <Link
+                href={`/?pergunta=${encodeURIComponent(`Sobre a carta ${carta}: `)}`}
+                onClick={onFechar}
+                className="flex items-center gap-3 rounded-2xl border border-ouro/40 bg-ouro/10 p-4 transition hover:bg-ouro/15"
+              >
+                <MessageCircleQuestion size={22} className="shrink-0 text-ouro" />
+                <span>
+                  <span className="block font-semibold text-ouro">Perguntar ao juiz sobre esta carta</span>
+                  <span className="block text-sm text-apagado">O juiz responde em português, com as regras e o FAQ, citando as fontes.</span>
+                </span>
+              </Link>
 
               {(ficha.duvidas.length > 0 || ficha.mecanicas.length > 0) && (
                 <section className="rounded-2xl border border-linha bg-superficie p-4">
@@ -301,13 +270,6 @@ export function FichaDaCarta({ carta, imagem, onFechar }: { carta: string; image
               )}
 
               <div className="flex flex-wrap gap-2">
-                <Link
-                  href={`/?pergunta=${encodeURIComponent(`Sobre a carta ${carta}: `)}`}
-                  onClick={onFechar}
-                  className="inline-flex items-center gap-2 rounded-xl bg-ouro px-4 py-2.5 text-sm font-semibold text-fundo hover:bg-[#e2c06f]"
-                >
-                  <MessageCircleQuestion size={16} /> Perguntar ao juiz sobre esta carta
-                </Link>
                 {ficha.url_wiki && (
                   <a
                     href={ficha.url_wiki}

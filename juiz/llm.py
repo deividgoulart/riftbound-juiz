@@ -8,7 +8,6 @@ método e registrar em LLMS. O resto do juiz não muda.
 """
 
 import os
-import re
 import time
 
 from juiz import config
@@ -173,44 +172,6 @@ class LLMGroq:
         self.ultimo_uso = {"modelo": self.nome, "tokens_entrada": uso.get("prompt_tokens"),
                            "tokens_saida": uso.get("completion_tokens")}
         return (dados["choices"][0]["message"].get("content") or "").strip()
-
-
-class LLMOllama:
-    """LLM que roda no seu computador, pelo Ollama (https://ollama.com): sem cota e sem chave.
-
-    Usado só pra gerar as explicações das cartas em lote (api/gerar_explicacoes.py), sem gastar o Gemini. Os modelos
-    que cabem num computador comum escrevem pior em português do que o Gemini, então o juiz do site
-    continua no Gemini. Antes: instale o Ollama e baixe o modelo (ex.: ollama pull qwen3:30b-a3b).
-    """
-
-    URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-
-    def __init__(self, modelo: str, cliente=None):
-        self.modelo = modelo
-        self.nome = f"ollama/{modelo}"
-        self.ultimo_uso: dict = {}
-        self._cliente = cliente
-        self.temperatura = 0.0  # quem chama pode subir numa nova tentativa (com 0, a resposta se repete)
-
-    def gerar(self, instrucoes: str, mensagem: str, esquema=None) -> str:
-        import httpx
-
-        cliente = self._cliente or httpx.Client(timeout=600)  # no processador, uma resposta pode levar minutos
-        # num_ctx: o padrão do Ollama (~4 mil tokens) corta as fontes sem avisar
-        corpo = {"model": self.modelo, "stream": False, "think": False,
-                 "options": {"temperature": self.temperatura, "num_ctx": 8192, "num_predict": 1500},
-                 "messages": [{"role": "system", "content": instrucoes}, {"role": "user", "content": mensagem}]}
-        try:
-            resposta = cliente.post(f"{self.URL}/api/chat", json=corpo)
-        except httpx.ConnectError:
-            raise RuntimeError("o Ollama não está rodando (abra o app do Ollama ou rode 'ollama serve')") from None
-        if resposta.status_code == 404:
-            raise RuntimeError(f"o Ollama não tem o modelo {self.modelo} (rode: ollama pull {self.modelo})")
-        resposta.raise_for_status()
-        dados = resposta.json()
-        self.ultimo_uso = {"modelo": self.nome, "tokens_entrada": dados.get("prompt_eval_count"),
-                           "tokens_saida": dados.get("eval_count")}
-        return re.sub(r"<think>.*?</think>", "", dados["message"]["content"], flags=re.S).strip()
 
 
 class LLMComReservas:

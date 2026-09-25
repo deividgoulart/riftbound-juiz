@@ -193,8 +193,6 @@ export type RelatorioCsv = {
   substituiu: boolean;
 };
 
-export type ExplicacaoDaCarta = { html: string; fontes: Fonte[] };
-
 export type FichaDaCarta = {
   nome: string;
   texto: string | null;
@@ -204,7 +202,6 @@ export type FichaDaCarta = {
   imagem: string | null;
   duvidas: { pergunta: string; url: string; pagina: string }[];
   mecanicas: { pagina: string; url: string }[];
-  explicacao: ExplicacaoDaCarta | null;
 };
 
 // --- Formatação ---

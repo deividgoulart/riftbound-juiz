@@ -81,8 +81,7 @@ riftbound-juiz/
 ├── api/                    # API (fase 3): o que o site usa, em FastAPI
 │   ├── main.py             # as rotas: perguntar, coleção, decks, meta
 │   ├── acesso.py           # senha do dono (token) e limite dos convidados
-│   ├── recursos.py         # carrega o juiz e o deck builder uma vez e recarrega uma vez por dia
-│   └── gerar_explicacoes.py # escreve o "como usar" das cartas com um LLM local (Ollama)
+│   └── recursos.py         # carrega o juiz e o deck builder uma vez e recarrega uma vez por dia
 ├── web/                    # site (fase 3): Next.js + Tailwind, celular primeiro
 │   ├── app/                # as telas: Juiz, Coleção, Meus decks, Detalhe do deck, Meta
 │   ├── components/         # peças visuais (cartas, barras de progresso, navegação...)
@@ -109,7 +108,7 @@ riftbound-juiz/
 │   ├── avaliar_respostas.py # avalia as respostas: métricas, avaliador LLM e revisão humana (etapa 7)
 │   ├── atualizar.py        # baixa e processa FAQ e CRD e atualiza os índices, só o que mudou (etapa 8)
 │   ├── limites.py          # modo convidado do app publicado: limites e senha (etapa 8)
-│   └── fichas.py           # ficha da carta: texto, dúvidas do FAQ e explicação com exemplos (fase 3)
+│   └── fichas.py           # ficha da carta: texto oficial e dúvidas do FAQ (fase 3)
 ├── decks/                  # deck builder (fase 2), sem a API: só lógica e banco
 │   ├── banco.py            # SQLite local ou Turso (SQLite na nuvem) pela API HTTP
 │   ├── catalogo.py         # tabela mestre de cartas (card-catalog.json + runas) e nomes
@@ -645,16 +644,9 @@ Navegador ──> site (Next.js, na Vercel) ──> API (FastAPI, no Render) ─
   - **Meus decks:** só os decks que você cadastrou, na ordem "mais barato de completar" ou "menos faltando", com o custo estimado.
   - **Detalhe do deck:** o que falta, com link de cada carta na Liga, e a lista pronta pra copiar e colar na Compra por Lista.
   - **Meta:** os decks de torneio, com filtro por lenda.
-  - **Ficha da carta:** tocar em qualquer carta abre a ficha dela: a arte grande (toque de novo pra tela cheia), o texto oficial com as palavras-chave em destaque, **como usar** (o que a carta faz, exemplos de jogada e os cuidados, citando o FAQ), as **dúvidas do FAQ** sobre ela e as páginas das mecânicas do texto, com link, e um atalho pra perguntar ao juiz sobre a carta. Os battlefields, que têm arte deitada, aparecem girados nas grades pra caber.
+  - **Ficha da carta:** tocar em qualquer carta abre a ficha dela: a arte grande (toque de novo pra tela cheia), o texto oficial com as palavras-chave em destaque, as **dúvidas do FAQ** sobre ela e as páginas das mecânicas do texto, com link, e o botão **Perguntar ao juiz sobre esta carta**, que abre o chat com a pergunta começada. Os battlefields, que têm arte deitada, aparecem girados nas grades pra caber.
 - **API (`api/`):** FastAPI por cima dos pacotes `juiz/` e `decks/`, que não mudaram. A documentação de todas as rotas fica em `/docs`. O juiz e o deck builder carregam uma vez quando a API liga e se atualizam sozinhos uma vez por dia, sem parar os pedidos.
-- **Explicações das cartas ("como usar"), sem gastar o Gemini:** são escritas de antemão por um LLM que roda no seu computador, pelo [Ollama](https://ollama.com) (padrão: Qwen3 30B-A3B, `config.MODELO_OLLAMA`), e guardadas no banco (tabela `explicacoes`). O site só mostra as que já existem; a cota do Gemini fica só pro juiz. O modelo recebe o texto oficial da carta, as dúvidas do FAQ sobre ela, as páginas das mecânicas do texto e as definições oficiais dos termos. O primeiro teste com o Qwen3 8B mostrou os erros típicos de um modelo pequeno: traduzia os termos ("feitiço", "lixo", "item"), inventava regras e citava a fonte assim mesmo, e citava outras cartas. O segundo, com o Qwen3 30B-A3B, mostrou que listar as palavras proibidas no prompt (e repeti-las no pedido de correção) fazia o modelo usá-las. Como ficou: (1) uma chamada escreve só "o que a carta faz" e "exemplos"; (2) os **cuidados e exceções** saem de uma chamada pequena por dúvida do FAQ (uma frase cada), e é o código que põe a fonte, então não dá pra citar fonte errada nem inventar cuidado (se a frase não sai, fica a pergunta do FAQ em inglês, com o link); (3) traduções diretas ("feitiço" -> Spell, "lixo" -> Trash) são consertadas pelo código; (4) o que sobra de errado (termo traduzido, outra carta citada, seção faltando) é pedido de novo com um pouco mais de variação, e depois de 3 tentativas a carta fica de fora. O contexto do Ollama também foi aumentado pra 8 mil tokens: no padrão (~4 mil), as fontes eram cortadas sem aviso. A conferência não pega um erro de conteúdo bem escrito, então o site avisa que o texto é de IA. Cada explicação guarda uma assinatura do texto da carta e das dúvidas do FAQ: se a carta receber errata ou o FAQ ganhar uma dúvida nova sobre ela, ela volta pra fila. O e5-small (a busca reserva) não serve pra isso: ele transforma texto em vetores, mas não escreve.
-  ```powershell
-  # 1 vez: instale o Ollama e baixe o modelo
-  ollama pull qwen3:30b-a3b
-  # com o .env apontando pro Turso (o mesmo banco do site); pode parar e continuar depois
-  python -m api.gerar_explicacoes              # todas as que faltam (as cartas dos decks primeiro)
-  python -m api.gerar_explicacoes --limite 20  # só 20 nesta rodada
-  ```
+- **Sem explicação escrita por IA na ficha:** foi testado um "como usar" de cada carta, escrito de antemão por um LLM no computador (Ollama, com o Qwen3 8B e o 30B-A3B), pra não gastar o Gemini. Os modelos traduziam os termos do jogo ("feitiço", "lixo"), inventavam regras e citavam a fonte assim mesmo, e nem a conferência automática deixou o resultado confiável. A ideia foi abandonada: a ficha mostra só o que vem das fontes (texto oficial e dúvidas do FAQ), e pra qualquer outra dúvida tem o atalho pro juiz, que usa o Gemini com as regras e cita as fontes.
 - **Arte das cartas:** vem da galeria oficial da Riot (o mesmo lugar dos códigos das cartas); o site mostra a imagem direto do site da Riot. Sem a galeria, cada carta aparece como um cartão com as cores dos domínios.
 - **Por que dois serviços:** a Vercel é ótima pra sites, mas o juiz precisa de um servidor Python ligado (ele carrega as regras e o índice na memória). A API fica no Render, que roda Python de graça.
 - **Sem a busca reserva local na API publicada:** o plano grátis do Render tem 512 MB de memória, e o PyTorch (que roda o e5-small) passa disso sozinho. A API instala `requirements.txt`, sem o PyTorch (medido: ~85 MB antes de carregar as regras); a reserva continua no seu computador (`requirements-dev.txt`). O Hugging Face Spaces, que teria memória de sobra, passou a cobrar por Spaces com Docker em 2026.
