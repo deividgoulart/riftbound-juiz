@@ -7,6 +7,7 @@ import httpx
 import pytest
 
 from decks import meta
+from decks.banco import agrupar_inserts
 from decks.importar import ler_lista
 from decks.meta import ErroNoMeta, atualizar_meta, buscar_torneios, precisa_atualizar_meta
 from decks.meus_decks import cartas_dos_decks, listar_decks, salvar_deck
@@ -115,6 +116,6 @@ def test_precisa_atualizar_a_cada_7_dias(banco, catalogo):
 
 def test_agrupar_insere_varias_linhas_por_comando():
     comandos = [("INSERT INTO t (a, b) VALUES (?, ?)", (i, i)) for i in range(250)] + [("DELETE FROM t", ())]
-    agrupados = meta._agrupar(comandos, por_insert=100)
+    agrupados = agrupar_inserts(comandos, por_insert=100)
     assert agrupados[0] == ("DELETE FROM t", ())
     assert [len(p) for _, p in agrupados[1:]] == [200, 200, 100]

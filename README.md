@@ -105,7 +105,8 @@ riftbound-juiz/
 │   ├── meta.py             # decks de torneio pela API do TopDeck.gg (etapa 2)
 │   ├── codigos.py          # código da carta (OGN-042) -> nome, pela galeria oficial da Riot
 │   ├── compras.py          # links e lista de compra da Liga Riftbound (etapa 3)
-│   ├── precos.py           # preço das cartas que faltam, pelo resumo do marketplace da Liga (etapa 3)
+│   ├── precos.py           # preço estimado: TCGplayer convertido pra reais (etapa 3)
+│   ├── calibrar_precos.py  # mede a conversão com páginas salvas da Liga (etapa 3)
 │   └── conclusao.py        # % de conclusão, cartas que faltam e ranking dos decks
 ├── avaliacao/
 │   ├── gabarito.yaml       # perguntas-gabarito com resposta e fonte esperadas (etapa 2b; 45 na etapa 7)
@@ -583,17 +584,24 @@ A **coleção e os decks continuam guardados pelo nome**: um deck pede "Jinx, Re
 **Comprar o que falta (Liga Riftbound).** Em cada deck, a tabela do que falta ganhou:
 - **link pra carta na Liga**: com o código da carta, o link vai direto na impressão certa (`Jinx - Loose Cannon (251)`, coleção OGN), no mesmo formato da Liga; sem o código, vai pelo nome;
 - **lista de compra** no formato "3 Nome", pra copiar (ou baixar em .txt) e colar na [Compra por Lista da Liga](https://www.ligariftbound.com.br/?view=cards/lista), que monta o carrinho mais barato entre as lojas. É o "carrinho geral" que o plano pedia;
-- **menor preço e custo estimado pra completar**, com o botão **Buscar preços na Liga** (só com a senha).
+- **preço estimado e custo estimado pra completar** (veja abaixo).
 
-**De onde vem o preço.** A página de cada carta na Liga mostra o "Preço Médio de Venda no Marketplace": menor, médio e maior preço, separados em Normal e Foil, em texto. É isso que o app lê ([`decks/precos.py`](decks/precos.py)). O formato foi conferido numa página real salva em 25/09/2026, e o teste usa esse trecho (`tests/dados/liga_precos.html`).
-- Os preços de cada loja aparecem como **imagens embaralhadas**, ou seja, a Liga não quer que sejam lidos por robôs. Eles ficam de fora.
-- Pra não sobrecarregar o site: só as cartas que faltam, só quando alguém clica, **um pedido por segundo**, e o preço fica guardado por uma semana. Se a Liga recusar os pedidos (403 ou 429), a busca para na hora.
-- O custo usa o menor preço entre normal e foil, porque a foil também serve pro deck.
-- A MYP Cards ficou de fora: o formato da busca dela não foi encontrado.
+Os campeões vão pra Liga como "Ezreal - Prodigy": com a vírgula, a página não abre. E o link usa a impressão normal da carta, e não a overnumbered: a lenda da Vi é a UNL 187, e não a UNL 229.
+
+**Preço estimado: TCGplayer convertido pra reais, calibrado com a Liga.** A primeira ideia era ler o preço na própria Liga, mas ela barrou os pedidos já na 1ª carta (proteção anti-robô), e os preços de cada loja aparecem como imagens embaralhadas. Não contornamos isso. O preço de verdade continua a um clique, no link da carta e na Compra por Lista.
+
+A estimativa usa o preço de mercado do TCGplayer (EUA), de uma cópia diária e pública no GitHub ([rleutz/riftbound-prices](https://github.com/rleutz/riftbound-prices), que lê o [tcgcsv.com](https://tcgcsv.com)), atualizada no app uma vez por semana. As cartas vêm por código, e das várias impressões vale a mais barata. O valor em dólar vira uma **estimativa do menor preço na Liga**, calibrada assim:
+- 23 páginas de carta salvas da Liga em 25/09/2026, com menor preço entre R$ 0,07 e R$ 229,90, comparadas com o TCGplayer de 24/09 ([`avaliacao/precos_liga_calibracao.csv`](avaliacao/precos_liga_calibracao.csv));
+- o menor anúncio da Liga segue **duas faixas**:
+  - **cartas baratas** (até US$ 0,50): R$ 1,67 por dólar. O anúncio mais barato é de "bulk" e sai quase pelo número do preço em dólar (a Bushwhack, US$ 0,06, sai por R$ 0,07);
+  - **cartas caras** (a partir de US$ 2,50): R$ 9,51 por dólar;
+  - entre as duas, a razão sobe aos poucos (interpolação), sem salto. A amostra não tem cartas nessa faixa, então ali a estimativa não foi medida;
+- com uma razão fixa, o erro era de 80%. Com as duas faixas, o **erro medido** deixando cada carta de fora do ajuste fica em **33% numa carta** e **20% na soma de 10 cartas**, porque os erros de uma carta pra outra se compensam em parte. A estimativa serve mais pro custo do deck do que pro preço de uma carta. Alguns casos se afastam muito: a Carnivorous Snapvine (US$ 0,31) tem o menor anúncio da Liga a R$ 9,00.
+
+A tela mostra a data da cópia, a razão e o erro junto com o custo. Pra recalibrar (ex.: se o dólar mudar muito), salve páginas de carta da Liga numa pasta e rode `python -m decks.calibrar_precos pasta/`.
 
 **O juiz falando dos meus decks.** No chat, a barra lateral tem **Deck em foco**, com os decks do deck builder (os seus primeiro, depois os do meta). Com um deck escolhido, o juiz recebe a lista e o texto oficial de cada carta como mais uma fonte, então dá pra perguntar "quais cartas do meu deck dão Stun?" ou "o que acontece se eu jogar a Jinx, Rebel com o Super Mega Death Rocket!?". Com deck em foco, o atalho do "não encontrei" (busca fraca) não vale, porque a resposta pode estar nas cartas do deck.
 
-**Limite conhecido:** a Liga é bloqueada no ambiente onde o código foi escrito. O leitor de preço foi testado com a página real salva, mas a busca de verdade só roda no seu computador ou no app publicado.
 
 ### Próximos passos
 
@@ -605,7 +613,7 @@ O plano da fase 2, com o que já foi feito:
 4. ✅ Para cada deck, **porcentagem de conclusão e cartas que faltam** (deck menos coleção), com banco **SQLite** (Turso na nuvem).
 5. **Sugestão de decks**: comparar a coleção com os decks do meta e ordenar do mais fácil pro mais difícil de montar. A ordenação por porcentagem e cartas faltando já existe; falta incluir o custo pra completar, quando tiver preço.
 6. ✅ Para cada carta que falta, **link direto** na [Liga Riftbound](https://ligariftbound.com.br) e a lista pra **Compra por Lista** (o carrinho geral). A [MYP Cards](https://mypcards.com/riftbound) ficou de fora (formato da busca desconhecido).
-7. ✅ **Preço das cartas que faltam**, pelo resumo do marketplace da Liga.
+7. ✅ **Preço das cartas que faltam**, estimado pelo TCGplayer e calibrado com o menor preço da Liga (erro medido na tela).
 8. ✅ **Aba nova no Streamlit** pro deck builder, e o juiz responde dúvidas sobre as cartas dos meus decks (Deck em foco).
 
 ## Créditos e licenças

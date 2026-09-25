@@ -55,6 +55,12 @@ def carregar():
             print("Decks do meta: " + meta.resumo(meta.atualizar_meta(banco, catalogo, meta.chave_topdeck())))
         except Exception:
             traceback.print_exc()
+    # Preços de referência (TCGplayer): uma cópia por semana. Se falhar, ficam os que já existem.
+    if precos.precisa_atualizar_precos(banco):
+        try:
+            print(f"Preços: {precos.atualizar_precos(banco, catalogo)} cartas com preço")
+        except Exception:
+            traceback.print_exc()
     return banco, catalogo
 
 
@@ -206,6 +212,7 @@ meus = [c for c in ranking if c.deck["origem"] != meta.ORIGEM]
 do_meta = [c for c in ranking if c.deck["origem"] == meta.ORIGEM]
 listas = cartas_dos_decks(banco) if ranking else {}
 precos_guardados = precos.precos_guardados(banco) if ranking else {}
+data_dos_precos = precos.data_dos_precos(banco) if ranking else None
 
 
 def reais(valor: float | None) -> str:
@@ -213,13 +220,11 @@ def reais(valor: float | None) -> str:
 
 
 def mostrar_o_que_falta(c) -> None:
-    """Tabela do que falta, com link e preço da Liga, e a lista pra Compra por Lista."""
+    """Tabela do que falta, com link da Liga e preço estimado, e a lista pra Compra por Lista."""
     faltando = [(x.carta, x.falta) for x in c.faltando]
     tabela = pd.DataFrame([{
         "Carta": x.carta, "Precisa": x.precisa, "Tenho": x.tem, "Falta": x.falta,
-        "Menor preço": reais(min([v for v in (precos_guardados.get(x.carta, {}).get("menor"),
-                                              precos_guardados.get(x.carta, {}).get("menor_foil")) if v is not None],
-                                 default=None)),
+        "Preço estimado": ("≈ " + reais(precos.estimar_reais(precos_guardados[x.carta]))) if x.carta in precos_guardados else "—",
         "Liga": link_da_carta(x.carta, catalogo),
     } for x in c.faltando])
     st.dataframe(tabela, hide_index=True, width="stretch",
@@ -227,17 +232,14 @@ def mostrar_o_que_falta(c) -> None:
 
     custo, sem_preco = precos.custo_pra_completar(faltando, precos_guardados)
     if len(sem_preco) < len(faltando):
-        st.markdown(f"**Custo estimado pra completar: {reais(custo)}**"
+        st.markdown(f"**Custo estimado pra completar: ≈ {reais(custo)}**"
                     + (f" (sem preço: {len(sem_preco)} cartas)" if sem_preco else ""))
-        st.caption("Menor preço no marketplace da Liga Riftbound (normal ou foil), por cópia. Os preços mudam; "
-                   "confira na loja antes de comprar.")
-    if pode_editar and sem_preco and st.button("Buscar preços na Liga", key=f"precos_{c.deck['id']}",
-                                               icon=":material/sell:", help="Um pedido por segundo; leva alguns segundos."):
-        with st.spinner(f"Buscando o preço de {len(sem_preco)} cartas na Liga Riftbound..."):
-            problemas = precos.atualizar_precos(banco, catalogo, sem_preco)
-        if problemas:
-            avisar_depois("warning", "Sem preço pra: " + "; ".join(f"{carta} ({motivo})" for carta, motivo in problemas.items()))
-        st.rerun()
+        st.caption(f"Estimativa do menor preço na Liga, não é o preço de lá: preço de mercado do TCGplayer (EUA)"
+                   + (f" de {date.fromisoformat(data_dos_precos):%d/%m/%Y}" if data_dos_precos else "")
+                   + f" convertido com as razões medidas contra o menor preço da Liga (R$ {config.REAIS_POR_DOLAR_BARATAS:.2f} "
+                   f"por dólar nas cartas baratas, R$ {config.REAIS_POR_DOLAR_CARAS:.2f} nas caras). "
+                   f"Erro típico: {config.ERRO_TIPICO_POR_CARTA:.0%} numa carta e {config.ERRO_TIPICO_10_CARTAS:.0%} "
+                   "na soma de 10 cartas. O preço de verdade está no link de cada carta e na Compra por Lista.")
 
     lista = lista_de_compra(faltando, catalogo)
     st.markdown(f"**Lista de compra:** copie e cole na [Compra por Lista da Liga]({config.LIGA_COMPRA_POR_LISTA}), "

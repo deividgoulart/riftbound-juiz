@@ -87,8 +87,15 @@ class Catalogo:
             self._por_chave[chave(c.nome)] = c.nome
         # código ("OGN-42") -> nome, pela galeria oficial (decks/codigos.py); vazio se ela não estiver disponível
         self.codigos = cod.mapa_de_codigos(galeria or [], self.resolver)
+        # A impressão normal de cada carta: sem sufixo de variante ("a", "*"), número só com dígitos (promos
+        # "SP5" e runas "R1" ficam de reserva) e o menor número, porque as overnumbered vêm depois do total
+        # da coleção (a Vi lenda é UNL-187; a UNL-229 é a overnumbered).
+        def ordem(par: tuple[str, str]) -> tuple[bool, int]:
+            numero = par[0].split("-")[-1]
+            return not numero.isdigit(), int(re.sub(r"\D", "", numero) or 0)
+
         self._codigo_por_nome: dict[str, str] = {}
-        for codigo, nome in self.codigos.items():  # a impressão normal (sem sufixo de variante) de cada carta
+        for codigo, nome in sorted(self.codigos.items(), key=ordem):
             if cod.codigo_base(codigo) == codigo:
                 self._codigo_por_nome.setdefault(nome, codigo)
 

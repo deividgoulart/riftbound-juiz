@@ -54,17 +54,33 @@ ESQUEMA = [
         quantidade INTEGER NOT NULL CHECK (quantidade > 0),
         PRIMARY KEY (deck_id, carta, secao)
     )""",
-    """CREATE TABLE IF NOT EXISTS precos (
+    """CREATE TABLE IF NOT EXISTS precos_tcg (
         carta TEXT PRIMARY KEY,       -- cartas.nome
-        menor REAL, medio REAL, maior REAL,  -- versão normal, em reais (resumo do marketplace da Liga)
-        menor_foil REAL,
-        atualizado_em TEXT NOT NULL
+        usd REAL NOT NULL             -- preço de mercado no TCGplayer (EUA), a impressão mais barata da carta
     )""",
     """CREATE TABLE IF NOT EXISTS meta (
         chave TEXT PRIMARY KEY,
         valor TEXT
     )""",
 ]
+
+
+def agrupar_inserts(comandos: list[tuple[str, tuple]], por_insert: int = 100) -> list[tuple[str, tuple]]:
+    """Junta INSERTs iguais de uma linha em INSERTs de várias linhas: centenas de linhas viram poucos
+    comandos (no Turso, o lote inteiro vai numa ida só)."""
+    agrupados: list[tuple[str, tuple]] = []
+    por_sql: dict[str, list[tuple]] = {}
+    for sql, params in comandos:
+        if sql.startswith("INSERT INTO") and sql.endswith(")") and "VALUES (" in sql:
+            por_sql.setdefault(sql, []).append(params)
+        else:
+            agrupados.append((sql, params))
+    for sql, linhas in por_sql.items():
+        base, valores = sql.split(" VALUES ")
+        for inicio in range(0, len(linhas), por_insert):
+            bloco = linhas[inicio:inicio + por_insert]
+            agrupados.append((f"{base} VALUES {', '.join([valores] * len(bloco))}", tuple(v for l in bloco for v in l)))
+    return agrupados
 
 
 class ErroNoBanco(RuntimeError):

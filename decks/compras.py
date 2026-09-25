@@ -7,7 +7,9 @@
 - Lista de compra: o texto "3 Nome" de tudo que falta num deck, pra colar na "Compra por Lista" da
   Liga, que monta o carrinho mais barato entre as lojas (o "carrinho geral" que o README pedia).
 
-A Liga escreve as lendas como "Campeão - Título" ("Jinx - Loose Cannon"), e é assim que elas vão.
+A Liga escreve os campeões como "Campeão - Título": a lenda "Loose Cannon" vira "Jinx - Loose Cannon",
+e a unidade "Ezreal, Prodigy" vira "Ezreal - Prodigy" (com a vírgula, a página da Liga não abre; conferido
+no site em 25/09/2026).
 """
 
 from urllib.parse import urlencode
@@ -19,7 +21,7 @@ from juiz import config
 def nome_na_liga(carta: str, catalogo: Catalogo) -> str:
     if carta in catalogo and "Legend" in catalogo.cartas[carta].tipos.split():
         return nome_da_lenda(carta, catalogo, separador=" - ")
-    return carta
+    return carta.replace(", ", " - ", 1)  # "Ezreal, Prodigy" -> "Ezreal - Prodigy"
 
 
 def link_da_carta(carta: str, catalogo: Catalogo) -> str:

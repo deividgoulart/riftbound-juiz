@@ -153,9 +153,24 @@ GALERIA_DADOS_URL = "https://riftbound.leagueoflegends.com/_next/data/{build_id}
 GALERIA_CARTAS = RAW_DIR / "galeria_cartas.json"
 GALERIA_ATUALIZAR_A_CADA_DIAS = 7
 
-# Compras (fase 2, etapa 3): Liga Riftbound. A página da carta traz o resumo de preços do marketplace
-# (menor, médio e maior, normal e foil); os preços de cada loja vêm como imagem e não são lidos.
+# Compras (fase 2, etapa 3): Liga Riftbound (links e Compra por Lista).
 LIGA_URL = "https://www.ligariftbound.com.br/"
 LIGA_COMPRA_POR_LISTA = LIGA_URL + "?view=cards/lista"
-PRECOS_VALIDOS_POR_DIAS = 7  # preço guardado vale uma semana; depois, busca de novo
-PRECOS_INTERVALO_SEGUNDOS = 1.0  # entre um pedido e outro à Liga, pra não sobrecarregar o site
+# Preço estimado: o preço de mercado do TCGplayer (EUA), numa cópia diária publicada no GitHub
+# (rleutz/riftbound-prices, que lê o tcgcsv.com), vezes quantos reais a Liga cobra por dólar do TCGplayer.
+# A Liga barra programas (proteção anti-robô), então o preço de lá não é lido direto.
+PRECOS_TCG_URL = "https://raw.githubusercontent.com/rleutz/riftbound-prices/main/prices/riftbound_prices_updated.json"
+PRECOS_ATUALIZAR_A_CADA_DIAS = 7
+# Calibrado com o MENOR preço da Liga (versão normal): 23 cartas salvas em 25/09/2026 contra o TCGplayer de
+# 24/09/2026 (avaliacao/precos_liga_calibracao.csv; refazer com: python -m decks.calibrar_precos <pasta>).
+# O menor anúncio da Liga segue duas faixas: carta barata sai quase pelo número do preço em dólar (o
+# anúncio mais barato é de "bulk"), e carta cara sai por umas 9,5 vezes. Uma razão fixa errou 80%; com as
+# duas faixas, o erro medido deixando cada carta de fora é de 33% por carta e 20% na soma de 10 cartas.
+# A amostra não tem cartas entre US$ 0,50 e US$ 2,50: nessa faixa a razão sobe aos poucos (interpolação),
+# sem medição. O câmbio do dia já está embutido: se o dólar mudar muito, recalibre.
+FAIXA_BARATA_ATE_USD = 0.50
+FAIXA_CARA_DESDE_USD = 2.50
+REAIS_POR_DOLAR_BARATAS = 1.67
+REAIS_POR_DOLAR_CARAS = 9.51
+ERRO_TIPICO_POR_CARTA = 0.33
+ERRO_TIPICO_10_CARTAS = 0.20

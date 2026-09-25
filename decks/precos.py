@@ -1,33 +1,113 @@
-"""Preço das cartas que faltam (fase 2, etapa 3): resumo do marketplace da Liga Riftbound.
+"""Preço estimado das cartas que faltam (fase 2, etapa 3).
 
-A página de cada carta na Liga mostra o "Preço Médio de Venda no Marketplace": menor, médio e maior
-preço, separados em Normal e Foil, em texto. É isso que lemos. Os preços de cada loja aparecem como
-imagens embaralhadas (a Liga não quer que sejam lidos automaticamente), então ficam de fora.
+Por que estimado: a Liga Riftbound tem o preço de verdade no Brasil, mas barra programas (a primeira
+tentativa de ler as páginas dela foi recusada já na 1ª carta) e mostra os preços de cada loja como
+imagens embaralhadas. Não contornamos isso: o preço real continua a um clique, no link da carta e na
+Compra por Lista.
 
-Cuidados pra não sobrecarregar o site:
-- só busca as cartas que faltam, e só quando alguém com a senha clica em "Buscar preços";
-- um pedido por segundo (config.PRECOS_INTERVALO_SEGUNDOS);
-- o preço fica guardado no banco (tabela precos) e vale uma semana (config.PRECOS_VALIDOS_POR_DIAS).
+Como estima:
+1. Preço de mercado do TCGplayer (EUA), numa cópia diária e pública no GitHub (config.PRECOS_TCG_URL,
+   que lê o tcgcsv.com). Vem por código de carta ("VEN-021", "VEN-021a"...), que vira nome pela galeria
+   oficial (decks/codigos.py). Das várias impressões, vale a mais barata: qualquer uma serve pro deck.
+2. Reais = dólares × uma razão que depende da faixa de preço da carta (reais_por_dolar), calibrada com o
+   MENOR preço real da Liga (decks/calibrar_precos.py). O erro medido fica em config e aparece na tela.
 
-O formato foi conferido numa página real salva em 25/09/2026 (tests/dados/liga_precos.html, só o
-trecho dos preços). Se a Liga mudar o site, o leitor devolve None e a página avisa que não achou.
+A leitura da página da Liga (ler_precos) continua aqui, mas só pra calibrar: com páginas salvas à mão.
 """
 
+import math
 import re
-import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 import httpx
 from bs4 import BeautifulSoup
 
-from decks.banco import Banco
+from decks.banco import Banco, agrupar_inserts
 from decks.catalogo import Catalogo
-from decks.compras import link_da_carta
 from juiz import config
 
-CABECALHOS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                            "Chrome/124.0 Safari/537.36"}
+
+# --- preço do TCGplayer ---
+
+def baixar_precos_tcg(catalogo: Catalogo, cliente: httpx.Client | None = None) -> tuple[dict[str, float], str | None]:
+    """({carta: menor preço em US$ entre as impressões}, data da cópia)."""
+    cliente = cliente or httpx.Client(timeout=60, follow_redirects=True)
+    resposta = cliente.get(config.PRECOS_TCG_URL)
+    resposta.raise_for_status()
+    dados = resposta.json()
+    precos: dict[str, float] = {}
+    for codigo, usd in (dados.get("prices") or {}).items():
+        carta = catalogo.por_codigo(codigo)
+        if carta and isinstance(usd, (int, float)) and usd > 0:
+            precos[carta] = min(usd, precos.get(carta, usd))
+    return precos, dados.get("updated")
+
+
+def atualizar_precos(banco: Banco, catalogo: Catalogo, cliente: httpx.Client | None = None,
+                     agora: datetime | None = None) -> int:
+    """Troca os preços guardados pelos da cópia mais recente (numa transação só). Devolve quantas cartas
+    têm preço. Uma cópia vazia (ex.: galeria de códigos indisponível) não apaga os preços que já existem."""
+    agora = agora or datetime.now(timezone.utc)
+    precos, data = baixar_precos_tcg(catalogo, cliente)
+    comandos: list[tuple[str, tuple]] = []
+    if precos:
+        comandos.append(("DELETE FROM precos_tcg", ()))
+        comandos += agrupar_inserts([("INSERT INTO precos_tcg (carta, usd) VALUES (?, ?)", (c, u)) for c, u in precos.items()])
+        comandos.append(("INSERT OR REPLACE INTO meta (chave, valor) VALUES ('precos_data_tcg', ?)", (data,)))
+    comandos.append(("INSERT OR REPLACE INTO meta (chave, valor) VALUES ('precos_em', ?)", (agora.isoformat(timespec="seconds"),)))
+    banco.lote(comandos)
+    return len(precos)
+
+
+def precos_guardados(banco: Banco) -> dict[str, float]:
+    return {l["carta"]: l["usd"] for l in banco.consultar("SELECT carta, usd FROM precos_tcg")}
+
+
+def data_dos_precos(banco: Banco) -> str | None:
+    linha = banco.consultar("SELECT valor FROM meta WHERE chave = 'precos_data_tcg'")
+    return linha[0]["valor"] if linha else None
+
+
+def precisa_atualizar_precos(banco: Banco, agora: datetime | None = None) -> bool:
+    linha = banco.consultar("SELECT valor FROM meta WHERE chave = 'precos_em'")
+    agora = agora or datetime.now(timezone.utc)
+    return not linha or agora - datetime.fromisoformat(linha[0]["valor"]) > timedelta(days=config.PRECOS_ATUALIZAR_A_CADA_DIAS)
+
+
+# --- estimativa em reais ---
+
+def reais_por_dolar(usd: float, baratas: float = None, caras: float = None) -> float:
+    """Quantos reais o menor anúncio da Liga cobra por dólar do TCGplayer, conforme a faixa de preço da carta.
+    Entre as duas faixas, a razão sobe aos poucos (interpolação na escala logarítmica), sem salto."""
+    baratas = baratas if baratas is not None else config.REAIS_POR_DOLAR_BARATAS
+    caras = caras if caras is not None else config.REAIS_POR_DOLAR_CARAS
+    ate, desde = config.FAIXA_BARATA_ATE_USD, config.FAIXA_CARA_DESDE_USD
+    if usd <= ate:
+        return baratas
+    if usd >= desde:
+        return caras
+    fracao = math.log(usd / ate) / math.log(desde / ate)
+    return math.exp(math.log(baratas) + fracao * (math.log(caras) - math.log(baratas)))
+
+
+def estimar_reais(usd: float | None) -> float | None:
+    """Menor preço estimado na Liga, em reais."""
+    return round(usd * reais_por_dolar(usd), 2) if usd is not None else None
+
+
+def custo_pra_completar(faltando: list[tuple[str, int]], precos_usd: dict[str, float]) -> tuple[float, list[str]]:
+    """(custo estimado em reais das cópias que faltam, cartas sem preço)."""
+    total, sem_preco = 0.0, []
+    for carta, qtd in faltando:
+        if carta in precos_usd:
+            total += estimar_reais(precos_usd[carta]) * qtd
+        else:
+            sem_preco.append(carta)
+    return round(total, 2), sem_preco
+
+
+# --- página salva da Liga (só pra calibrar) ---
 
 @dataclass
 class Preco:
@@ -44,7 +124,7 @@ def _reais(texto: str) -> float | None:
 
 
 def ler_precos(html: str) -> Preco | None:
-    """Resumo de preços da página da carta. None se a página não tiver (carta sem oferta ou site mudou)."""
+    """Resumo "Preço Médio de Venda no Marketplace" da página da carta (normal e foil). None se não houver."""
     sopa = BeautifulSoup(html, "html.parser")
     por_tipo: dict[str, dict[str, float | None]] = {}
     for bloco in sopa.select("#container-show-price .container-price-mkp"):
@@ -58,57 +138,7 @@ def ler_precos(html: str) -> Preco | None:
     return Preco(normal["min"], normal["medium"], normal["max"], (por_tipo.get("foil") or {}).get("min"))
 
 
-def buscar_preco(carta: str, catalogo: Catalogo, cliente: httpx.Client) -> Preco | None:
-    resposta = cliente.get(link_da_carta(carta, catalogo))
-    resposta.raise_for_status()
-    return ler_precos(resposta.text)
-
-
-def precos_guardados(banco: Banco) -> dict[str, dict]:
-    return {l["carta"]: l for l in banco.consultar("SELECT * FROM precos")}
-
-
-def atualizar_precos(banco: Banco, catalogo: Catalogo, cartas: list[str], cliente: httpx.Client | None = None,
-                     agora: datetime | None = None, esperar=time.sleep) -> dict[str, str]:
-    """Busca o preço das `cartas` que não têm um preço recente. Devolve {carta: problema} das que falharam.
-    Grava cada preço assim que chega, então uma falha no meio não perde os anteriores."""
-    agora = agora or datetime.now(timezone.utc)
-    guardados = precos_guardados(banco)
-    validade = timedelta(days=config.PRECOS_VALIDOS_POR_DIAS)
-    pendentes = [c for c in dict.fromkeys(cartas)
-                 if c not in guardados or agora - datetime.fromisoformat(guardados[c]["atualizado_em"]) > validade]
-    cliente = cliente or httpx.Client(timeout=30, headers=CABECALHOS, follow_redirects=True)
-    problemas = {}
-    for i, carta in enumerate(pendentes):
-        if i:
-            esperar(config.PRECOS_INTERVALO_SEGUNDOS)
-        try:
-            preco = buscar_preco(carta, catalogo, cliente)
-        except httpx.HTTPError as erro:
-            problemas[carta] = f"a Liga não respondeu ({type(erro).__name__})"
-            if isinstance(erro, httpx.HTTPStatusError) and erro.response.status_code in (403, 429):
-                problemas.update({c: "busca interrompida: a Liga recusou os pedidos" for c in pendentes[i + 1:]})
-                break
-            continue
-        if preco is None:
-            problemas[carta] = "a página da carta não tem preço"
-            continue
-        banco.executar("INSERT OR REPLACE INTO precos (carta, menor, medio, maior, menor_foil, atualizado_em) "
-                       "VALUES (?, ?, ?, ?, ?, ?)", (carta, preco.menor, preco.medio, preco.maior, preco.menor_foil,
-                                                    agora.isoformat(timespec="seconds")))
-    return problemas
-
-
-def custo_pra_completar(faltando: list[tuple[str, int]], precos: dict[str, dict]) -> tuple[float, list[str]]:
-    """(soma de cópias que faltam × menor preço, cartas sem preço). A foil também serve pro deck, então
-    vale a mais barata entre normal e foil."""
-    total, sem_preco = 0.0, []
-    for carta, qtd in faltando:
-        guardado = precos.get(carta) or {}
-        opcoes = [v for v in (guardado.get("menor"), guardado.get("menor_foil")) if v is not None]
-        menor = min(opcoes) if opcoes else None
-        if menor is None:
-            sem_preco.append(carta)
-        else:
-            total += menor * qtd
-    return round(total, 2), sem_preco
+def codigo_da_pagina(html: str) -> str | None:
+    """Coleção e número da impressão, como a própria página informa: priceAlertInit(19, 251, 'OGN', '251')."""
+    achado = re.search(r"priceAlertInit\(\d+,\s*\d+,\s*'([A-Z0-9]+)',\s*'([^']+)'\)", html.replace("&#39;", "'"))
+    return f"{achado.group(1)}-{achado.group(2)}" if achado else None

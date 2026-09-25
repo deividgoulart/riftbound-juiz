@@ -144,24 +144,24 @@ def test_modo_leitura_nao_tem_atualizar_agora(pagina, banco, catalogo):
 
 # --- Comprar o que falta (etapa 3) ---
 
-def test_o_que_falta_tem_lista_de_compra_link_e_custo(pagina, banco, catalogo):
+def test_o_que_falta_tem_lista_de_compra_link_e_custo_estimado(pagina, banco, catalogo):
     salvar_deck(banco, "Jinx", ler_lista("Loose Cannon\n3 Jinx, Rebel\n2 Abandon", catalogo))
     colecao.salvar_alteracoes(banco, {"Abandon": 2, "Jinx, Rebel": 1})
-    banco.executar("INSERT INTO precos (carta, menor, medio, maior, menor_foil, atualizado_em) "
-                   "VALUES ('Jinx, Rebel', 4.0, 4.3, 5.0, 2.5, '2026-09-25T00:00:00+00:00')")
+    banco.executar("INSERT INTO precos_tcg (carta, usd) VALUES ('Jinx, Rebel', 0.5)")
+    banco.executar("INSERT INTO meta (chave, valor) VALUES ('precos_data_tcg', '2026-09-24')")
     at = pagina()
     assert not at.exception
-    assert [c.value for c in at.code] == ["2 Jinx, Rebel\n1 Jinx - Loose Cannon"]
+    assert [c.value for c in at.code] == ["2 Jinx - Rebel\n1 Jinx - Loose Cannon"]
     tabela = at.dataframe[1].value  # [0] é a coleção
     assert list(tabela["Carta"]) == ["Jinx, Rebel", "Loose Cannon"]
-    assert list(tabela["Menor preço"]) == ["R$ 2,50", "—"]
-    assert tabela["Liga"][0].startswith("https://www.ligariftbound.com.br/?view=cards%2Fcard&card=Jinx%2C+Rebel")
-    assert any("Custo estimado pra completar: R$ 5,00" in m.value and "sem preço: 1" in m.value for m in at.markdown)
-    assert botao(at, "Buscar preços na Liga")
+    assert list(tabela["Preço estimado"]) == ["≈ R$ 0,83", "—"]  # 0,50 × 1,67 (faixa barata)
+    assert tabela["Liga"][0].startswith("https://www.ligariftbound.com.br/?view=cards%2Fcard&card=Jinx+-+Rebel")
+    assert any("Custo estimado pra completar: ≈ R$ 1,66" in m.value and "sem preço: 1" in m.value for m in at.markdown)
+    assert any("TCGplayer (EUA) de 24/09/2026" in c.value and "Erro típico" in c.value for c in at.caption)
+    assert "Buscar preços na Liga" not in {b.label for b in at.button}
 
 
-def test_modo_leitura_nao_busca_precos(pagina, banco, catalogo):
+def test_modo_leitura_mostra_a_lista_de_compra(pagina, banco, catalogo):
     salvar_deck(banco, "Jinx", ler_lista("3 Jinx, Rebel", catalogo))
     at = pagina(senha="segredo")
-    assert "Buscar preços na Liga" not in {b.label for b in at.button}
-    assert [c.value for c in at.code] == ["3 Jinx, Rebel"]  # a lista de compra continua visível
+    assert [c.value for c in at.code] == ["3 Jinx - Rebel"]

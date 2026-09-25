@@ -32,7 +32,7 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 
-from decks.banco import Banco
+from decks.banco import Banco, agrupar_inserts
 from decks.catalogo import Catalogo, nome_da_lenda
 from decks.importar import ListaDeDeck
 from decks.meus_decks import comandos_do_deck
@@ -146,24 +146,6 @@ def ler_torneios(torneios: list[dict], catalogo: Catalogo, relatorio: RelatorioM
     return decks
 
 
-def _agrupar(comandos: list[tuple[str, tuple]], por_insert: int = 100) -> list[tuple[str, tuple]]:
-    """Junta INSERTs iguais de uma linha em INSERTs de várias linhas: centenas de decks viram poucos
-    comandos (no Turso, o lote inteiro vai numa ida só)."""
-    agrupados: list[tuple[str, tuple]] = []
-    por_sql: dict[str, list[tuple]] = {}
-    for sql, params in comandos:
-        if sql.startswith("INSERT INTO") and sql.endswith(")") and "VALUES (" in sql:
-            por_sql.setdefault(sql, []).append(params)
-        else:
-            agrupados.append((sql, params))
-    for sql, linhas in por_sql.items():
-        base, valores = sql.split(" VALUES ")
-        for inicio in range(0, len(linhas), por_insert):
-            bloco = linhas[inicio:inicio + por_insert]
-            agrupados.append((f"{base} VALUES {', '.join([valores] * len(bloco))}", tuple(v for l in bloco for v in l)))
-    return agrupados
-
-
 def atualizar_meta(banco: Banco, catalogo: Catalogo, chave: str, dias: int = config.META_DIAS,
                    cliente: httpx.Client | None = None, agora: datetime | None = None) -> RelatorioMeta:
     """Troca os decks do meta pelos da coleta nova, numa transação só. Os decks manuais não mudam."""
@@ -178,7 +160,7 @@ def atualizar_meta(banco: Banco, catalogo: Catalogo, chave: str, dias: int = con
         for d in decks:
             novos += comandos_do_deck(d.nome, d.lista, origem=ORIGEM, url=d.url, data=d.data, torneio=d.torneio,
                                       colocacao=d.colocacao)[1]
-        comandos += _agrupar(novos)
+        comandos += agrupar_inserts(novos)
     comandos.append(("INSERT OR REPLACE INTO meta (chave, valor) VALUES ('meta_decks_em', ?)",
                      (agora.isoformat(timespec="seconds"),)))
     banco.lote(comandos)
