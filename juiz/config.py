@@ -161,11 +161,16 @@ LIGA_COMPRA_POR_LISTA = LIGA_URL + "?view=cards/lista"
 # A Liga barra programas (proteção anti-robô), então o preço de lá não é lido direto.
 PRECOS_TCG_URL = "https://raw.githubusercontent.com/rleutz/riftbound-prices/main/prices/riftbound_prices_updated.json"
 PRECOS_ATUALIZAR_A_CADA_DIAS = 7
-# Calibrado em 25/09/2026 com 23 cartas da Liga (preço médio) contra o TCGplayer de 24/09/2026, de R$ 0,47
-# a R$ 242 (avaliacao/precos_liga_calibracao.csv; refazer com: python -m decks.calibrar_precos <pasta>).
-# Uma razão fixa errou menos que um modelo com expoente (log-log). Erro medido deixando cada carta de
-# fora: mediana de 35% por carta; na soma de 10 cartas, mediana de 19%. O câmbio do dia já está embutido:
-# se o dólar mudar muito, recalibre.
-REAIS_POR_DOLAR_TCG = 7.83
-ERRO_TIPICO_POR_CARTA = 0.35
-ERRO_TIPICO_10_CARTAS = 0.19
+# Calibrado com o MENOR preço da Liga (versão normal): 23 cartas salvas em 25/09/2026 contra o TCGplayer de
+# 24/09/2026 (avaliacao/precos_liga_calibracao.csv; refazer com: python -m decks.calibrar_precos <pasta>).
+# O menor anúncio da Liga segue duas faixas: carta barata sai quase pelo número do preço em dólar (o
+# anúncio mais barato é de "bulk"), e carta cara sai por umas 9,5 vezes. Uma razão fixa errou 80%; com as
+# duas faixas, o erro medido deixando cada carta de fora é de 33% por carta e 20% na soma de 10 cartas.
+# A amostra não tem cartas entre US$ 0,50 e US$ 2,50: nessa faixa a razão sobe aos poucos (interpolação),
+# sem medição. O câmbio do dia já está embutido: se o dólar mudar muito, recalibre.
+FAIXA_BARATA_ATE_USD = 0.50
+FAIXA_CARA_DESDE_USD = 2.50
+REAIS_POR_DOLAR_BARATAS = 1.67
+REAIS_POR_DOLAR_CARAS = 9.51
+ERRO_TIPICO_POR_CARTA = 0.33
+ERRO_TIPICO_10_CARTAS = 0.20

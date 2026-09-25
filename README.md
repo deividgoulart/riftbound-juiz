@@ -590,11 +590,13 @@ Os campeões vão pra Liga como "Ezreal - Prodigy": com a vírgula, a página n�
 
 **Preço estimado: TCGplayer convertido pra reais, calibrado com a Liga.** A primeira ideia era ler o preço na própria Liga, mas ela barrou os pedidos já na 1ª carta (proteção anti-robô), e os preços de cada loja aparecem como imagens embaralhadas. Não contornamos isso. O preço de verdade continua a um clique, no link da carta e na Compra por Lista.
 
-A estimativa usa o preço de mercado do TCGplayer (EUA), de uma cópia diária e pública no GitHub ([rleutz/riftbound-prices](https://github.com/rleutz/riftbound-prices), que lê o [tcgcsv.com](https://tcgcsv.com)), atualizada no app uma vez por semana. As cartas vêm por código, e das várias impressões vale a mais barata. O preço em dólar vira reais multiplicado por **R$ 7,83**, que foi medido assim:
-- 23 páginas de carta salvas da Liga em 25/09/2026, de R$ 0,47 a R$ 242, comparadas com o TCGplayer de 24/09 ([`avaliacao/precos_liga_calibracao.csv`](avaliacao/precos_liga_calibracao.csv));
-- a Liga cobra, na mediana, **R$ 7,83 por dólar do TCGplayer** (preço médio). Isso já inclui o câmbio do dia e a diferença entre os mercados;
-- um modelo que muda a razão conforme o preço da carta (log-log) errou mais, e o expoente dele deu 1,03: uma razão fixa basta;
-- **erro medido** deixando cada carta de fora do ajuste: **35% numa carta** (78% das cartas ficam dentro de ±50%) e **19% na soma de 10 cartas**, porque os erros de uma carta pra outra se compensam em parte. Por isso a estimativa serve mais pro custo do deck do que pro preço de uma carta. Alguns casos se afastam muito: a Carnivorous Snapvine custa na Liga quase 4 vezes a estimativa.
+A estimativa usa o preço de mercado do TCGplayer (EUA), de uma cópia diária e pública no GitHub ([rleutz/riftbound-prices](https://github.com/rleutz/riftbound-prices), que lê o [tcgcsv.com](https://tcgcsv.com)), atualizada no app uma vez por semana. As cartas vêm por código, e das várias impressões vale a mais barata. O valor em dólar vira uma **estimativa do menor preço na Liga**, calibrada assim:
+- 23 páginas de carta salvas da Liga em 25/09/2026, com menor preço entre R$ 0,07 e R$ 229,90, comparadas com o TCGplayer de 24/09 ([`avaliacao/precos_liga_calibracao.csv`](avaliacao/precos_liga_calibracao.csv));
+- o menor anúncio da Liga segue **duas faixas**:
+  - **cartas baratas** (até US$ 0,50): R$ 1,67 por dólar. O anúncio mais barato é de "bulk" e sai quase pelo número do preço em dólar (a Bushwhack, US$ 0,06, sai por R$ 0,07);
+  - **cartas caras** (a partir de US$ 2,50): R$ 9,51 por dólar;
+  - entre as duas, a razão sobe aos poucos (interpolação), sem salto. A amostra não tem cartas nessa faixa, então ali a estimativa não foi medida;
+- com uma razão fixa, o erro era de 80%. Com as duas faixas, o **erro medido** deixando cada carta de fora do ajuste fica em **33% numa carta** e **20% na soma de 10 cartas**, porque os erros de uma carta pra outra se compensam em parte. A estimativa serve mais pro custo do deck do que pro preço de uma carta. Alguns casos se afastam muito: a Carnivorous Snapvine (US$ 0,31) tem o menor anúncio da Liga a R$ 9,00.
 
 A tela mostra a data da cópia, a razão e o erro junto com o custo. Pra recalibrar (ex.: se o dólar mudar muito), salve páginas de carta da Liga numa pasta e rode `python -m decks.calibrar_precos pasta/`.
 
@@ -611,7 +613,7 @@ O plano da fase 2, com o que já foi feito:
 4. ✅ Para cada deck, **porcentagem de conclusão e cartas que faltam** (deck menos coleção), com banco **SQLite** (Turso na nuvem).
 5. **Sugestão de decks**: comparar a coleção com os decks do meta e ordenar do mais fácil pro mais difícil de montar. A ordenação por porcentagem e cartas faltando já existe; falta incluir o custo pra completar, quando tiver preço.
 6. ✅ Para cada carta que falta, **link direto** na [Liga Riftbound](https://ligariftbound.com.br) e a lista pra **Compra por Lista** (o carrinho geral). A [MYP Cards](https://mypcards.com/riftbound) ficou de fora (formato da busca desconhecido).
-7. ✅ **Preço das cartas que faltam**, estimado pelo TCGplayer e calibrado com a Liga (erro medido na tela).
+7. ✅ **Preço das cartas que faltam**, estimado pelo TCGplayer e calibrado com o menor preço da Liga (erro medido na tela).
 8. ✅ **Aba nova no Streamlit** pro deck builder, e o juiz responde dúvidas sobre as cartas dos meus decks (Deck em foco).
 
 ## Créditos e licenças

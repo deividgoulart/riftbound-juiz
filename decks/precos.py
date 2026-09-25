@@ -9,12 +9,13 @@ Como estima:
 1. Preço de mercado do TCGplayer (EUA), numa cópia diária e pública no GitHub (config.PRECOS_TCG_URL,
    que lê o tcgcsv.com). Vem por código de carta ("VEN-021", "VEN-021a"...), que vira nome pela galeria
    oficial (decks/codigos.py). Das várias impressões, vale a mais barata: qualquer uma serve pro deck.
-2. Reais = dólares × config.REAIS_POR_DOLAR_TCG, calibrado com preços reais da Liga
-   (decks/calibrar_precos.py). O erro medido fica em config e aparece na tela.
+2. Reais = dólares × uma razão que depende da faixa de preço da carta (reais_por_dolar), calibrada com o
+   MENOR preço real da Liga (decks/calibrar_precos.py). O erro medido fica em config e aparece na tela.
 
 A leitura da página da Liga (ler_precos) continua aqui, mas só pra calibrar: com páginas salvas à mão.
 """
 
+import math
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -76,8 +77,23 @@ def precisa_atualizar_precos(banco: Banco, agora: datetime | None = None) -> boo
 
 # --- estimativa em reais ---
 
+def reais_por_dolar(usd: float, baratas: float = None, caras: float = None) -> float:
+    """Quantos reais o menor anúncio da Liga cobra por dólar do TCGplayer, conforme a faixa de preço da carta.
+    Entre as duas faixas, a razão sobe aos poucos (interpolação na escala logarítmica), sem salto."""
+    baratas = baratas if baratas is not None else config.REAIS_POR_DOLAR_BARATAS
+    caras = caras if caras is not None else config.REAIS_POR_DOLAR_CARAS
+    ate, desde = config.FAIXA_BARATA_ATE_USD, config.FAIXA_CARA_DESDE_USD
+    if usd <= ate:
+        return baratas
+    if usd >= desde:
+        return caras
+    fracao = math.log(usd / ate) / math.log(desde / ate)
+    return math.exp(math.log(baratas) + fracao * (math.log(caras) - math.log(baratas)))
+
+
 def estimar_reais(usd: float | None) -> float | None:
-    return round(usd * config.REAIS_POR_DOLAR_TCG, 2) if usd is not None else None
+    """Menor preço estimado na Liga, em reais."""
+    return round(usd * reais_por_dolar(usd), 2) if usd is not None else None
 
 
 def custo_pra_completar(faltando: list[tuple[str, int]], precos_usd: dict[str, float]) -> tuple[float, list[str]]:

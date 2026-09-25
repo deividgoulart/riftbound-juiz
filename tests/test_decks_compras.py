@@ -122,18 +122,27 @@ def test_copia_sem_cartas_reconhecidas_nao_apaga_os_precos(banco, com_codigos, c
     assert len(precos_guardados(banco)) == 3
 
 
-def test_estimativa_em_reais_e_custo_pra_completar():
-    assert precos.estimar_reais(1.0) == config.REAIS_POR_DOLAR_TCG
+def test_estimativa_segue_as_duas_faixas_sem_salto():
+    assert precos.estimar_reais(0.10) == round(0.10 * config.REAIS_POR_DOLAR_BARATAS, 2)
+    assert precos.estimar_reais(10.0) == round(10.0 * config.REAIS_POR_DOLAR_CARAS, 2)
     assert precos.estimar_reais(None) is None
+    # entre as faixas, a razão sobe aos poucos: sem salto de preço de um centavo de dólar pro outro
+    razoes = [precos.reais_por_dolar(u / 100) for u in range(40, 300)]
+    assert razoes == sorted(razoes)
+    assert max(b / a for a, b in zip(razoes, razoes[1:])) < 1.03
+
+
+def test_custo_pra_completar():
     custo, sem_preco = custo_pra_completar([("Jinx, Rebel", 2), ("Loose Cannon", 1), ("Void Seeker", 1)],
-                                           {"Jinx, Rebel": 0.5, "Loose Cannon": 0.23})
-    assert custo == round(2 * round(0.5 * config.REAIS_POR_DOLAR_TCG, 2) + round(0.23 * config.REAIS_POR_DOLAR_TCG, 2), 2)
+                                           {"Jinx, Rebel": 0.5, "Loose Cannon": 20.0})
+    assert custo == round(2 * precos.estimar_reais(0.5) + precos.estimar_reais(20.0), 2)
     assert sem_preco == ["Void Seeker"]
 
 
-def test_calibracao_mede_a_razao_e_o_erro():
-    from decks.calibrar_precos import erros, razao
+def test_calibracao_mede_as_duas_faixas_e_o_erro():
+    from decks.calibrar_precos import erros, razoes
 
-    linhas = [{"usd": u, "liga_medio": u * 8} for u in (0.1, 0.5, 1, 5, 20)]
-    assert razao(linhas) == 8
-    assert erros(linhas, tamanho_da_soma=3) == (0, 0)  # razão constante: erro zero
+    linhas = [{"usd": u, "liga_menor": u * 2} for u in (0.05, 0.1, 0.2, 0.3)] + \
+             [{"usd": u, "liga_menor": u * 10} for u in (3, 5, 20, 40)]
+    assert razoes(linhas) == (2, 10)
+    assert erros(linhas, tamanho_da_soma=3) == (0, 0)  # razão constante em cada faixa: erro zero

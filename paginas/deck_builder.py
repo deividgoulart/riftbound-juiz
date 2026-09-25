@@ -234,9 +234,10 @@ def mostrar_o_que_falta(c) -> None:
     if len(sem_preco) < len(faltando):
         st.markdown(f"**Custo estimado pra completar: ≈ {reais(custo)}**"
                     + (f" (sem preço: {len(sem_preco)} cartas)" if sem_preco else ""))
-        st.caption(f"Estimativa, não é o preço da Liga: preço de mercado do TCGplayer (EUA)"
+        st.caption(f"Estimativa do menor preço na Liga, não é o preço de lá: preço de mercado do TCGplayer (EUA)"
                    + (f" de {date.fromisoformat(data_dos_precos):%d/%m/%Y}" if data_dos_precos else "")
-                   + f" × R$ {config.REAIS_POR_DOLAR_TCG:.2f} por dólar, calibrado com preços reais da Liga. "
+                   + f" convertido com as razões medidas contra o menor preço da Liga (R$ {config.REAIS_POR_DOLAR_BARATAS:.2f} "
+                   f"por dólar nas cartas baratas, R$ {config.REAIS_POR_DOLAR_CARAS:.2f} nas caras). "
                    f"Erro típico: {config.ERRO_TIPICO_POR_CARTA:.0%} numa carta e {config.ERRO_TIPICO_10_CARTAS:.0%} "
                    "na soma de 10 cartas. O preço de verdade está no link de cada carta e na Compra por Lista.")
 

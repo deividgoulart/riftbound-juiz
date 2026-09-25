@@ -154,9 +154,9 @@ def test_o_que_falta_tem_lista_de_compra_link_e_custo_estimado(pagina, banco, ca
     assert [c.value for c in at.code] == ["2 Jinx - Rebel\n1 Jinx - Loose Cannon"]
     tabela = at.dataframe[1].value  # [0] é a coleção
     assert list(tabela["Carta"]) == ["Jinx, Rebel", "Loose Cannon"]
-    assert list(tabela["Preço estimado"]) == ["≈ R$ 3,92", "—"]  # 0,50 × 7,83
+    assert list(tabela["Preço estimado"]) == ["≈ R$ 0,83", "—"]  # 0,50 × 1,67 (faixa barata)
     assert tabela["Liga"][0].startswith("https://www.ligariftbound.com.br/?view=cards%2Fcard&card=Jinx+-+Rebel")
-    assert any("Custo estimado pra completar: ≈ R$ 7,84" in m.value and "sem preço: 1" in m.value for m in at.markdown)
+    assert any("Custo estimado pra completar: ≈ R$ 1,66" in m.value and "sem preço: 1" in m.value for m in at.markdown)
     assert any("TCGplayer (EUA) de 24/09/2026" in c.value and "Erro típico" in c.value for c in at.caption)
     assert "Buscar preços na Liga" not in {b.label for b in at.button}
 
