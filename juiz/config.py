@@ -153,9 +153,19 @@ GALERIA_DADOS_URL = "https://riftbound.leagueoflegends.com/_next/data/{build_id}
 GALERIA_CARTAS = RAW_DIR / "galeria_cartas.json"
 GALERIA_ATUALIZAR_A_CADA_DIAS = 7
 
-# Compras (fase 2, etapa 3): Liga Riftbound. A página da carta traz o resumo de preços do marketplace
-# (menor, médio e maior, normal e foil); os preços de cada loja vêm como imagem e não são lidos.
+# Compras (fase 2, etapa 3): Liga Riftbound (links e Compra por Lista).
 LIGA_URL = "https://www.ligariftbound.com.br/"
 LIGA_COMPRA_POR_LISTA = LIGA_URL + "?view=cards/lista"
-PRECOS_VALIDOS_POR_DIAS = 7  # preço guardado vale uma semana; depois, busca de novo
-PRECOS_INTERVALO_SEGUNDOS = 1.0  # entre um pedido e outro à Liga, pra não sobrecarregar o site
+# Preço estimado: o preço de mercado do TCGplayer (EUA), numa cópia diária publicada no GitHub
+# (rleutz/riftbound-prices, que lê o tcgcsv.com), vezes quantos reais a Liga cobra por dólar do TCGplayer.
+# A Liga barra programas (proteção anti-robô), então o preço de lá não é lido direto.
+PRECOS_TCG_URL = "https://raw.githubusercontent.com/rleutz/riftbound-prices/main/prices/riftbound_prices_updated.json"
+PRECOS_ATUALIZAR_A_CADA_DIAS = 7
+# Calibrado em 25/09/2026 com 23 cartas da Liga (preço médio) contra o TCGplayer de 24/09/2026, de R$ 0,47
+# a R$ 242 (avaliacao/precos_liga_calibracao.csv; refazer com: python -m decks.calibrar_precos <pasta>).
+# Uma razão fixa errou menos que um modelo com expoente (log-log). Erro medido deixando cada carta de
+# fora: mediana de 35% por carta; na soma de 10 cartas, mediana de 19%. O câmbio do dia já está embutido:
+# se o dólar mudar muito, recalibre.
+REAIS_POR_DOLAR_TCG = 7.83
+ERRO_TIPICO_POR_CARTA = 0.35
+ERRO_TIPICO_10_CARTAS = 0.19

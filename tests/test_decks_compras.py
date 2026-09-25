@@ -11,6 +11,7 @@ from decks import precos
 from decks.catalogo import Catalogo
 from decks.compras import link_da_carta, lista_de_compra, nome_na_liga
 from decks.precos import Preco, atualizar_precos, custo_pra_completar, ler_precos, precos_guardados
+from juiz import config
 from tests.conftest import CARTAS
 
 PAGINA_DA_LIGA = (Path(__file__).parent / "dados" / "liga_precos.html").read_text(encoding="utf-8")
@@ -81,42 +82,58 @@ def test_valor_com_milhar():
     assert precos._reais("R$ 1.234,50") == 1234.5
 
 
-def cliente_da_liga(pedidos, status=200, html=PAGINA_DA_LIGA):
+def test_codigo_da_pagina_salva():
+    trecho = 'onclick="mpcard.priceAlertInit(19, 251, &#39;OGN&#39;, &#39;251&#39;);"'
+    assert precos.codigo_da_pagina(trecho) == "OGN-251"
+    assert precos.codigo_da_pagina("<html></html>") is None
+
+
+COPIA_TCG = {"updated": "2026-09-24", "prices": {
+    "OGN-251": 0.23, "OGN-202": 0.50, "OGN-202a": 12.0,  # a arte alternativa é mais cara: vale a mais barata
+    "VEN-R01": 0.07, "XYZ-001": 3.0, "OGN-999": None}}
+
+
+def cliente_tcg(pedidos, dados=COPIA_TCG):
     def atender(request):
-        pedidos.append(request)
-        return httpx.Response(status, text=html)
+        pedidos.append(str(request.url))
+        return httpx.Response(200, json=dados)
     return httpx.Client(transport=httpx.MockTransport(atender))
 
 
-def test_atualizar_precos_guarda_e_reaproveita_por_uma_semana(banco, catalogo):
-    pedidos, esperas = [], []
-    atualizar_precos(banco, catalogo, ["Jinx, Rebel", "Abandon", "Jinx, Rebel"], cliente_da_liga(pedidos),
-                     agora=AGORA, esperar=esperas.append)
-    assert len(pedidos) == 2 and esperas == [1.0]  # sem repetir carta, com pausa entre os pedidos
-    assert precos_guardados(banco)["Abandon"]["menor"] == 4.0
-    atualizar_precos(banco, catalogo, ["Abandon"], cliente_da_liga(pedidos), agora=AGORA + timedelta(days=6),
-                     esperar=esperas.append)
-    assert len(pedidos) == 2  # ainda vale
-    atualizar_precos(banco, catalogo, ["Abandon"], cliente_da_liga(pedidos), agora=AGORA + timedelta(days=8),
-                     esperar=esperas.append)
-    assert len(pedidos) == 3
-
-
-def test_liga_recusando_interrompe_a_busca(banco, catalogo):
+def test_precos_do_tcgplayer_por_codigo(com_codigos):
     pedidos = []
-    problemas = atualizar_precos(banco, catalogo, ["Abandon", "Jinx, Rebel", "Void Seeker"],
-                                 cliente_da_liga(pedidos, status=429), agora=AGORA, esperar=lambda s: None)
-    assert len(pedidos) == 1 and set(problemas) == {"Abandon", "Jinx, Rebel", "Void Seeker"}
-    assert precos_guardados(banco) == {}
+    precos_usd, data = precos.baixar_precos_tcg(com_codigos, cliente_tcg(pedidos))
+    assert pedidos == [config.PRECOS_TCG_URL] and data == "2026-09-24"
+    assert precos_usd == {"Loose Cannon": 0.23, "Jinx, Rebel": 0.50, "Fury Rune": 0.07}
 
 
-def test_carta_sem_preco_aparece_nos_problemas(banco, catalogo):
-    problemas = atualizar_precos(banco, catalogo, ["Abandon"], cliente_da_liga([], html="<html></html>"),
-                                 agora=AGORA, esperar=lambda s: None)
-    assert problemas == {"Abandon": "a página da carta não tem preço"}
+def test_atualizar_precos_guarda_e_respeita_a_semana(banco, catalogo, com_codigos):  # catalogo: cria as tabelas
+    assert precos.precisa_atualizar_precos(banco, AGORA)
+    assert atualizar_precos(banco, com_codigos, cliente_tcg([]), agora=AGORA) == 3
+    assert precos_guardados(banco) == {"Loose Cannon": 0.23, "Jinx, Rebel": 0.50, "Fury Rune": 0.07}
+    assert precos.data_dos_precos(banco) == "2026-09-24"
+    assert not precos.precisa_atualizar_precos(banco, AGORA + timedelta(days=6))
+    assert precos.precisa_atualizar_precos(banco, AGORA + timedelta(days=8))
 
 
-def test_custo_pra_completar_usa_a_mais_barata_entre_normal_e_foil():
-    guardados = {"Jinx, Rebel": {"menor": 4.0, "menor_foil": 2.0}, "Abandon": {"menor": 1.5, "menor_foil": None}}
-    assert custo_pra_completar([("Jinx, Rebel", 2), ("Abandon", 3), ("Void Seeker", 1)], guardados) == \
-        (8.5, ["Void Seeker"])
+def test_copia_sem_cartas_reconhecidas_nao_apaga_os_precos(banco, com_codigos, catalogo):
+    atualizar_precos(banco, com_codigos, cliente_tcg([]), agora=AGORA)
+    assert atualizar_precos(banco, catalogo, cliente_tcg([]), agora=AGORA) == 0  # catálogo sem códigos
+    assert len(precos_guardados(banco)) == 3
+
+
+def test_estimativa_em_reais_e_custo_pra_completar():
+    assert precos.estimar_reais(1.0) == config.REAIS_POR_DOLAR_TCG
+    assert precos.estimar_reais(None) is None
+    custo, sem_preco = custo_pra_completar([("Jinx, Rebel", 2), ("Loose Cannon", 1), ("Void Seeker", 1)],
+                                           {"Jinx, Rebel": 0.5, "Loose Cannon": 0.23})
+    assert custo == round(2 * round(0.5 * config.REAIS_POR_DOLAR_TCG, 2) + round(0.23 * config.REAIS_POR_DOLAR_TCG, 2), 2)
+    assert sem_preco == ["Void Seeker"]
+
+
+def test_calibracao_mede_a_razao_e_o_erro():
+    from decks.calibrar_precos import erros, razao
+
+    linhas = [{"usd": u, "liga_medio": u * 8} for u in (0.1, 0.5, 1, 5, 20)]
+    assert razao(linhas) == 8
+    assert erros(linhas, tamanho_da_soma=3) == (0, 0)  # razão constante: erro zero
