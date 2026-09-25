@@ -87,6 +87,10 @@ class Catalogo:
             self._por_chave[chave(c.nome)] = c.nome
         # código ("OGN-42") -> nome, pela galeria oficial (decks/codigos.py); vazio se ela não estiver disponível
         self.codigos = cod.mapa_de_codigos(galeria or [], self.resolver)
+        self._codigo_por_nome: dict[str, str] = {}
+        for codigo, nome in self.codigos.items():  # a impressão normal (sem sufixo de variante) de cada carta
+            if cod.codigo_base(codigo) == codigo:
+                self._codigo_por_nome.setdefault(nome, codigo)
 
     def __len__(self) -> int:
         return len(self.cartas)
@@ -116,10 +120,20 @@ class Catalogo:
         normal = cod.normalizar_codigo(codigo)
         return self.codigos.get(normal) or self.codigos.get(cod.codigo_base(normal))
 
+    def codigo_de(self, nome: str) -> str | None:
+        """Código de uma impressão normal da carta ("OGN-251"), ou None sem a galeria."""
+        return self._codigo_por_nome.get(nome)
+
     def sugestoes(self, texto: str, n: int = 3) -> list[str]:
         """Nomes parecidos, pra mostrar quando `resolver` não reconhece."""
         chaves = difflib.get_close_matches(chave(texto), list(self._por_chave), n=n * 2, cutoff=0.6)
         return list(dict.fromkeys(self._por_chave[k] for k in chaves))[:n]
+
+
+def nome_da_lenda(lenda: str, catalogo: Catalogo, separador: str = ", ") -> str:
+    """ "Loose Cannon" (tag Jinx) -> "Jinx, Loose Cannon", como os jogadores chamam a lenda."""
+    tags = [t for t in catalogo.cartas[lenda].tags.split(", ") if t] if lenda in catalogo else []
+    return f"{tags[-1]}{separador}{lenda}" if tags and not lenda.startswith(tags[-1]) else lenda
 
 
 # --- banco ---

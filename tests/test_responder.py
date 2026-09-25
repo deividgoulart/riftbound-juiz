@@ -417,3 +417,39 @@ def test_sem_plano_b_o_erro_continua_subindo():
 
     with pytest.raises(ServerError):  # a avaliação precisa saber que o LLM falhou
         juiz([(TRECHO_FAQ, 0.85)], LLMForaDoAr()).responder("o Flash mira na base?")
+
+
+# ---------------------------------------------------------------------------
+# Deck em foco (fase 2, etapa 3)
+# ---------------------------------------------------------------------------
+
+from juiz.responder import DeckEmFoco
+
+DECK = DeckEmFoco("Irelia de teste", [("lenda", "Blade Dancer", 1), ("principal", "Irelia, Fervent", 3),
+                                      ("principal", "Flash", 2), ("runas", "Calm Rune", 12)])
+
+
+def test_deck_em_foco_vira_uma_fonte_com_a_lista_e_o_texto_das_cartas():
+    llm = LLMFalso()
+    resposta = juiz([(TRECHO_FAQ, 0.80)], llm).responder("quais cartas do meu deck custam 2?", deck=DECK)
+    deck = resposta.fontes[-1]
+    assert deck.tipo == "deck" and deck.url == ""
+    assert "Main Deck: 3x Irelia, Fervent; 2x Flash" in deck.texto and "Runes: 12x Calm Rune" in deck.texto
+    assert "Irelia, Fervent (Type: Unit" in deck.texto  # texto oficial das cartas que estão no catálogo
+    assert "Calm Rune (" not in deck.texto  # runa básica não tem texto no catálogo
+    mensagem = llm.chamadas[0][1]
+    assert f'DECK EM FOCO: o jogador escolheu o deck "Irelia de teste"' in mensagem
+    assert f"[F{deck.numero}] Deck do jogador: Irelia de teste" in mensagem
+
+
+def test_com_deck_a_busca_fraca_nao_corta_a_pergunta():
+    llm = LLMFalso()
+    juiz([(TRECHO_FAQ, 0.60)], llm).responder("o que meu deck faz no primeiro turno?", deck=DECK)
+    assert len(llm.chamadas) == 1  # sem deck, seria "não encontrei" sem chamar o LLM
+
+
+def test_sem_deck_nada_muda():
+    llm = LLMFalso()
+    resposta = juiz([(TRECHO_FAQ, 0.80)], llm).responder("posso usar Flash?")
+    assert all(f.tipo != "deck" for f in resposta.fontes)
+    assert "DECK EM FOCO" not in llm.chamadas[0][1]

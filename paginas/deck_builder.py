@@ -10,9 +10,10 @@ from datetime import date, timedelta
 import pandas as pd
 import streamlit as st
 
-from decks import colecao, conclusao, meta
+from decks import colecao, conclusao, meta, precos
+from decks.compras import link_da_carta, lista_de_compra
 from decks.banco import abrir_banco, turso_configurado
-from decks.catalogo import preparar
+from decks.catalogo import nome_da_lenda, preparar
 from decks.importar import NOMES_DAS_SECOES, ler_lista
 from decks.meus_decks import apagar_deck, cartas_dos_decks, salvar_deck
 from juiz import config
@@ -204,6 +205,46 @@ ranking = conclusao.ranking(banco, incluir_sideboard=incluir_sideboard, runas_ga
 meus = [c for c in ranking if c.deck["origem"] != meta.ORIGEM]
 do_meta = [c for c in ranking if c.deck["origem"] == meta.ORIGEM]
 listas = cartas_dos_decks(banco) if ranking else {}
+precos_guardados = precos.precos_guardados(banco) if ranking else {}
+
+
+def reais(valor: float | None) -> str:
+    return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if valor is not None else "—"
+
+
+def mostrar_o_que_falta(c) -> None:
+    """Tabela do que falta, com link e preço da Liga, e a lista pra Compra por Lista."""
+    faltando = [(x.carta, x.falta) for x in c.faltando]
+    tabela = pd.DataFrame([{
+        "Carta": x.carta, "Precisa": x.precisa, "Tenho": x.tem, "Falta": x.falta,
+        "Menor preço": reais(min([v for v in (precos_guardados.get(x.carta, {}).get("menor"),
+                                              precos_guardados.get(x.carta, {}).get("menor_foil")) if v is not None],
+                                 default=None)),
+        "Liga": link_da_carta(x.carta, catalogo),
+    } for x in c.faltando])
+    st.dataframe(tabela, hide_index=True, width="stretch",
+                 column_config={"Liga": st.column_config.LinkColumn("Liga", display_text="ver na Liga")})
+
+    custo, sem_preco = precos.custo_pra_completar(faltando, precos_guardados)
+    if len(sem_preco) < len(faltando):
+        st.markdown(f"**Custo estimado pra completar: {reais(custo)}**"
+                    + (f" (sem preço: {len(sem_preco)} cartas)" if sem_preco else ""))
+        st.caption("Menor preço no marketplace da Liga Riftbound (normal ou foil), por cópia. Os preços mudam; "
+                   "confira na loja antes de comprar.")
+    if pode_editar and sem_preco and st.button("Buscar preços na Liga", key=f"precos_{c.deck['id']}",
+                                               icon=":material/sell:", help="Um pedido por segundo; leva alguns segundos."):
+        with st.spinner(f"Buscando o preço de {len(sem_preco)} cartas na Liga Riftbound..."):
+            problemas = precos.atualizar_precos(banco, catalogo, sem_preco)
+        if problemas:
+            avisar_depois("warning", "Sem preço pra: " + "; ".join(f"{carta} ({motivo})" for carta, motivo in problemas.items()))
+        st.rerun()
+
+    lista = lista_de_compra(faltando, catalogo)
+    st.markdown(f"**Lista de compra:** copie e cole na [Compra por Lista da Liga]({config.LIGA_COMPRA_POR_LISTA}), "
+                "que monta o carrinho mais barato entre as lojas.")
+    st.code(lista, language=None)
+    st.download_button("Baixar a lista (.txt)", lista, file_name=f"faltam_{c.deck['id']}.txt", mime="text/plain",
+                       key=f"baixar_{c.deck['id']}", icon=":material/download:")
 
 
 def mostrar_deck(c, pode_apagar: bool) -> None:
@@ -213,8 +254,7 @@ def mostrar_deck(c, pode_apagar: bool) -> None:
         st.progress(min(c.porcentagem / 100, 1.0), text=f"{c.porcentagem:.0f}% · tenho {c.tenho} de {c.total} cópias")
         if c.faltando:
             with st.expander(f"Faltam {c.copias_faltando} cópias de {len(c.faltando)} cartas"):
-                st.dataframe(pd.DataFrame([{"Carta": x.carta, "Precisa": x.precisa, "Tenho": x.tem, "Falta": x.falta}
-                                           for x in c.faltando]), hide_index=True, width="stretch")
+                mostrar_o_que_falta(c)
         else:
             st.success("Tenho todas as cartas deste deck!", icon=":material/check_circle:")
         with st.expander("Lista completa"):
@@ -289,7 +329,7 @@ with aba_meta:
     if do_meta:
         lendas = sorted({l["carta"] for c in do_meta for l in listas.get(c.deck["id"], []) if l["secao"] == "lenda"})
         escolhidas = st.multiselect("Lenda", lendas, placeholder="Todas",
-                                    format_func=lambda lenda: meta.nome_da_lenda(lenda, catalogo))
+                                    format_func=lambda lenda: nome_da_lenda(lenda, catalogo))
         filtrados = [c for c in do_meta if not escolhidas or any(
             l["secao"] == "lenda" and l["carta"] in escolhidas for l in listas.get(c.deck["id"], []))]
         st.caption(f"{len(filtrados)} decks" + (f"; mostrando os {MAX_DECKS_DO_META} mais fáceis de montar."

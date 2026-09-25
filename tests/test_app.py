@@ -17,9 +17,11 @@ class JuizFalso:
     def __init__(self, resposta=None, erro=None):
         self.resposta, self.erro = resposta, erro
         self.historicos = []
+        self.decks = []
 
-    def responder(self, pergunta, historico=None, plano_b=False):
+    def responder(self, pergunta, historico=None, plano_b=False, deck=None):
         self.historicos.append(list(historico or []))
+        self.decks.append(deck)
         if self.erro:
             raise self.erro
         self.resposta.pergunta = pergunta
@@ -42,9 +44,10 @@ def app(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "LOGS_DIR", tmp_path)
     monkeypatch.delenv("SENHA_DO_APP", raising=False)  # sem senha = rodando no seu computador, sem limites
 
-    def criar(juiz):
+    def criar(juiz, decks=None):
         at = AppTest.from_file(str(config.RAIZ / "app.py"), default_timeout=30)
         at.session_state["juiz_de_teste"] = juiz
+        at.session_state["decks_de_teste"] = decks or []
         return at.run()
 
     return criar
@@ -223,6 +226,7 @@ def test_secrets_sem_a_chave_mostram_aviso_de_configuracao(app, monkeypatch):
     at = AppTest.from_file(str(config.RAIZ / "app.py"), default_timeout=30)
     at.secrets["SENHA_DO_APP"] = "segredo"  # o dono configurou a senha, mas esqueceu a chave
     at.session_state["juiz_de_teste"] = JuizFalso(resposta_com_fontes())
+    at.session_state["decks_de_teste"] = []
     at.run()
     assert "Falta GEMINI_API_KEY" in at.error[0].value
     assert "segredo" not in at.error[0].value  # nunca mostra valores
@@ -238,3 +242,28 @@ def test_plano_b_mostra_os_trechos_e_nao_conta_no_limite(app_publico):
     assert any("erro 503" in c.value for c in at.caption)
     assert any("Ambush only works on battlefields" in m.value for m in at.markdown)
     assert any("2 perguntas restantes" in c.value for c in at.caption)  # não gastou pergunta do convidado
+
+
+DECKS = [{"id": "d1", "nome": "Jinx do sábado", "origem": "manual",
+          "cartas": [("lenda", "Loose Cannon", 1), ("principal", "Jinx, Rebel", 3)]},
+         {"id": "d2", "nome": "Kennen · 1º em Regional", "origem": "topdeck", "cartas": [("lenda", "Heart of the Tempest", 1)]}]
+
+
+def test_deck_em_foco_vai_pro_juiz_e_aparece_na_resposta(app):
+    juiz = JuizFalso(resposta_com_fontes())
+    at = app(juiz, decks=DECKS)
+    seletor = at.sidebar.selectbox(key="deck_em_foco")
+    assert seletor.options == ["Nenhum", "Jinx do sábado", "Kennen · 1º em Regional (meta)"]
+    at = seletor.set_value("d1").run()
+    at.chat_input[0].set_value("quais cartas do meu deck dão Stun?").run()
+    deck = juiz.decks[-1]
+    assert deck.nome == "Jinx do sábado" and ("principal", "Jinx, Rebel", 3) in deck.cartas
+    assert any("deck em foco: Jinx do sábado" in c.value for c in at.caption)
+
+
+def test_sem_decks_salvos_nao_tem_seletor(app):
+    juiz = JuizFalso(resposta_com_fontes())
+    at = app(juiz)
+    assert not [s for s in at.sidebar.selectbox if s.label == "Deck em foco"]
+    at.chat_input[0].set_value("posso usar Flash?").run()
+    assert juiz.decks[-1] is None
