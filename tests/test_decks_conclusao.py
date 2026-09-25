@@ -53,3 +53,29 @@ def test_salvar_listar_e_apagar(banco, catalogo, deck):
 def test_lista_vazia_nao_e_salva(banco, catalogo):
     with pytest.raises(ValueError):
         salvar_deck(banco, "Vazio", ler_lista("3 Carta Inventada", catalogo))
+
+
+def test_mais_baratos_de_completar(banco, catalogo):
+    from decks.conclusao import custo, mais_baratos
+    from decks.precos import estimar_reais
+
+    salvar_deck(banco, "Caro", ler_lista("3 Jinx, Rebel", catalogo))
+    salvar_deck(banco, "Barato", ler_lista("3 Abandon", catalogo))
+    salvar_deck(banco, "Sem preço", ler_lista("1 Void Seeker", catalogo))
+    salvar_deck(banco, "Completo", ler_lista("1 Abandon", catalogo))
+    colecao.definir(banco, "Abandon", 1)
+    precos_usd = {"Jinx, Rebel": 10.0, "Abandon": 0.10}
+    ordem = mais_baratos(ranking(banco), precos_usd)
+    assert [c.deck["nome"] for c in ordem] == ["Completo", "Barato", "Caro", "Sem preço"]
+    barato = ordem[1]
+    assert custo(barato, precos_usd) == (round(2 * estimar_reais(0.10), 2), [])
+    assert custo(ordem[-1], precos_usd) == (0.0, ["Void Seeker"])
+
+
+def test_menos_cartas_faltando(banco, catalogo):
+    from decks.conclusao import menos_faltando
+
+    salvar_deck(banco, "Falta 3", ler_lista("3 Abandon", catalogo))
+    salvar_deck(banco, "Falta 1", ler_lista("3 Jinx, Rebel", catalogo))
+    colecao.definir(banco, "Jinx, Rebel", 2)
+    assert [c.deck["nome"] for c in menos_faltando(ranking(banco))] == ["Falta 1", "Falta 3"]

@@ -584,7 +584,9 @@ A **coleção e os decks continuam guardados pelo nome**: um deck pede "Jinx, Re
 **Comprar o que falta (Liga Riftbound).** Em cada deck, a tabela do que falta ganhou:
 - **link pra carta na Liga**: com o código da carta, o link vai direto na impressão certa (`Jinx - Loose Cannon (251)`, coleção OGN), no mesmo formato da Liga; sem o código, vai pelo nome;
 - **lista de compra** no formato "3 Nome", pra copiar (ou baixar em .txt) e colar na [Compra por Lista da Liga](https://www.ligariftbound.com.br/?view=cards/lista), que monta o carrinho mais barato entre as lojas. É o "carrinho geral" que o plano pedia;
-- **preço estimado e custo estimado pra completar** (veja abaixo).
+- **custo estimado pra completar** o deck (veja abaixo). Só o total: carta a carta a estimativa erra muito, mas na soma os erros se compensam (numa conferência real, a soma ficou a uns R$ 10 do total da Liga).
+
+**Decks mais baratos de completar.** A barra lateral tem **Ordenar os decks**: "Mais barato de completar" (padrão, pelo custo estimado do que falta, e o custo aparece na barra de progresso de cada deck) ou "Menos cartas faltando" (pelo número de cópias que ainda faltam). Deck com carta sem preço vai depois dos que têm a conta completa. Vale pros seus decks e pros do meta.
 
 Os campeões vão pra Liga como "Ezreal - Prodigy": com a vírgula, a página não abre. E o link usa a impressão normal da carta, e não a overnumbered: a lenda da Vi é a UNL 187, e não a UNL 229.
 
@@ -611,7 +613,7 @@ O plano da fase 2, com o que já foi feito:
 2. ✅ **Decks do meta já prontos no app**, coletados automaticamente uma vez por semana pela API do TopDeck.gg, com origem (link), data, torneio e colocação.
 3. ✅ **Importação manual** de um deck específico, colando a lista no formato de texto que os sites exportam.
 4. ✅ Para cada deck, **porcentagem de conclusão e cartas que faltam** (deck menos coleção), com banco **SQLite** (Turso na nuvem).
-5. **Sugestão de decks**: comparar a coleção com os decks do meta e ordenar do mais fácil pro mais difícil de montar. A ordenação por porcentagem e cartas faltando já existe; falta incluir o custo pra completar, quando tiver preço.
+5. ✅ **Sugestão de decks**: os decks (meus e do meta) ordenados do mais barato pro mais caro de completar, pelo custo estimado, ou pelos que têm menos cartas faltando.
 6. ✅ Para cada carta que falta, **link direto** na [Liga Riftbound](https://ligariftbound.com.br) e a lista pra **Compra por Lista** (o carrinho geral). A [MYP Cards](https://mypcards.com/riftbound) ficou de fora (formato da busca desconhecido).
 7. ✅ **Preço das cartas que faltam**, estimado pelo TCGplayer e calibrado com o menor preço da Liga (erro medido na tela).
 8. ✅ **Aba nova no Streamlit** pro deck builder, e o juiz responde dúvidas sobre as cartas dos meus decks (Deck em foco).
