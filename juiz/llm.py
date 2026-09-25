@@ -180,7 +180,7 @@ class LLMOllama:
 
     Usado só pra gerar as explicações das cartas em lote (api/gerar_explicacoes.py), sem gastar o Gemini. Os modelos
     que cabem num computador comum escrevem pior em português do que o Gemini, então o juiz do site
-    continua no Gemini. Antes: instale o Ollama e baixe o modelo (ex.: ollama pull qwen3:8b).
+    continua no Gemini. Antes: instale o Ollama e baixe o modelo (ex.: ollama pull qwen3:30b-a3b).
     """
 
     URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")

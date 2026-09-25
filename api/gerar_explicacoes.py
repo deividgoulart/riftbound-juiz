@@ -67,7 +67,7 @@ def gerar(fichario: Fichario, banco, cartas: list[str], limite: int | None = Non
         log(f"  ✓ [{i}/{len(pendentes[:limite])}] {nome}")
     restantes = len(pendentes) - feitas
     log(f"Pronto: {feitas} geradas agora, {restantes} ainda faltam"
-        + (f" ({reprovadas} reprovadas na conferência: rode de novo ou tente um modelo maior, ex.: --modelo qwen3:14b)."
+        + (f" ({reprovadas} reprovadas na conferência: rode de novo: a reprovada volta pra fila)."
            if reprovadas else "."))
     return {"feitas": feitas, "falhas": falhas, "reprovadas": reprovadas, "restantes": restantes}
 
