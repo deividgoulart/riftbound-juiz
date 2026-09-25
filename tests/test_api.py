@@ -403,3 +403,50 @@ def test_recurso_recarrega_em_segundo_plano_sem_parar_os_pedidos():
             break
         time.sleep(0.01)
     assert recurso._valor == 2
+
+
+def test_raiz_aponta_pra_documentacao(api):
+    assert api().get("/").json()["rotas"] == "/docs"
+
+
+@pytest.mark.parametrize("site_url, permitidas, bloqueadas", [
+    ("", ["https://qualquer.com"], []),
+    ("https://juiz-riftbound.vercel.app/", ["https://juiz-riftbound.vercel.app", "https://juiz-riftbound-git-main-deivid.vercel.app"],
+     ["https://outro.vercel.app", "https://juiz-riftbound.vercel.app.golpe.com"]),
+    ("meusite.com.br", ["https://meusite.com.br"], ["https://outro.com"]),
+])
+def test_site_url_aceita_barra_no_fim_e_libera_as_previas_da_vercel(api, monkeypatch, site_url, permitidas, bloqueadas):
+    monkeypatch.setenv("SITE_URL", site_url)
+    cliente = api()
+    for origem in permitidas:
+        assert cliente.get("/api/saude", headers={"Origin": origem}).headers.get("access-control-allow-origin") in (origem, "*")
+    for origem in bloqueadas:
+        assert "access-control-allow-origin" not in cliente.get("/api/saude", headers={"Origin": origem}).headers
+
+
+def test_juiz_e_deck_builder_nao_baixam_o_faq_ao_mesmo_tempo(monkeypatch, tmp_path):
+    import threading
+    import time
+
+    from juiz import atualizar, baixar_faq
+
+    monkeypatch.setattr(config, "FAQ_DIR", tmp_path / "faq")
+    monkeypatch.setattr(config, "FAQ_SNAPSHOT", tmp_path / "snapshot.json")
+    dentro, maximo = [0], [0]
+
+    def clonar():
+        dentro[0] += 1
+        maximo[0] = max(maximo[0], dentro[0])
+        time.sleep(0.05)
+        (tmp_path / "faq" / ".git").mkdir(parents=True, exist_ok=True)
+        dentro[0] -= 1
+
+    monkeypatch.setattr(baixar_faq, "clonar", clonar)
+    monkeypatch.setattr(baixar_faq, "atualizar", clonar)
+    monkeypatch.setattr(baixar_faq, "salvar_snapshot", lambda: {"commit": "abc"})
+    threads = [threading.Thread(target=atualizar.atualizar_faq, args=(lambda *_: None,)) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert maximo[0] == 1
