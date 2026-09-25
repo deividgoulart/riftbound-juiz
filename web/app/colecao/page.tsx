@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { Download, FileUp, Minus, Plus, Search } from "lucide-react";
 import { API_URL, buscar, lerToken, pedir, type Carta, type Colecao, type RelatorioCsv } from "@/lib/api";
 import { useSessao } from "@/lib/sessao";
 import { ImagemDaCarta } from "@/components/carta";
-import { Alternador, Aviso, Botao, Cabecalho, Carregando, Chip, Folha, NOMES_DOS_DOMINIOS, corDoDominio, juntar } from "@/components/ui";
+import { ListaDeTrocas } from "@/components/trocas";
+import { Alternador, Aviso, Botao, Cabecalho, Carregando, Chip, Folha, NOMES_DOS_DOMINIOS, Segmentos, corDoDominio, juntar } from "@/components/ui";
 
 const TIPOS = [
   ["Unit", "Units"],
@@ -112,6 +113,18 @@ export default function PaginaDaColecao() {
   const [salvando, setSalvando] = useState(false);
   const [aviso, setAviso] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [csv, setCsv] = useState(false);
+  const [aba, setAba] = useState<"colecao" | "trocas">("colecao");
+
+  // A aba fica no endereço (/colecao?aba=trocas): dá pra voltar direto nela e compartilhar o link.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- só existe no navegador
+    if (new URLSearchParams(window.location.search).get("aba") === "trocas") setAba("trocas");
+  }, []);
+
+  function escolherAba(nova: "colecao" | "trocas") {
+    setAba(nova);
+    window.history.replaceState(null, "", nova === "trocas" ? "/colecao?aba=trocas" : "/colecao");
+  }
 
   const tenho = useMemo(() => colecao?.cartas ?? {}, [colecao]);
   const quantidade = (nome: string) => mudancas[nome] ?? tenho[nome] ?? 0;
@@ -175,105 +188,122 @@ export default function PaginaDaColecao() {
         <p className="mb-4 text-xs text-apagado">Modo leitura: você vê a coleção do dono do app. Pra editar, entre com a senha (cadeado no topo).</p>
       )}
 
-      <div className="mb-3 flex items-center gap-2 rounded-xl border border-linha bg-superficie px-3 focus-within:border-ouro/60">
-        <Search size={18} className="text-apagado" />
-        <input
-          value={busca}
-          onChange={(e) => {
-            setBusca(e.target.value);
-            setMostrar(POR_PAGINA);
-          }}
-          placeholder="Buscar pelo nome ou campeão"
-          className="w-full bg-transparent py-3 text-[15px] outline-none placeholder:text-apagado/70"
+      <div className="mb-4">
+        <Segmentos<"colecao" | "trocas">
+          valor={aba}
+          onChange={escolherAba}
+          opcoes={[
+            { valor: "colecao", rotulo: "Minha coleção" },
+            { valor: "trocas", rotulo: "Pra trocar" },
+          ]}
         />
       </div>
-      <div className="sem-barra -mx-4 mb-2 flex gap-2 overflow-x-auto px-4">
-        <Chip ativo={soAsMinhas} onClick={() => setSoAsMinhas(!soAsMinhas)}>
-          Só as que tenho
-        </Chip>
-        {TIPOS.map(([valor, rotulo]) => (
-          <Chip key={valor} ativo={tipo === valor} onClick={() => setTipo(tipo === valor ? null : valor)}>
-            {rotulo}
-          </Chip>
-        ))}
-      </div>
-      <div className="sem-barra -mx-4 mb-5 flex gap-2 overflow-x-auto px-4">
-        {DOMINIOS.map((d) => (
-          <Chip key={d} ativo={dominio === d} onClick={() => setDominio(dominio === d ? null : d)}>
-            <span className="h-2.5 w-2.5 rounded-full" style={{ background: corDoDominio(d) }} />
-            {NOMES_DOS_DOMINIOS[d]}
-          </Chip>
-        ))}
-      </div>
 
-      {aviso && (
-        <div className="mb-4">
-          <Aviso tipo={aviso.tipo}>{aviso.texto}</Aviso>
+      {aba === "trocas" ? (
+        <ListaDeTrocas />
+      ) : (
+        <>
+        <div className="mb-3 flex items-center gap-2 rounded-xl border border-linha bg-superficie px-3 focus-within:border-ouro/60">
+          <Search size={18} className="text-apagado" />
+          <input
+            value={busca}
+            onChange={(e) => {
+              setBusca(e.target.value);
+              setMostrar(POR_PAGINA);
+            }}
+            placeholder="Buscar pelo nome ou campeão"
+            className="w-full bg-transparent py-3 text-[15px] outline-none placeholder:text-apagado/70"
+          />
         </div>
-      )}
-      {erroDasCartas && <Aviso tipo="erro">{erroDasCartas.message}</Aviso>}
-      {!cartas && !erroDasCartas && <Carregando texto="Carregando o catálogo de cartas..." />}
-      {cartas && filtradas.length === 0 && <p className="py-10 text-center text-sm text-apagado">Nenhuma carta com esses filtros.</p>}
+        <div className="sem-barra -mx-4 mb-2 flex gap-2 overflow-x-auto px-4">
+          <Chip ativo={soAsMinhas} onClick={() => setSoAsMinhas(!soAsMinhas)}>
+            Só as que tenho
+          </Chip>
+          {TIPOS.map(([valor, rotulo]) => (
+            <Chip key={valor} ativo={tipo === valor} onClick={() => setTipo(tipo === valor ? null : valor)}>
+              {rotulo}
+            </Chip>
+          ))}
+        </div>
+        <div className="sem-barra -mx-4 mb-5 flex gap-2 overflow-x-auto px-4">
+          {DOMINIOS.map((d) => (
+            <Chip key={d} ativo={dominio === d} onClick={() => setDominio(dominio === d ? null : d)}>
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: corDoDominio(d) }} />
+              {NOMES_DOS_DOMINIOS[d]}
+            </Chip>
+          ))}
+        </div>
 
-      <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-        {filtradas.slice(0, mostrar).map((c) => {
-          const qtd = quantidade(c.nome);
-          const mudou = c.nome in mudancas;
-          return (
-            <div key={c.nome} className="group">
-              <div className="relative">
-                <ImagemDaCarta nome={c.nome} imagem={c.imagem} dominios={c.dominios} className={juntar(qtd === 0 && "opacity-45 grayscale-[40%]")} />
-                {qtd > 0 && (
-                  <span
-                    className={juntar(
-                      "pointer-events-none absolute right-1.5 top-1.5 z-20 min-w-7 rounded-full px-2 py-0.5 text-center text-xs font-bold shadow",
-                      mudou ? "bg-azul text-fundo" : "bg-ouro text-fundo",
-                    )}
-                  >
-                    ×{qtd}
-                  </span>
+        {aviso && (
+          <div className="mb-4">
+            <Aviso tipo={aviso.tipo}>{aviso.texto}</Aviso>
+          </div>
+        )}
+        {erroDasCartas && <Aviso tipo="erro">{erroDasCartas.message}</Aviso>}
+        {!cartas && !erroDasCartas && <Carregando texto="Carregando o catálogo de cartas..." />}
+        {cartas && filtradas.length === 0 && <p className="py-10 text-center text-sm text-apagado">Nenhuma carta com esses filtros.</p>}
+
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+          {filtradas.slice(0, mostrar).map((c) => {
+            const qtd = quantidade(c.nome);
+            const mudou = c.nome in mudancas;
+            return (
+              <div key={c.nome} className="group">
+                <div className="relative">
+                  <ImagemDaCarta nome={c.nome} imagem={c.imagem} dominios={c.dominios} className={juntar(qtd === 0 && "opacity-45 grayscale-[40%]")} />
+                  {qtd > 0 && (
+                    <span
+                      className={juntar(
+                        "pointer-events-none absolute right-1.5 top-1.5 z-20 min-w-7 rounded-full px-2 py-0.5 text-center text-xs font-bold shadow",
+                        mudou ? "bg-azul text-fundo" : "bg-ouro text-fundo",
+                      )}
+                    >
+                      ×{qtd}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1.5 line-clamp-2 min-h-8 text-xs leading-4 text-texto/90" title={c.nome}>
+                  {c.nome}
+                </p>
+                {podeEditar && (
+                  <div className="mt-1 flex items-center justify-between rounded-lg border border-linha bg-superficie">
+                    <button type="button" onClick={() => mudar(c.nome, -1)} disabled={qtd === 0} aria-label={`Tirar uma ${c.nome}`} className="p-1.5 text-apagado disabled:opacity-30">
+                      <Minus size={14} />
+                    </button>
+                    <span className="text-xs font-semibold">{qtd}</span>
+                    <button type="button" onClick={() => mudar(c.nome, 1)} aria-label={`Pôr uma ${c.nome}`} className="p-1.5 text-ouro">
+                      <Plus size={14} />
+                    </button>
+                  </div>
                 )}
               </div>
-              <p className="mt-1.5 line-clamp-2 min-h-8 text-xs leading-4 text-texto/90" title={c.nome}>
-                {c.nome}
-              </p>
-              {podeEditar && (
-                <div className="mt-1 flex items-center justify-between rounded-lg border border-linha bg-superficie">
-                  <button type="button" onClick={() => mudar(c.nome, -1)} disabled={qtd === 0} aria-label={`Tirar uma ${c.nome}`} className="p-1.5 text-apagado disabled:opacity-30">
-                    <Minus size={14} />
-                  </button>
-                  <span className="text-xs font-semibold">{qtd}</span>
-                  <button type="button" onClick={() => mudar(c.nome, 1)} aria-label={`Pôr uma ${c.nome}`} className="p-1.5 text-ouro">
-                    <Plus size={14} />
-                  </button>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      {filtradas.length > mostrar && (
-        <div className="mt-6 text-center">
-          <Botao variante="secundario" onClick={() => setMostrar(mostrar + POR_PAGINA)}>
-            Mostrar mais ({filtradas.length - mostrar} cartas)
-          </Botao>
+            );
+          })}
         </div>
-      )}
+        {filtradas.length > mostrar && (
+          <div className="mt-6 text-center">
+            <Botao variante="secundario" onClick={() => setMostrar(mostrar + POR_PAGINA)}>
+              Mostrar mais ({filtradas.length - mostrar} cartas)
+            </Botao>
+          </div>
+        )}
 
-      {pendentes > 0 && (
-        <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 px-4 md:bottom-6">
-          <div className="mx-auto flex max-w-md items-center justify-between gap-3 rounded-2xl border border-ouro/40 bg-superficie p-3 shadow-2xl shadow-black/60">
-            <span className="text-sm">{pendentes === 1 ? "1 carta alterada" : `${pendentes} cartas alteradas`}</span>
-            <div className="flex gap-2">
-              <Botao variante="secundario" onClick={() => setMudancas({})} className="px-3 py-2">
-                Desfazer
-              </Botao>
-              <Botao onClick={salvar} disabled={salvando} className="px-3 py-2">
-                {salvando ? "Salvando..." : "Salvar"}
-              </Botao>
+        {pendentes > 0 && (
+          <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 px-4 md:bottom-6">
+            <div className="mx-auto flex max-w-md items-center justify-between gap-3 rounded-2xl border border-ouro/40 bg-superficie p-3 shadow-2xl shadow-black/60">
+              <span className="text-sm">{pendentes === 1 ? "1 carta alterada" : `${pendentes} cartas alteradas`}</span>
+              <div className="flex gap-2">
+                <Botao variante="secundario" onClick={() => setMudancas({})} className="px-3 py-2">
+                  Desfazer
+                </Botao>
+                <Botao onClick={salvar} disabled={salvando} className="px-3 py-2">
+                  {salvando ? "Salvando..." : "Salvar"}
+                </Botao>
+              </div>
             </div>
           </div>
-        </div>
+        )}
+        </>
       )}
 
       <JanelaDoCsv aberta={csv} onFechar={() => setCsv(false)} onImportou={() => mutate()} />

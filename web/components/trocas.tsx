@@ -5,8 +5,8 @@ import useSWR, { useSWRConfig } from "swr";
 import { Check, Copy, Download, Minus, Plus, RotateCcw, Search } from "lucide-react";
 import { buscar, pedir, reais, type Carta, type Colecao, type Trocas } from "@/lib/api";
 import { useSessao } from "@/lib/sessao";
-import { ImagemDaCarta, NomeDaCarta } from "@/components/carta";
-import { Aviso, Botao, Cabecalho, Cartao, Carregando, Chip } from "@/components/ui";
+import { ImagemDaCarta, NomeDaCarta } from "./carta";
+import { Aviso, Botao, Cartao, Carregando, Chip } from "./ui";
 
 const NOMES_DOS_TIPOS: Record<string, string> = {
   Unit: "Units",
@@ -68,7 +68,8 @@ function AdicionarDaColecao({ naLista, onAdicionar }: { naLista: Set<string>; on
   );
 }
 
-export default function PaginaDasTrocas() {
+/** A aba "Pra trocar" da coleção: as cartas a mais (decks/trocas.py na API), com ajuste carta por carta. */
+export function ListaDeTrocas() {
   const { podeEditar } = useSessao();
   const { data, error, mutate } = useSWR<Trocas>("/api/trocas", buscar);
   const { mutate: mutarGlobal } = useSWRConfig();
@@ -109,8 +110,6 @@ export default function PaginaDasTrocas() {
 
   return (
     <>
-      <Cabecalho titulo="Pra trocar" subtitulo="As cartas que você tem a mais do que um deck usa" />
-
       <div className="mb-4">
         <Aviso tipo="info">
           Entram aqui sozinhas as cópias acima de <strong>3</strong> de cada carta, de <strong>1</strong> de cada battlefield e
