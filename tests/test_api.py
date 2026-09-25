@@ -284,12 +284,12 @@ def test_previa_e_importar_deck(api, banco):
     r = cliente.post("/api/decks", json={"nome": "Jinx de teste", "texto": LISTA})
     assert r.status_code == 200 and any("mínimo é 40" in a for a in r.json()["avisos"])
     deck = cliente.get("/api/decks").json()["decks"][0]
-    # runas básicas contam como "tenho" (padrão): Abandon 2 + Jinx 1 + 12 runas de 18 cópias
+    # padrão: só conta as runas que estão na coleção (nenhuma aqui): Abandon 2 + Jinx 1 de 18 cópias
     assert (deck["nome"], deck["tenho"], deck["total"], deck["copias_faltando"], deck["cartas_faltando"]) == \
-        ("Jinx de teste", 15, 18, 3, 2)
+        ("Jinx de teste", 3, 18, 15, 4)
     assert deck["lenda"]["rotulo"] == "Jinx, Loose Cannon" and deck["lenda"]["dominios"] == ["Fury", "Chaos"]
-    sem_runas = cliente.get("/api/decks", params={"runas": False}).json()["decks"][0]
-    assert sem_runas["tenho"] == 3
+    com_runas = cliente.get("/api/decks", params={"runas": True}).json()["decks"][0]
+    assert com_runas["tenho"] == 15  # contando com as runas básicas de um deck inicial
 
 
 def test_ignorar_desconhecidas_salva_sem_elas(api, banco):
@@ -450,3 +450,107 @@ def test_juiz_e_deck_builder_nao_baixam_o_faq_ao_mesmo_tempo(monkeypatch, tmp_pa
     for t in threads:
         t.join()
     assert maximo[0] == 1
+
+
+# --- Ficha da carta (fase 3) ---
+
+def carta_do_faq(nome, abilities, tipos=("Unit",), dominios=("Fury",)):
+    return {"name": nome, "energyCost": 3, "powerCost": None, "might": 2, "domains": list(dominios),
+            "cardTypes": list(tipos), "superTypes": [], "tags": [], "abilities": abilities, "effects": None}
+
+
+TRECHOS_DO_FAQ = [
+    {"id": "faq/cards/void-seeker#a", "fonte": "faq", "categoria": "cards", "pagina": "Void Seeker", "carta": "Void Seeker",
+     "pergunta": "Can Void Seeker target my own unit?", "url": "https://faq/void-seeker#a", "texto": "Yes.",
+     "cartas_mencionadas": []},
+    {"id": "faq/cards/abandon#b", "fonte": "faq", "categoria": "cards", "pagina": "Abandon", "carta": "Abandon",
+     "pergunta": "Does Abandon work on Void Seeker?", "url": "https://faq/abandon#b", "texto": "No.",
+     "cartas_mencionadas": ["Void Seeker"]},
+    {"id": "faq/mechanics/ambush#c", "fonte": "faq", "categoria": "mechanics", "pagina": "Ambush", "carta": None,
+     "pergunta": "Can I Ambush to my base?", "url": "https://faq/ambush#c", "texto": "No.", "cartas_mencionadas": []},
+]
+
+
+@pytest.fixture
+def com_fichas():
+    from juiz.cartas import Catalogo as CatalogoDoJuiz
+    from juiz.fichas import Fichario
+
+    catalogo = CatalogoDoJuiz([carta_do_faq("Void Seeker", "[Ambush] (You may play me as a [Reaction].)\nDeal 4 to a unit."),
+                               carta_do_faq("Abandon", "Counter a spell.", tipos=("Spell",))], {})
+    juiz = JuizFalso(resposta_com_fontes())
+    juiz.fichario = Fichario(catalogo, TRECHOS_DO_FAQ)
+    return juiz
+
+
+def test_ficha_tem_texto_duvidas_e_mecanicas(api, com_fichas):
+    ficha = api(com_fichas).get("/api/carta", params={"nome": "Void Seeker"}).json()
+    assert ficha["texto"].startswith("[Ambush]") and ficha["atributos"]["energia"] == 3
+    assert [d["pergunta"] for d in ficha["duvidas"]] == ["Can Void Seeker target my own unit?", "Does Abandon work on Void Seeker?"]
+    assert ficha["mecanicas"] == [{"pagina": "Ambush", "url": "https://faq/ambush"}]
+    assert "explicacao" not in ficha  # sem texto escrito por IA
+
+
+def test_runa_basica_nao_tem_texto(api, com_fichas):
+    assert api(com_fichas).get("/api/carta", params={"nome": "Fury Rune"}).json()["texto"] is None
+
+
+
+# --- Editar, copiar e marcar como comprado ---
+
+def test_editar_deck_troca_nome_link_e_cartas(api, banco, catalogo):
+    id_ = salvar_deck(banco, "Jinx", ler_lista(LISTA, catalogo), url="https://antigo")
+    cliente = api()
+    texto = cliente.get(f"/api/decks/{id_}").json()["lista_texto"]
+    assert texto.startswith("Legend:\n1 Jinx, Loose Cannon") and "Main Deck:\n2 Abandon\n3 Jinx, Rebel" in texto
+    assert ler_lista(texto, catalogo).cartas == ler_lista(LISTA, catalogo).cartas  # o texto volta igual
+
+    r = cliente.put(f"/api/decks/{id_}", json={"nome": "Jinx 2.0", "texto": texto.replace("2 Abandon", "3 Abandon"),
+                                               "url": ""})
+    assert r.status_code == 200
+    deck = cliente.get(f"/api/decks/{id_}").json()
+    assert deck["nome"] == "Jinx 2.0" and deck["url"] is None
+    assert next(c for c in deck["cartas"] if c["carta"] == "Abandon")["quantidade"] == 3
+    assert len(listar_decks(banco)) == 1  # o mesmo deck, não um novo
+
+
+def test_editar_com_carta_errada_nao_estraga_o_deck(api, banco, catalogo):
+    id_ = salvar_deck(banco, "Jinx", ler_lista(LISTA, catalogo))
+    cliente = api()
+    r = cliente.put(f"/api/decks/{id_}", json={"nome": "X", "texto": "3 Jinks Rebel"})
+    assert r.status_code == 400 and "quis dizer Jinx, Rebel" in r.json()["detail"]
+    assert cliente.get(f"/api/decks/{id_}").json()["nome"] == "Jinx"
+
+
+def test_deck_do_meta_nao_se_edita_mas_se_copia(api, banco, catalogo):
+    coletar_meta(banco, catalogo)
+    cliente = api(topdeck="k")
+    do_meta = cliente.get("/api/decks", params={"tipo": "meta", "lenda": "Heart of the Tempest"}).json()["decks"][0]
+    assert cliente.put(f"/api/decks/{do_meta['id']}", json={"texto": "2 Abandon"}).status_code == 400
+
+    copia = cliente.post(f"/api/decks/{do_meta['id']}/copiar").json()["id"]
+    minha = cliente.get(f"/api/decks/{copia}").json()
+    assert minha["origem"] == "manual" and minha["nome"] == "Kennen, Heart of the Tempest (do meta)"
+    assert minha["url"] == do_meta["url"] and minha["total"] == cliente.get(f"/api/decks/{do_meta['id']}").json()["total"]
+    assert cliente.put(f"/api/decks/{copia}", json={"nome": "Meu Kennen", "texto": minha["lista_texto"]}).status_code == 200
+
+
+def test_comprei_o_que_faltava_soma_na_colecao(api, banco, catalogo):
+    colecao.definir(banco, "Jinx, Rebel", 1)
+    cliente = api()
+    r = cliente.post("/api/colecao/adicionar", json={"cartas": {"Jinx, Rebel": 2, "Abandon": 1}})
+    assert r.status_code == 200 and r.json()["cartas"] == {"Abandon": 1, "Jinx, Rebel": 3}
+    assert cliente.post("/api/colecao/adicionar", json={"cartas": {"Carta Inventada": 1}}).status_code == 400
+    assert api(senha="segredo").post("/api/colecao/adicionar", json={"cartas": {"Abandon": 1}}).status_code == 401
+
+
+def test_sideboard_so_conta_no_que_falta_quando_pedido(api, banco, catalogo):
+    id_ = salvar_deck(banco, "Com side", ler_lista("Main Deck:\n2 Abandon\nSideboard:\n3 Void Seeker", catalogo))
+    colecao.definir(banco, "Abandon", 2)
+    cliente = api()
+    sem = cliente.get(f"/api/decks/{id_}").json()  # padrão: o sideboard não é obrigatório
+    assert (sem["porcentagem"], sem["faltando"]) == (100.0, [])
+    assert any(c["secao"] == "sideboard" for c in sem["cartas"])  # mas continua na lista completa
+    com = cliente.get(f"/api/decks/{id_}", params={"sideboard": True}).json()
+    assert [(f["carta"], f["falta"]) for f in com["faltando"]] == [("Void Seeker", 3)] and com["total"] == 5
+    assert cliente.get("/api/decks", params={"sideboard": True}).json()["decks"][0]["copias_faltando"] == 3

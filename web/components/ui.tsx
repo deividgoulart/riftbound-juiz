@@ -43,42 +43,6 @@ export function Cabecalho({ titulo, subtitulo, acao }: { titulo: string; subtitu
   );
 }
 
-/** Arte da carta (galeria oficial). Sem imagem, um cartão com as cores dos domínios e o nome. */
-export function ImagemDaCarta({
-  nome,
-  imagem,
-  dominios = [],
-  className = "",
-}: {
-  nome: string;
-  imagem: string | null | undefined;
-  dominios?: string[];
-  className?: string;
-}) {
-  const [a, b] = [corDoDominio(dominios[0]), corDoDominio(dominios[1] ?? dominios[0])];
-  return (
-    <div
-      className={juntar("relative aspect-[744/1039] overflow-hidden rounded-lg border border-linha bg-superficie-2", className)}
-      style={
-        imagem
-          ? undefined
-          : {
-              background: `linear-gradient(160deg, color-mix(in srgb, ${a} 45%, transparent), var(--color-superficie-2) 55%, color-mix(in srgb, ${b} 35%, transparent))`,
-            }
-      }
-    >
-      {imagem ? (
-        // eslint-disable-next-line @next/next/no-img-element -- imagens do site da Riot, sem otimização da Vercel
-        <img src={imagem} alt={nome} loading="lazy" className="h-full w-full object-cover" />
-      ) : (
-        <div className="flex h-full items-end p-2">
-          <span className="line-clamp-3 text-[11px] font-semibold leading-tight text-texto/90">{nome}</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function PontosDosDominios({ dominios }: { dominios: string[] }) {
   return (
     <span className="inline-flex gap-1">

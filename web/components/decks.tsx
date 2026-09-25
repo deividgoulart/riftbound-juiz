@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { CheckCircle2, SlidersHorizontal } from "lucide-react";
+import { CheckCircle2, Gem, Layers } from "lucide-react";
 import { dataCurta, reais, type Ordem, type ResumoDoDeck } from "@/lib/api";
 import { useSessao } from "@/lib/sessao";
-import { Alternador, Folha, ImagemDaCarta, PontosDosDominios, Progresso, Segmentos } from "./ui";
+import { ImagemDaCarta } from "./carta";
+import { Chip, PontosDosDominios, Progresso, Segmentos } from "./ui";
 
 export function textoDoCusto(d: ResumoDoDeck): string | null {
   if (d.cartas_faltando === 0) return null;
@@ -21,7 +21,7 @@ export function CartaoDoDeck({ d }: { d: ResumoDoDeck }) {
       href={`/decks/${d.id}`}
       className="group flex gap-3 rounded-2xl border border-linha bg-superficie p-3 transition hover:border-ouro/50 hover:bg-superficie-2/60"
     >
-      <ImagemDaCarta nome={d.lenda?.rotulo ?? d.nome} imagem={d.lenda?.imagem} dominios={d.lenda?.dominios} className="w-16 shrink-0 sm:w-20" />
+      <ImagemDaCarta nome={d.lenda?.rotulo ?? d.nome} imagem={d.lenda?.imagem} dominios={d.lenda?.dominios} className="w-16 shrink-0 sm:w-20" ampliavel={false} />
       <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
         <div>
           <div className="flex items-start justify-between gap-2">
@@ -56,49 +56,41 @@ export function CartaoDoDeck({ d }: { d: ResumoDoDeck }) {
   );
 }
 
-/** Ordem da lista e a conta da conclusão (runas básicas, sideboard), guardadas no navegador. */
+/** Ordem da lista e a conta da conclusão (runas básicas, sideboard), à vista e guardadas no navegador. */
 export function AjustesDosDecks({ temPrecos }: { temPrecos: boolean }) {
   const { prefs, setPrefs } = useSessao();
-  const [aberto, setAberto] = useState(false);
   return (
-    <>
-      <div className="mb-4 flex items-center gap-2">
-        <div className="flex-1">
-          <Segmentos<Ordem>
-            valor={temPrecos ? prefs.ordem : "faltando"}
-            onChange={(ordem) => setPrefs({ ordem })}
-            opcoes={[
-              { valor: "barato", rotulo: "Mais barato", desligado: !temPrecos },
-              { valor: "faltando", rotulo: "Menos faltando" },
-            ]}
-          />
-        </div>
-        <button
-          type="button"
-          onClick={() => setAberto(true)}
-          aria-label="Ajustes da conta"
-          className="grid h-10 w-10 place-items-center rounded-xl border border-linha bg-superficie text-apagado hover:text-texto"
-        >
-          <SlidersHorizontal size={18} />
-        </button>
+    <div className="mb-4 space-y-2">
+      <Segmentos<Ordem>
+        valor={temPrecos ? prefs.ordem : "faltando"}
+        onChange={(ordem) => setPrefs({ ordem })}
+        opcoes={[
+          { valor: "barato", rotulo: "Mais barato", desligado: !temPrecos },
+          { valor: "faltando", rotulo: "Menos faltando" },
+        ]}
+      />
+      <OpcoesDaConta />
+    </div>
+  );
+}
+
+/** O que entra na conta do "quanto falta": runas básicas e sideboard. À vista na lista e no detalhe do deck. */
+export function OpcoesDaConta() {
+  const { prefs, setPrefs } = useSessao();
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <Chip ativo={prefs.runas} onClick={() => setPrefs({ runas: !prefs.runas })}>
+          <Gem size={13} /> {prefs.runas ? "Runas básicas: conto como minhas" : "Runas: só as da coleção"}
+        </Chip>
+        <Chip ativo={prefs.sideboard} onClick={() => setPrefs({ sideboard: !prefs.sideboard })}>
+          <Layers size={13} /> {prefs.sideboard ? "Sideboard: conta no que falta" : "Sideboard: não conta"}
+        </Chip>
       </div>
-      <Folha aberta={aberto} onFechar={() => setAberto(false)} titulo="Conta da conclusão">
-        <div className="divide-y divide-linha">
-          <Alternador ligado={prefs.runas} onChange={(runas) => setPrefs({ runas })}>
-            Conto com as runas básicas
-            <span className="block text-xs text-apagado">Quase todo jogador tem as runas de um deck inicial.</span>
-          </Alternador>
-          <Alternador ligado={prefs.sideboard} onChange={(sideboard) => setPrefs({ sideboard })}>
-            Incluir o sideboard
-            <span className="block text-xs text-apagado">O sideboard não é necessário pra jogar.</span>
-          </Alternador>
-        </div>
-        <p className="mt-4 text-xs leading-relaxed text-apagado">
-          &quot;Mais barato&quot; ordena pelo custo estimado do que falta (TCGplayer convertido pra reais). &quot;Menos faltando&quot;, pelo número de cópias
-          que ainda faltam.
-        </p>
-      </Folha>
-    </>
+      {prefs.runas && (
+        <p className="text-xs text-apagado">As runas básicas estão contando como suas mesmo sem estarem na coleção. Toque acima pra contar só as que você tem.</p>
+      )}
+    </div>
   );
 }
 

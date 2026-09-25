@@ -50,6 +50,14 @@ def salvar_alteracoes(banco: Banco, mudancas: dict[str, int]) -> None:
         banco.lote([_comando(carta, int(qtd)) for carta, qtd in mudancas.items()])
 
 
+def adicionar(banco: Banco, cartas: dict[str, int]) -> dict[str, int]:
+    """Soma cópias à coleção (ex.: "comprei o que faltava"). Devolve as quantidades novas dessas cartas."""
+    tenho = listar(banco)
+    novas = {carta: tenho.get(carta, 0) + int(qtd) for carta, qtd in cartas.items() if int(qtd) > 0}
+    salvar_alteracoes(banco, novas)
+    return novas
+
+
 def definir(banco: Banco, carta: str, quantidade: int) -> None:
     salvar_alteracoes(banco, {carta: quantidade})
 

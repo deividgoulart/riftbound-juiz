@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
-import useSWR from "swr";
-import { ArrowLeft, Check, CheckCircle2, Copy, Download, ExternalLink, ShoppingCart, Trash2 } from "lucide-react";
+import useSWR, { useSWRConfig } from "swr";
+import { ArrowLeft, Check, CheckCircle2, Copy, CopyPlus, Download, ExternalLink, Pencil, ShoppingCart, Trash2 } from "lucide-react";
 import { buscar, dataCurta, pedir, reais, type DetalheDoDeck } from "@/lib/api";
 import { useSessao } from "@/lib/sessao";
-import { parametrosDaConta } from "@/components/decks";
-import { Aviso, Botao, Cartao, Carregando, ImagemDaCarta, PontosDosDominios, Progresso, juntar } from "@/components/ui";
+import { ImagemDaCarta, NomeDaCarta } from "@/components/carta";
+import { OpcoesDaConta, parametrosDaConta } from "@/components/decks";
+import { FormularioDoDeck } from "@/components/formulario-deck";
+import { Aviso, Botao, Cartao, Carregando, PontosDosDominios, Progresso, juntar } from "@/components/ui";
 
 function ListaDeCompra({ d }: { d: DetalheDoDeck }) {
   const [copiada, setCopiada] = useState(false);
@@ -56,9 +58,13 @@ export default function PaginaDoDeck() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { prefs, podeEditar } = useSessao();
-  const { data: d, error } = useSWR<DetalheDoDeck>(`/api/decks/${id}?${parametrosDaConta(prefs)}`, buscar);
+  const { data: d, error, mutate } = useSWR<DetalheDoDeck>(`/api/decks/${id}?${parametrosDaConta(prefs)}`, buscar);
+  const { mutate: mutarGlobal } = useSWRConfig();
   const [apagando, setApagando] = useState(false);
+  const [editando, setEditando] = useState(false);
+  const [ocupado, setOcupado] = useState<string | null>(null); // o que está sendo salvo agora
   const [erro, setErro] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
 
   if (error) return <Aviso tipo="erro">{error.message}</Aviso>;
   if (!d) return <Carregando />;
@@ -66,6 +72,35 @@ export default function PaginaDoDeck() {
   const doMeta = d.origem !== "manual";
   const voltar = doMeta ? "/meta" : "/decks";
   const secoes = [...new Set(d.cartas.map((c) => c.secao_nome))];
+
+  /** Soma cópias à coleção ("já tenho" / "comprei tudo") e atualiza o deck, a coleção e as listas. */
+  async function jaTenho(cartas: Record<string, number>, rotulo: string) {
+    setOcupado(rotulo);
+    setErro(null);
+    try {
+      await pedir("/api/colecao/adicionar", { method: "POST", body: JSON.stringify({ cartas }) });
+      const copias = Object.values(cartas).reduce((a, b) => a + b, 0);
+      setAviso(`${copias === 1 ? "1 cópia somada" : `${copias} cópias somadas`} à sua coleção.`);
+      await Promise.all([mutate(), mutarGlobal((chave) => typeof chave === "string" && (chave.startsWith("/api/decks?") || chave === "/api/colecao"))]);
+    } catch (e) {
+      setErro((e as Error).message);
+    } finally {
+      setOcupado(null);
+    }
+  }
+
+  async function copiar() {
+    setOcupado("copiar");
+    setErro(null);
+    try {
+      const { id: copia } = await pedir<{ id: string }>(`/api/decks/${d!.id}/copiar`, { method: "POST" });
+      await mutarGlobal((chave) => typeof chave === "string" && chave.startsWith("/api/decks?"));
+      router.push(`/decks/${copia}`);
+    } catch (e) {
+      setErro((e as Error).message);
+      setOcupado(null);
+    }
+  }
 
   async function apagar() {
     if (!confirm(`Apagar o deck "${d!.nome}"?`)) return;
@@ -87,7 +122,7 @@ export default function PaginaDoDeck() {
 
       <Cartao className="overflow-hidden">
         <div className="flex gap-4 p-4">
-          <ImagemDaCarta nome={d.lenda?.rotulo ?? d.nome} imagem={d.lenda?.imagem} dominios={d.lenda?.dominios} className="w-24 shrink-0 sm:w-32" />
+          <ImagemDaCarta nome={d.lenda?.rotulo ?? d.nome} carta={d.lenda?.nome} imagem={d.lenda?.imagem} dominios={d.lenda?.dominios} className="w-24 shrink-0 sm:w-32" />
           <div className="min-w-0 flex-1">
             {d.lenda && <PontosDosDominios dominios={d.lenda.dominios} />}
             <h1 className="mt-1 font-titulo text-xl font-bold leading-tight text-ouro sm:text-2xl">{doMeta && d.lenda ? d.lenda.rotulo : d.nome}</h1>
@@ -117,7 +152,28 @@ export default function PaginaDoDeck() {
             )}
           </div>
         </div>
+        <div className="border-t border-linha px-4 py-3">
+          <OpcoesDaConta />
+        </div>
       </Cartao>
+
+      {podeEditar && (
+        <div className="flex flex-wrap gap-2">
+          {doMeta ? (
+            <Botao variante="secundario" onClick={copiar} disabled={ocupado === "copiar"}>
+              <CopyPlus size={16} /> {ocupado === "copiar" ? "Copiando..." : "Copiar pros meus decks"}
+            </Botao>
+          ) : (
+            <Botao variante="secundario" onClick={() => setEditando(true)}>
+              <Pencil size={16} /> Editar
+            </Botao>
+          )}
+        </div>
+      )}
+      {editando && (
+        <FormularioDoDeck aberta onFechar={() => setEditando(false)} deck={d} onSalvo={() => setAviso("Deck salvo.")} />
+      )}
+      {aviso && <Aviso tipo="ok">{aviso}</Aviso>}
 
       {d.faltando.length === 0 ? (
         <Aviso tipo="ok">
@@ -128,15 +184,31 @@ export default function PaginaDoDeck() {
       ) : (
         <>
           <Cartao className="p-4">
-            <h2 className="mb-3 font-semibold">
-              Faltam {d.copias_faltando} cópias de {d.cartas_faltando} cartas
-            </h2>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="font-semibold">
+                {d.copias_faltando === 1 ? "Falta 1 cópia" : `Faltam ${d.copias_faltando} cópias`} de{" "}
+                {d.cartas_faltando === 1 ? "1 carta" : `${d.cartas_faltando} cartas`}
+              </h2>
+              {podeEditar && (
+                <button
+                  type="button"
+                  disabled={!!ocupado}
+                  onClick={() =>
+                    confirm(`Somar as ${d.copias_faltando} cópias que faltam à sua coleção?`) &&
+                    jaTenho(Object.fromEntries(d.faltando.map((c) => [c.carta, c.falta])), "tudo")
+                  }
+                  className="shrink-0 rounded-lg border border-ok/40 px-2.5 py-1.5 text-xs text-ok hover:bg-ok/10 disabled:opacity-50"
+                >
+                  {ocupado === "tudo" ? "Somando..." : "Comprei tudo"}
+                </button>
+              )}
+            </div>
             <ul className="divide-y divide-linha">
               {d.faltando.map((c) => (
                 <li key={c.carta} className="flex items-center gap-3 py-2.5">
                   <ImagemDaCarta nome={c.carta} imagem={c.imagem} className="w-10 shrink-0 rounded-md" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{c.carta}</p>
+                    <NomeDaCarta carta={c.carta} className="block w-full text-sm font-medium" />
                     <p className="text-xs text-apagado">
                       tenho {c.tem} de {c.precisa}
                     </p>
@@ -150,6 +222,18 @@ export default function PaginaDoDeck() {
                   >
                     Liga <ExternalLink size={12} />
                   </a>
+                  {podeEditar && (
+                    <button
+                      type="button"
+                      disabled={!!ocupado}
+                      onClick={() => jaTenho({ [c.carta]: c.falta }, c.carta)}
+                      title={`Já tenho: somar ${c.falta} à coleção`}
+                      aria-label={`Já tenho ${c.carta}: somar ${c.falta} à coleção`}
+                      className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-linha text-ok hover:bg-ok/10 disabled:opacity-50"
+                    >
+                      {ocupado === c.carta ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-ok border-t-transparent" /> : <Check size={15} />}
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -164,7 +248,10 @@ export default function PaginaDoDeck() {
         <div className="space-y-4">
           {secoes.map((secao) => (
             <div key={secao}>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-apagado">{secao}</h3>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-apagado">
+                {secao}
+                {secao === "Sideboard" && !prefs.sideboard && <span className="ml-2 normal-case tracking-normal">· não conta no que falta</span>}
+              </h3>
               <ul className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
                 {d.cartas
                   .filter((c) => c.secao_nome === secao)
@@ -173,7 +260,7 @@ export default function PaginaDoDeck() {
                     return (
                       <li key={`${c.secao}-${c.carta}`} className="flex items-center gap-2 text-sm">
                         <span className="w-6 text-right font-semibold text-ouro">{c.quantidade}</span>
-                        <span className={juntar("min-w-0 flex-1 truncate", c.tem !== null && !completa && "text-apagado")}>{c.carta}</span>
+                        <NomeDaCarta carta={c.carta} className={juntar("min-w-0 flex-1", c.tem !== null && !completa && "text-apagado")} />
                         {c.tem !== null && (completa ? <Check size={14} className="text-ok" /> : <span className="text-xs text-apagado">tenho {c.tem}</span>)}
                       </li>
                     );

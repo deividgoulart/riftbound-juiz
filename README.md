@@ -107,7 +107,8 @@ riftbound-juiz/
 │   ├── registro.py         # guarda perguntas e 👍/👎 em data/logs/ (etapa 6)
 │   ├── avaliar_respostas.py # avalia as respostas: métricas, avaliador LLM e revisão humana (etapa 7)
 │   ├── atualizar.py        # baixa e processa FAQ e CRD e atualiza os índices, só o que mudou (etapa 8)
-│   └── limites.py          # modo convidado do app publicado: limites e senha (etapa 8)
+│   ├── limites.py          # modo convidado do app publicado: limites e senha (etapa 8)
+│   └── fichas.py           # ficha da carta: texto oficial e dúvidas do FAQ (fase 3)
 ├── decks/                  # deck builder (fase 2), sem a API: só lógica e banco
 │   ├── banco.py            # SQLite local ou Turso (SQLite na nuvem) pela API HTTP
 │   ├── catalogo.py         # tabela mestre de cartas (card-catalog.json + runas) e nomes
@@ -640,10 +641,12 @@ Navegador ──> site (Next.js, na Vercel) ──> API (FastAPI, no Render) ─
 - **Site (`web/`):** Next.js + Tailwind, pensado primeiro pro celular (barra de navegação embaixo, janelas que sobem de baixo) e com tema escuro nas cores do Riftbound (dourado, azul e as cores dos domínios). Títulos em Cinzel e texto em Inter.
   - **Juiz:** o chat, com o Deck em foco, as citações com link, as fontes e o plano B. A conversa fica guardada na aba do navegador.
   - **Coleção:** grade de cartas com a arte oficial, + e −, filtros por tipo e domínio e importação do CSV da Liga.
-  - **Meus decks:** só os decks que você cadastrou, na ordem "mais barato de completar" ou "menos faltando", com o custo estimado.
-  - **Detalhe do deck:** o que falta, com link de cada carta na Liga, e a lista pronta pra copiar e colar na Compra por Lista.
+  - **Meus decks:** só os decks que você cadastrou, na ordem "mais barato de completar" ou "menos faltando", com o custo estimado. As **runas básicas** contam só se estiverem na coleção (antes, contavam como suas por padrão e os decks pareciam mais completos do que eram); um botão à vista liga a opção de contar com as de um deck inicial.
+  - **Detalhe do deck:** o que falta, com link de cada carta na Liga, e a lista pronta pra copiar e colar na Compra por Lista. Com a senha: **Editar** o deck (nome, link e lista, no mesmo formato da importação), **Copiar pros meus decks** um deck do meta, e **Já tenho** numa carta que falta (ou **Comprei tudo**), que soma as cópias na coleção sem precisar procurar carta por carta.
   - **Meta:** os decks de torneio, com filtro por lenda.
+  - **Ficha da carta:** tocar em qualquer carta abre a ficha dela: a arte grande (toque de novo pra tela cheia), o texto oficial com as palavras-chave em destaque, as **dúvidas do FAQ** sobre ela e as páginas das mecânicas do texto, com link, e o botão **Perguntar ao juiz sobre esta carta**, que abre o chat com a pergunta começada. Os battlefields, que têm arte deitada, aparecem girados nas grades pra caber.
 - **API (`api/`):** FastAPI por cima dos pacotes `juiz/` e `decks/`, que não mudaram. A documentação de todas as rotas fica em `/docs`. O juiz e o deck builder carregam uma vez quando a API liga e se atualizam sozinhos uma vez por dia, sem parar os pedidos.
+- **Sem explicação escrita por IA na ficha:** foi testado um "como usar" de cada carta, escrito de antemão por um LLM no computador (Ollama, com o Qwen3 8B e o 30B-A3B), pra não gastar o Gemini. Os modelos traduziam os termos do jogo ("feitiço", "lixo"), inventavam regras e citavam a fonte assim mesmo, e nem a conferência automática deixou o resultado confiável. A ideia foi abandonada: a ficha mostra só o que vem das fontes (texto oficial e dúvidas do FAQ), e pra qualquer outra dúvida tem o atalho pro juiz, que usa o Gemini com as regras e cita as fontes.
 - **Arte das cartas:** vem da galeria oficial da Riot (o mesmo lugar dos códigos das cartas); o site mostra a imagem direto do site da Riot. Sem a galeria, cada carta aparece como um cartão com as cores dos domínios.
 - **Por que dois serviços:** a Vercel é ótima pra sites, mas o juiz precisa de um servidor Python ligado (ele carrega as regras e o índice na memória). A API fica no Render, que roda Python de graça.
 - **Sem a busca reserva local na API publicada:** o plano grátis do Render tem 512 MB de memória, e o PyTorch (que roda o e5-small) passa disso sozinho. A API instala `requirements.txt`, sem o PyTorch (medido: ~85 MB antes de carregar as regras); a reserva continua no seu computador (`requirements-dev.txt`). O Hugging Face Spaces, que teria memória de sobra, passou a cobrar por Spaces com Docker em 2026.

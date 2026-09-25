@@ -5,7 +5,8 @@ import useSWR from "swr";
 import { Download, FileUp, Minus, Plus, Search } from "lucide-react";
 import { API_URL, buscar, lerToken, pedir, type Carta, type Colecao, type RelatorioCsv } from "@/lib/api";
 import { useSessao } from "@/lib/sessao";
-import { Alternador, Aviso, Botao, Cabecalho, Carregando, Chip, Folha, ImagemDaCarta, NOMES_DOS_DOMINIOS, corDoDominio, juntar } from "@/components/ui";
+import { ImagemDaCarta } from "@/components/carta";
+import { Alternador, Aviso, Botao, Cabecalho, Carregando, Chip, Folha, NOMES_DOS_DOMINIOS, corDoDominio, juntar } from "@/components/ui";
 
 const TIPOS = [
   ["Unit", "Units"],
@@ -225,7 +226,7 @@ export default function PaginaDaColecao() {
                 {qtd > 0 && (
                   <span
                     className={juntar(
-                      "absolute right-1.5 top-1.5 min-w-7 rounded-full px-2 py-0.5 text-center text-xs font-bold shadow",
+                      "pointer-events-none absolute right-1.5 top-1.5 z-20 min-w-7 rounded-full px-2 py-0.5 text-center text-xs font-bold shadow",
                       mudou ? "bg-azul text-fundo" : "bg-ouro text-fundo",
                     )}
                   >

@@ -23,8 +23,9 @@ type Sessao = {
 };
 
 const Contexto = createContext<Sessao | null>(null);
-const CHAVE_DAS_PREFERENCIAS = "juiz-riftbound:preferencias";
-const PADRAO: Preferencias = { runas: true, sideboard: false, ordem: "barato" };
+// v2: as runas básicas deixaram de contar como "tenho" por padrão (a chave nova descarta o padrão antigo)
+const CHAVE_DAS_PREFERENCIAS = "juiz-riftbound:preferencias-v2";
+const PADRAO: Preferencias = { runas: false, sideboard: false, ordem: "barato" };
 
 export function ProvedorDaSessao({ children }: { children: React.ReactNode }) {
   const { data: info, error, mutate } = useSWR<Info>("/api/info", buscar, { revalidateOnFocus: false });

@@ -175,6 +175,7 @@ export type DetalheDoDeck = ResumoDoDeck & {
   cartas: { secao: string; secao_nome: string; carta: string; quantidade: number; tem: number | null; imagem: string | null }[];
   faltando: { carta: string; precisa: number; tem: number; falta: number; imagem: string | null; liga: string }[];
   lista_de_compra: string;
+  lista_texto: string;
   compra_por_lista: string;
   legenda_dos_precos: string | null;
 };
@@ -191,6 +192,17 @@ export type RelatorioCsv = {
   desconhecidas: { texto: string; sugestoes: string[] }[];
   invalidas: number;
   substituiu: boolean;
+};
+
+export type FichaDaCarta = {
+  nome: string;
+  texto: string | null;
+  atributos: { tipos?: string[]; dominios?: string[]; energia?: number | null; poder?: number | null; might?: number | null; tags?: string[] };
+  errata: boolean;
+  url_wiki: string | null;
+  imagem: string | null;
+  duvidas: { pergunta: string; url: string; pagina: string }[];
+  mecanicas: { pagina: string; url: string }[];
 };
 
 // --- Formatação ---

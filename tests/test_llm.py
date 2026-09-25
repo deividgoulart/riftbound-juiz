@@ -201,3 +201,4 @@ def test_resposta_vazia_conta_como_falha_e_passa_pra_proxima_reserva():
     assert cadeia.gerar("i", "m") == "resposta do principal"
     with pytest.raises(RuntimeError, match="resposta vazia"):
         LLMComReservas([Vazio()]).gerar("i", "m")
+
